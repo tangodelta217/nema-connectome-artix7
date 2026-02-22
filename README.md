@@ -36,9 +36,7 @@ nema compile <ir.json> --outdir build/
 nema hwtest <ir.json> --outdir build/
 nema materialize-external <ir.json> --out connectomes/<bundle>.json
 nema bench verify benches/<name>/manifest.json
-python -m nema dsl check programs/b1_small.nema.toml
-python -m nema dsl compile programs/b1_small.nema.toml --out build/b1_from_dsl.ir.json
-python -m nema dsl hwtest programs/b1_small.nema.toml --ticks 20 --outdir build/b1_dsl
+python -m nema dsl --help
 ```
 
 ## Benchmark Repro Commands
@@ -65,32 +63,16 @@ nema bench verify benches/B3_kernel_302_7500/manifest.json
 cat build/b3/bench_report.json
 ```
 
-## DSL Programs (MVP Frontend)
+## NEMA-DSL v0.1 (Scaffold)
 
-TOML DSL files live under `programs/` with extension `.nema.toml`:
+The textual DSL with braces/`;` is documented at:
+- `docs/nema_dsl_v0.1.md`
 
-- `programs/b1_small.nema.toml`
-- `programs/b3_kernel_302_7500.nema.toml`
-
-Defaults documented for v0.1 runtime compatibility:
-- if `graph.dt` is omitted in IR, simulator default is `1.0`
-- if `graph.tauM` and per-node `tauM` are omitted, simulator default is `1.0`
-
-Run B1 from DSL:
-
-```bash
-python -m nema dsl check programs/b1_small.nema.toml
-python -m nema dsl compile programs/b1_small.nema.toml --out build/b1_from_dsl.ir.json
-python -m nema dsl hwtest programs/b1_small.nema.toml --ticks 20 --outdir build/b1_dsl
-```
-
-Run B3 from DSL:
-
-```bash
-python -m nema dsl check programs/b3_kernel_302_7500.nema.toml
-python -m nema dsl compile programs/b3_kernel_302_7500.nema.toml --out build/b3_from_dsl.ir.json
-python -m nema dsl hwtest programs/b3_kernel_302_7500.nema.toml --ticks 20 --outdir build/b3_dsl
-```
+Current CLI scaffold subcommands exist but are intentionally NYI:
+- `python -m nema dsl check <file.dsl>`
+- `python -m nema dsl compile <file.dsl> --out <ir.json>`
+- `python -m nema dsl hwtest <file.dsl> --ticks N --outdir build/`
+- `python -m nema dsl from-ir <ir.json> --out <file.dsl>`
 
 ## Testing
 

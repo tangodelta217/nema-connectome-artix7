@@ -39,7 +39,7 @@ def _write_report(
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def test_audit_min_go(tmp_path: Path) -> None:
+def test_audit_min_reports_no_go_while_dsl_scaffold_is_nyi(tmp_path: Path) -> None:
     if shutil.which("g++") is None:
         pytest.skip("g++ not available")
 
@@ -73,14 +73,15 @@ def test_audit_min_go(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
     )
-    assert proc.returncode == 0
+    assert proc.returncode == 1
     payload = json.loads(proc.stdout)
-    assert payload["decision"] == "GO"
+    assert payload["decision"] == "NO-GO"
     assert payload["benchReportsScanned"] == 2
-    assert payload["dslReady"]["ok"] is True
+    assert payload["dslReady"]["ok"] is False
     assert payload["criteria"]["dslProgramsPresent"] is True
-    assert payload["criteria"]["dslCompileAndCheckOk"] is True
+    assert payload["criteria"]["dslCompileAndCheckOk"] is False
     assert payload["criteria"]["benchVerifyOk"] is True
+    assert any("DSL compile/check failed" in reason for reason in payload["reasons"])
 
 
 def test_audit_min_no_go_without_b3(tmp_path: Path) -> None:
