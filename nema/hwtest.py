@@ -17,6 +17,7 @@ from typing import Any
 from xml.etree import ElementTree
 
 from .codegen.hls_gen import generate_hls_project
+from .hw_reports.parse_vitis import parse_vitis_qor
 from .ir_resolve import resolve_ir_for_execution
 from .ir_validate import IRValidationError, validate_ir
 from .sim import simulate
@@ -808,6 +809,17 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
             "cosim": None,
             "reports": None,
         }
+
+    reports_dir_rel = None
+    reports_obj = hardware.get("reports")
+    if isinstance(reports_obj, dict):
+        raw_dir = reports_obj.get("directory")
+        if isinstance(raw_dir, str) and raw_dir:
+            reports_dir_rel = raw_dir
+    if reports_dir_rel is None:
+        reports_dir_rel = "hw_reports"
+    reports_dir_abs = model_root / reports_dir_rel
+    hardware["qor"] = parse_vitis_qor(reports_dir_abs, source_prefix=reports_dir_rel)
 
     tool_versions = _tool_versions(
         vitis_binary=str(vitis_info["binary"]) if vitis_info["available"] else None,

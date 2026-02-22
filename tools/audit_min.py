@@ -65,7 +65,10 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
     hardware = report.get("hardware")
     hardware_toolchain_available = None
     csim_ok = None
+    csynth_ok = None
     cosim_ok = None
+    listed_report_count = 0
+    qor_utilization_partial = False
     hardware_has_reports = False
     if isinstance(hardware, dict):
         toolchain = hardware.get("toolchain")
@@ -74,11 +77,41 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         csim = hardware.get("csim")
         if isinstance(csim, dict) and isinstance(csim.get("ok"), bool):
             csim_ok = csim.get("ok")
+        csynth = hardware.get("csynth")
+        if isinstance(csynth, dict) and isinstance(csynth.get("ok"), bool):
+            csynth_ok = csynth.get("ok")
         cosim = hardware.get("cosim")
         if isinstance(cosim, dict) and isinstance(cosim.get("ok"), bool):
             cosim_ok = cosim.get("ok")
+
+        reports = hardware.get("reports")
+        if isinstance(reports, dict):
+            files = reports.get("files")
+            if isinstance(files, list):
+                listed_report_count = sum(1 for item in files if isinstance(item, str) and item)
+                if listed_report_count > 0:
+                    hardware_has_reports = True
+
+        qor = hardware.get("qor")
+        if isinstance(qor, dict):
+            utilization = qor.get("utilization")
+            if isinstance(utilization, dict):
+                values = []
+                for key in ("lut", "ff", "bram", "dsp"):
+                    value = utilization.get(key)
+                    if isinstance(value, int):
+                        values.append(value)
+                qor_utilization_partial = len(values) > 0
+            src_reports = qor.get("sourceReports")
+            if isinstance(src_reports, list) and any(isinstance(item, str) and item for item in src_reports):
+                hardware_has_reports = True
+
+        if qor_utilization_partial:
+            hardware_has_reports = True
+
+        # Backward-compatible catch-all for legacy report payloads.
         for key, value in hardware.items():
-            if key in {"toolchain", "csim", "cosim"}:
+            if key in {"toolchain", "csim", "csynth", "cosim", "reports", "qor"}:
                 continue
             if value is not None:
                 hardware_has_reports = True
@@ -99,8 +132,11 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         "externalVerified": external_verified,
         "hardwareToolchainAvailable": hardware_toolchain_available,
         "csimOk": csim_ok,
+        "csynthOk": csynth_ok,
         "cosimOk": cosim_ok,
         "hardwareHasReports": hardware_has_reports,
+        "listedReportCount": listed_report_count,
+        "qorUtilizationPartial": qor_utilization_partial,
     }
 
 
@@ -403,10 +439,19 @@ def _evaluate_modes(
 
     hardware_g0b = any(
         item.get("hardwareToolchainAvailable") is True
-        and (item.get("csimOk") is True or item.get("cosimOk") is True)
+        and (
+            item.get("csimOk") is True
+            or item.get("csynthOk") is True
+            or item.get("cosimOk") is True
+        )
         for item in summaries
     )
-    hardware_g2 = bool(hw_reports) or any(item.get("hardwareHasReports") is True for item in summaries)
+    hardware_g2 = bool(hw_reports) or any(
+        (item.get("listedReportCount", 0) > 0)
+        or (item.get("qorUtilizationPartial") is True)
+        or (item.get("hardwareHasReports") is True)
+        for item in summaries
+    )
 
     criteria: dict[str, bool] = {
         "benchReportsFound": len(summaries) > 0,
@@ -453,8 +498,8 @@ def _evaluate_modes(
         "benchVerifyOk": "Bench manifest verification failed for one or more manifests",
         "graphCountsNormalized": "Missing normalized graph counts in relevant B1/B3 bench reports",
         "hardwareToolchainAvailable": "HW toolchain unavailable (vitis_hls/vivado not found)",
-        "hardwareEvidenceG0b": "No hardware evidence for G0b (toolchain available + csim/cosim ok)",
-        "hardwareEvidenceG2": "No hardware evidence for G2 (.rpt/.xml reports or non-null hardware report fields)",
+        "hardwareEvidenceG0b": "No hardware evidence for G0b (toolchain available + csim/csynth/cosim ok)",
+        "hardwareEvidenceG2": "No hardware evidence for G2 (qor utilization and/or hardware report files)",
     }
 
     mode_criteria = {

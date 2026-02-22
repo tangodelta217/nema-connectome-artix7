@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<profile>
+  <PerformanceEstimates>
+    <SummaryOfOverallLatency>
+      <Best-caseLatency>120</Best-caseLatency>
+      <Average-caseLatency>140</Average-caseLatency>
+      <Worst-caseLatency>160</Worst-caseLatency>
+      <Interval-min>2</Interval-min>
+      <Interval-max>3</Interval-max>
+    </SummaryOfOverallLatency>
+  </PerformanceEstimates>
+  <AreaEstimates>
+    <Resources>
+      <BRAM_18K>3</BRAM_18K>
+      <DSP>4</DSP>
+      <FF>567</FF>
+      <LUT>890</LUT>
+    </Resources>
+  </AreaEstimates>
+</profile>

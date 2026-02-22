@@ -98,6 +98,30 @@
     "csim": "null|object",
     "csynth": "null|object",
     "project": "null|str",
+    "qor": {
+      "bram": "int|null",
+      "dsp": "int|null",
+      "ff": "int|null",
+      "ii": "int|null",
+      "latencyCycles": "int|null",
+      "lut": "int|null",
+      "sourceReports": "list",
+      "timingOrLatencyKeys": [
+        "ii",
+        "latencyCycles"
+      ],
+      "topKeys": [
+        "sourceReports",
+        "timingOrLatency",
+        "utilization"
+      ],
+      "utilizationKeys": [
+        "bram",
+        "dsp",
+        "ff",
+        "lut"
+      ]
+    },
     "reports": "null|object",
     "toolchainKeys": [
       "available",
@@ -112,6 +136,7 @@
       "csim",
       "csynth",
       "project",
+      "qor",
       "reports",
       "toolchain"
     ],

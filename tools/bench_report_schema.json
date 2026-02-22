@@ -339,7 +339,8 @@
         "csim",
         "csynth",
         "cosim",
-        "reports"
+        "reports",
+        "qor"
       ],
       "properties": {
         "toolchain": {
@@ -419,6 +420,78 @@
           ],
           "properties": {
             "files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "qor": {
+          "type": "object",
+          "required": [
+            "utilization",
+            "timingOrLatency",
+            "sourceReports"
+          ],
+          "properties": {
+            "utilization": {
+              "type": "object",
+              "required": [
+                "lut",
+                "ff",
+                "bram",
+                "dsp"
+              ],
+              "properties": {
+                "lut": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "ff": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "bram": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "dsp": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "timingOrLatency": {
+              "type": "object",
+              "required": [
+                "ii",
+                "latencyCycles"
+              ],
+              "properties": {
+                "ii": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "latencyCycles": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "sourceReports": {
               "type": "array",
               "items": {
                 "type": "string"
