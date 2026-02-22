@@ -1,8 +1,53 @@
 {
   "name": "example_b1_small_subgraph",
+  "constraints": {
+    "allowedSpdx": [
+      "Apache-2.0",
+      "MIT"
+    ]
+  },
+  "license": {
+    "spdxId": "Apache-2.0"
+  },
   "graph": {
-    "nodes": [],
-    "edges": []
+    "nodes": [
+      {
+        "id": "n0",
+        "index": 0,
+        "canonicalOrderId": 0
+      },
+      {
+        "id": "n1",
+        "index": 1,
+        "canonicalOrderId": 1
+      }
+    ],
+    "edges": [
+      {
+        "id": "e_chem_0",
+        "kind": "CHEMICAL",
+        "source": "n0",
+        "target": "n1",
+        "directed": true,
+        "conductance": 0.5
+      },
+      {
+        "id": "e_gap_0_fwd",
+        "kind": "GAP",
+        "source": "n0",
+        "target": "n1",
+        "directed": true,
+        "conductance": 0.125
+      },
+      {
+        "id": "e_gap_0_rev",
+        "kind": "GAP",
+        "source": "n1",
+        "target": "n0",
+        "directed": true,
+        "conductance": 0.125
+      }
+    ]
   },
   "tanhLut": {
     "policy": "nema.tanh_lut.v0.1",

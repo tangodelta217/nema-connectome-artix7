@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 from .fixed import run_selftest as run_fixed_selftest
-from .ir import IRValidationError, validate_ir
+from .ir_validate import IRValidationError, validate_ir
 
 
 def write_json(path: Path, payload: dict) -> None:

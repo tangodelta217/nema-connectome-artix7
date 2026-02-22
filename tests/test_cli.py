@@ -7,7 +7,27 @@ from nema.cli import main
 
 
 def write_ir(path: Path) -> None:
-    path.write_text(json.dumps({"graph": {"nodes": []}}), encoding="utf-8")
+    payload = {
+        "constraints": {"allowedSpdx": ["MIT"]},
+        "license": {"spdxId": "MIT"},
+        "graph": {
+            "nodes": [
+                {"id": "n0", "index": 0, "canonicalOrderId": 0},
+                {"id": "n1", "index": 1, "canonicalOrderId": 1},
+            ],
+            "edges": [
+                {
+                    "id": "e0",
+                    "kind": "CHEMICAL",
+                    "source": "n0",
+                    "target": "n1",
+                    "directed": True,
+                    "conductance": 0.1,
+                }
+            ],
+        },
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
 
 
 def test_check_command_ok(tmp_path: Path, capsys) -> None:
