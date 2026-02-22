@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from .toolchain import check_ir, run_compile, run_hwtest, run_sim, selftest_fixed
+from .toolchain import check_ir, dump_csr, run_compile, run_hwtest, run_sim, selftest_fixed
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,6 +32,10 @@ def build_parser() -> argparse.ArgumentParser:
     compile_cmd = subparsers.add_parser("compile", help="generate HLS C++ placeholder")
     compile_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     compile_cmd.add_argument("--outdir", type=Path, default=Path("build"), help="output directory")
+
+    dump_csr_cmd = subparsers.add_parser("dump-csr", help="lower graph and dump deterministic CSR JSON")
+    dump_csr_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
+    dump_csr_cmd.add_argument("--out", type=Path, required=True, help="CSR dump output path")
 
     hwtest_cmd = subparsers.add_parser(
         "hwtest",
@@ -73,6 +77,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "compile":
         code, report = run_compile(args.ir_json, outdir=args.outdir)
+        _emit(report)
+        return code
+
+    if args.command == "dump-csr":
+        code, report = dump_csr(args.ir_json, out_path=args.out)
         _emit(report)
         return code
 

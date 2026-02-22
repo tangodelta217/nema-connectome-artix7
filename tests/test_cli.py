@@ -78,6 +78,21 @@ def test_compile_creates_kernel_and_manifest(tmp_path: Path) -> None:
     assert (outdir / "compile_manifest.json").exists()
 
 
+def test_dump_csr_creates_json(tmp_path: Path) -> None:
+    ir = tmp_path / "ir.json"
+    out = tmp_path / "csr_dump.json"
+    write_ir(ir)
+
+    code = main(["dump-csr", str(ir), "--out", str(out)])
+
+    assert code == 0
+    assert out.exists()
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert "chemical_csr" in payload
+    assert "row_ptr_u16" in payload["chemical_csr"]
+
+
 def test_hwtest_emits_bench_report(tmp_path: Path) -> None:
     ir = tmp_path / "ir.json"
     outdir = tmp_path / "build"

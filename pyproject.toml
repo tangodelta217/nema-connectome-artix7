@@ -13,8 +13,8 @@ dependencies = []
 [project.scripts]
 nema = "nema.cli:main"
 
-[tool.setuptools]
-packages = ["nema"]
+[tool.setuptools.packages.find]
+include = ["nema*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
