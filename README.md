@@ -79,3 +79,17 @@ Current CLI scaffold subcommands exist but are intentionally NYI:
 ```bash
 python -m pytest
 ```
+
+## Audit Gates
+
+For local software development (default gate):
+
+```bash
+python tools/audit_min.py --mode software
+```
+
+For HW lab environments (requires toolchain/report evidence):
+
+```bash
+python tools/audit_min.py --mode hardware
+```
