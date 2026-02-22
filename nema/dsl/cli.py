@@ -6,9 +6,12 @@ import argparse
 import json
 import re
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from .catalog import make_diag
+from .diagnostics import Diagnostic, Severity, sort_key
 from .errors import DslError
 from .lower import dump_json, lower_to_ir
 from .parser import parse
@@ -16,23 +19,56 @@ from ..hwtest import run_hwtest_pipeline
 from ..ir_validate import IRValidationError, validate_ir
 
 
+def _add_diag_flags(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="diagnostics output format",
+    )
+    parser.add_argument(
+        "--Werror",
+        dest="werror",
+        action="store_true",
+        help="treat warnings as errors",
+    )
+    parser.set_defaults(no_color=True)
+    parser.add_argument(
+        "--no-color",
+        dest="no_color",
+        action="store_true",
+        help="disable ANSI color in text diagnostics",
+    )
+    parser.add_argument(
+        "--color",
+        dest="no_color",
+        action="store_false",
+        help=argparse.SUPPRESS,
+    )
+
+
 def add_dsl_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> argparse.ArgumentParser:
     dsl_cmd = subparsers.add_parser("dsl", help="NEMA-DSL v0.1 commands")
+    _add_diag_flags(dsl_cmd)
     dsl_subparsers = dsl_cmd.add_subparsers(dest="dsl_command", required=True)
 
     check_cmd = dsl_subparsers.add_parser("check", help="parse/lower DSL and validate IR invariants")
+    _add_diag_flags(check_cmd)
     check_cmd.add_argument("dsl_file", type=Path, help="path to .nema source")
 
     compile_cmd = dsl_subparsers.add_parser("compile", help="compile NEMA-DSL to IR JSON")
+    _add_diag_flags(compile_cmd)
     compile_cmd.add_argument("dsl_file", type=Path, help="path to .nema source")
     compile_cmd.add_argument("--out", type=Path, required=True, help="compiled IR JSON output path")
 
     hwtest_cmd = dsl_subparsers.add_parser("hwtest", help="compile DSL and run hwtest pipeline")
+    _add_diag_flags(hwtest_cmd)
     hwtest_cmd.add_argument("dsl_file", type=Path, help="path to .nema source")
     hwtest_cmd.add_argument("--ticks", type=int, required=True, help="number of ticks")
     hwtest_cmd.add_argument("--outdir", type=Path, default=Path("build"), help="output directory")
 
     from_ir_cmd = dsl_subparsers.add_parser("from-ir", help="generate DSL source from IR JSON")
+    _add_diag_flags(from_ir_cmd)
     from_ir_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     from_ir_cmd.add_argument("--out", type=Path, required=True, help="DSL output path (.nema)")
 
@@ -188,65 +224,232 @@ def _absolutize_runtime_ir_paths(ir_obj: dict[str, Any], *, dsl_path: Path) -> d
     return payload
 
 
+def _sorted_diagnostics(diags: list[Diagnostic]) -> list[Diagnostic]:
+    return sorted(diags, key=sort_key)
+
+
+def _with_path(diag: Diagnostic, fallback_path: str) -> Diagnostic:
+    if diag.path and diag.path != "<input>":
+        return diag
+    return replace(diag, path=fallback_path)
+
+
+def _finalize(
+    *,
+    code: int,
+    payload: dict[str, Any] | None = None,
+    diagnostics: list[Diagnostic] | None = None,
+    werror: bool = False,
+) -> tuple[int, dict]:
+    ordered = _sorted_diagnostics(diagnostics or [])
+    has_error = any(diag.severity == Severity.ERROR for diag in ordered)
+    has_warning = any(diag.severity == Severity.WARNING for diag in ordered)
+
+    effective_code = code
+    if has_error and effective_code == 0:
+        effective_code = 1
+    if werror and has_warning and effective_code == 0:
+        effective_code = 1
+
+    out = dict(payload or {})
+    out["diagnostics"] = [diag.to_dict() for diag in ordered]
+    out["ok"] = effective_code == 0
+    return effective_code, out
+
+
+def _diag_from_file_error(path: Path, exc: OSError) -> Diagnostic:
+    return make_diag(
+        code="DSL0009",
+        severity=Severity.ERROR,
+        path=str(path),
+        line=1,
+        col=1,
+        detail=str(exc),
+    )
+
+
+def _diag_from_write_error(path: Path, exc: OSError) -> Diagnostic:
+    return make_diag(
+        code="DSL0010",
+        severity=Severity.ERROR,
+        path=str(path),
+        line=1,
+        col=1,
+        detail=str(exc),
+    )
+
+
+def _diag_from_exception(path: Path, exc: Exception) -> Diagnostic:
+    if isinstance(exc, DslError):
+        return _with_path(exc.diagnostic, str(path))
+    return make_diag(
+        code="DSL0015",
+        severity=Severity.ERROR,
+        path=str(path),
+        line=1,
+        col=1,
+        detail=str(exc),
+    )
+
+
 def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
+    werror = bool(getattr(args, "werror", False))
     command = getattr(args, "dsl_command", None)
     if command not in {"compile", "check", "hwtest", "from-ir"}:
-        return 2, {"ok": False, "error": "NYI: unknown DSL subcommand"}
+        diag = make_diag(
+            code="DSL0014",
+            severity=Severity.ERROR,
+            path="<cli>",
+            line=1,
+            col=1,
+            command=str(command),
+        )
+        return _finalize(
+            code=2,
+            payload={"command": command},
+            diagnostics=[diag],
+            werror=werror,
+        )
 
     if command == "compile":
         try:
             source = args.dsl_file.read_text(encoding="utf-8")
         except OSError as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file), "outPath": str(args.out)},
+                diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
+                werror=werror,
+            )
 
         try:
             lowered = _compile_source_to_ir(source)
             dump_json(lowered, args.out)
+        except OSError as exc:
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file), "outPath": str(args.out)},
+                diagnostics=[_diag_from_write_error(args.out, exc)],
+                werror=werror,
+            )
         except (DslError, ValueError) as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file), "outPath": str(args.out)},
+                diagnostics=[_diag_from_exception(args.dsl_file, exc)],
+                werror=werror,
+            )
 
-        return 0, {
-            "ok": True,
-            "dslPath": str(args.dsl_file),
-            "outPath": str(args.out),
-        }
+        return _finalize(
+            code=0,
+            payload={
+                "dslPath": str(args.dsl_file),
+                "outPath": str(args.out),
+            },
+            diagnostics=[],
+            werror=werror,
+        )
 
     if command == "from-ir":
         try:
             raw = json.loads(args.ir_json.read_text(encoding="utf-8"))
         except OSError as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"irPath": str(args.ir_json), "outPath": str(args.out)},
+                diagnostics=[_diag_from_file_error(args.ir_json, exc)],
+                werror=werror,
+            )
         except json.JSONDecodeError as exc:
-            return 1, {"ok": False, "error": f"invalid JSON: {exc}"}
+            diag = make_diag(
+                code="DSL0011",
+                severity=Severity.ERROR,
+                path=str(args.ir_json),
+                line=exc.lineno or 1,
+                col=exc.colno or 1,
+                detail=str(exc),
+            )
+            return _finalize(
+                code=1,
+                payload={"irPath": str(args.ir_json), "outPath": str(args.out)},
+                diagnostics=[diag],
+                werror=werror,
+            )
 
         if not isinstance(raw, dict):
-            return 1, {"ok": False, "error": "IR root must be a JSON object"}
+            diag = make_diag(
+                code="DSL0015",
+                severity=Severity.ERROR,
+                path=str(args.ir_json),
+                line=1,
+                col=1,
+                detail="IR root must be a JSON object",
+            )
+            return _finalize(
+                code=1,
+                payload={"irPath": str(args.ir_json), "outPath": str(args.out)},
+                diagnostics=[diag],
+                werror=werror,
+            )
 
         try:
             source = _render_dsl(raw)
         except ValueError as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"irPath": str(args.ir_json), "outPath": str(args.out)},
+                diagnostics=[
+                    make_diag(
+                        code="DSL0015",
+                        severity=Severity.ERROR,
+                        path=str(args.ir_json),
+                        line=1,
+                        col=1,
+                        detail=str(exc),
+                    )
+                ],
+                werror=werror,
+            )
 
         try:
             args.out.parent.mkdir(parents=True, exist_ok=True)
             args.out.write_text(source, encoding="utf-8")
         except OSError as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"irPath": str(args.ir_json), "outPath": str(args.out)},
+                diagnostics=[_diag_from_write_error(args.out, exc)],
+                werror=werror,
+            )
 
-        return 0, {
-            "ok": True,
-            "irPath": str(args.ir_json),
-            "outPath": str(args.out),
-        }
+        return _finalize(
+            code=0,
+            payload={
+                "irPath": str(args.ir_json),
+                "outPath": str(args.out),
+            },
+            diagnostics=[],
+            werror=werror,
+        )
 
     if command == "check":
         try:
             source = args.dsl_file.read_text(encoding="utf-8")
             lowered = _compile_source_to_ir(source)
         except OSError as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
+                werror=werror,
+            )
         except (DslError, ValueError) as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[_diag_from_exception(args.dsl_file, exc)],
+                werror=werror,
+            )
 
         temp_path: Path | None = None
         try:
@@ -261,35 +464,94 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
                 temp_path = Path(handle.name)
                 handle.write(json.dumps(lowered, indent=2, sort_keys=True) + "\n")
             report = validate_ir(temp_path)
-        except (IRValidationError, OSError) as exc:
-            return 1, {"ok": False, "error": str(exc)}
+        except OSError as exc:
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[_diag_from_write_error(args.dsl_file, exc)],
+                werror=werror,
+            )
+        except IRValidationError as exc:
+            diag = make_diag(
+                code="DSL0012",
+                severity=Severity.ERROR,
+                path=str(args.dsl_file),
+                line=1,
+                col=1,
+                detail=str(exc),
+            )
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[diag],
+                werror=werror,
+            )
         finally:
             if temp_path is not None:
                 temp_path.unlink(missing_ok=True)
 
-        return 0, {
-            "ok": True,
-            "dslPath": str(args.dsl_file),
-            "nodeCount": report.get("node_count"),
-            "edgeCount": report.get("edge_count"),
-            "irSha256": report.get("ir_sha256"),
-        }
+        return _finalize(
+            code=0,
+            payload={
+                "dslPath": str(args.dsl_file),
+                "nodeCount": report.get("node_count"),
+                "edgeCount": report.get("edge_count"),
+                "irSha256": report.get("ir_sha256"),
+            },
+            diagnostics=[],
+            werror=werror,
+        )
 
     if command == "hwtest":
         if args.ticks < 0:
-            return 1, {"ok": False, "error": "--ticks must be >= 0"}
+            diag = make_diag(
+                code="DSL0015",
+                severity=Severity.ERROR,
+                path=str(args.dsl_file),
+                line=1,
+                col=1,
+                detail="--ticks must be >= 0",
+            )
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[diag],
+                werror=werror,
+            )
 
         try:
             source = args.dsl_file.read_text(encoding="utf-8")
             lowered = _compile_source_to_ir(source)
         except OSError as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
+                werror=werror,
+            )
         except (DslError, ValueError) as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[_diag_from_exception(args.dsl_file, exc)],
+                werror=werror,
+            )
 
         model_id = lowered.get("modelId") if isinstance(lowered, dict) else None
         if not isinstance(model_id, str) or not model_id.strip():
-            return 1, {"ok": False, "error": "dsl hwtest requires root field 'modelId'"}
+            diag = make_diag(
+                code="DSL0013",
+                severity=Severity.ERROR,
+                path=str(args.dsl_file),
+                line=1,
+                col=1,
+            )
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file)},
+                diagnostics=[diag],
+                werror=werror,
+            )
         model_id = model_id.strip()
 
         outdir = args.outdir
@@ -298,7 +560,12 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
             runtime_ir = _absolutize_runtime_ir_paths(lowered, dsl_path=args.dsl_file)
             dump_json(runtime_ir, ir_path)
         except OSError as exc:
-            return 1, {"ok": False, "error": str(exc)}
+            return _finalize(
+                code=1,
+                payload={"dslPath": str(args.dsl_file), "irPath": str(ir_path)},
+                diagnostics=[_diag_from_write_error(ir_path, exc)],
+                werror=werror,
+            )
 
         code, hw_summary = run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=args.ticks)
         bench_report = None
@@ -308,16 +575,71 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
                 bench_report = raw_bench
 
         payload: dict[str, Any] = {
-            "ok": code == 0,
             "dslPath": str(args.dsl_file),
             "irPath": str(ir_path),
             "benchReport": bench_report,
             "hwtest": hw_summary,
         }
-        return code, payload
+        return _finalize(
+            code=code,
+            payload=payload,
+            diagnostics=[],
+            werror=werror,
+        )
 
-    return 2, {"ok": False, "error": f"NYI: nema dsl {command}"}
+    diag = make_diag(
+        code="DSL0014",
+        severity=Severity.ERROR,
+        path="<cli>",
+        line=1,
+        col=1,
+        command=str(command),
+    )
+    return _finalize(
+        code=2,
+        payload={"command": command},
+        diagnostics=[diag],
+        werror=werror,
+    )
 
 
-def emit(payload: dict) -> None:
+def _payload_to_diagnostics(payload: dict[str, Any]) -> list[Diagnostic]:
+    raw = payload.get("diagnostics")
+    if not isinstance(raw, list):
+        return []
+
+    diags: list[Diagnostic] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        severity_raw = str(item.get("severity", "ERROR"))
+        try:
+            severity = Severity(severity_raw)
+        except ValueError:
+            severity = Severity.ERROR
+        diags.append(
+            Diagnostic(
+                code=str(item.get("code", "DSL0015")),
+                severity=severity,
+                path=str(item.get("path", "<input>")),
+                line=int(item.get("line", 1)),
+                col=int(item.get("col", 1)),
+                message=str(item.get("message", "")),
+                hint=None if item.get("hint") is None else str(item.get("hint")),
+                note=None if item.get("note") is None else str(item.get("note")),
+            )
+        )
+    return _sorted_diagnostics(diags)
+
+
+def emit(payload: dict, *, fmt: str = "text", no_color: bool = True) -> None:
+    if fmt == "json":
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return
+
+    diagnostics = _payload_to_diagnostics(payload)
+    if diagnostics:
+        print("\n".join(diag.format_text(no_color=no_color) for diag in diagnostics))
+        return
+
     print(json.dumps(payload, indent=2, sort_keys=True))

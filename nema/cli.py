@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from .dsl.cli import add_dsl_subparser, run_dsl_command
+from .dsl.cli import add_dsl_subparser, emit as emit_dsl, run_dsl_command
 from .toolchain import (
     run_bench_verify,
     check_ir,
@@ -141,7 +141,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "dsl":
         code, report = run_dsl_command(args)
-        _emit(report)
+        emit_dsl(
+            report,
+            fmt=getattr(args, "format", "text"),
+            no_color=bool(getattr(args, "no_color", True)),
+        )
         return code
 
     parser.error(f"unknown command: {args.command}")
