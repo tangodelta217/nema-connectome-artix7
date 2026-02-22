@@ -5,7 +5,8 @@ on:
   pull_request:
 
 env:
-  CI_HW: ${{ vars.CI_HW }}
+  # Set repository variable CI_HW=1 to force hardware-gates job in CI.
+  CI_HW: ${{ vars.CI_HW || '0' }}
 
 jobs:
   unit-tests:

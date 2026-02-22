@@ -110,6 +110,15 @@ Typical local development behavior (no Vitis/Vivado in PATH):
 - `python tools/audit_min.py --mode software` -> usually exits `0`.
 - `python tools/audit_min.py --mode hardware` -> usually exits `1` (missing HW toolchain/evidence).
 
+GitHub Actions hardware gate activation (`CI_HW=1`):
+
+- Set repository variable `CI_HW=1` in GitHub:
+  `Settings -> Secrets and variables -> Actions -> Variables`.
+- With `CI_HW=1`, CI will run `hardware-gates` even if `vitis_hls`/`vivado`
+  are not detected in `PATH`.
+- Local equivalent override:
+  `CI_HW=1 python tools/audit_min.py --mode hardware`.
+
 `NEMA-DSL2401` interpretation:
 
 - `NEMA-DSL2401` indicates HW toolchain unavailable (`vitis_hls`/`vivado` not found).
