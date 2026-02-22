@@ -26,8 +26,12 @@ This runbook is a practical baseline to prepare an Ubuntu 24.04 workstation for 
 5. Complete installation into your standard AMD tools path.
 
 ## Post-Install Checks
-1. Source settings script:
-   - `source <install_root>/settings64.sh`
+1. Activate Xilinx environment (standard step):
+   - `source tools/hw/activate_xilinx.sh`
+   - Optional pinning:
+     - `export XILINX_ROOT=/tools/Xilinx`
+     - `export XILINX_VERSION=2025.2`
+     - `source tools/hw/activate_xilinx.sh`
 2. Verify binaries:
    - `vivado -version`
    - `vitis_hls -version`
