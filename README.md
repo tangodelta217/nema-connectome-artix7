@@ -80,6 +80,26 @@ Current CLI scaffold subcommands exist but are intentionally NYI:
 python -m pytest
 ```
 
+## HW Lab Quickstart
+
+Use the single runner for hardware-mode pipeline execution:
+
+```bash
+tools/run_hw_pipeline.sh
+```
+
+What it does:
+
+- creates `build_hw/<timestamp>_<gitshort>/`
+- writes `hw_doctor.json`
+- runs B1 and B3 in `require` mode (native `nema hwtest --hw require` if supported, otherwise `nema dsl hwtest --hw require`)
+- prints final `bench_report.json` paths for B1 and B3
+
+Behavior when toolchain is missing:
+
+- exits with non-zero status
+- prints a clear error pointing to `hw_doctor.json`
+
 ## Audit Gates
 
 `tools/audit_min.py` supports three gate modes:
