@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
-"""Minimal bench_report-only auditor for GO/NO-GO decisions."""
+"""Minimal auditor: bench reports + DSL compile/check + bench manifest verify."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
+
+DSL_PROGRAMS: dict[str, str] = {
+    "B1": "programs/b1_small.nema.toml",
+    "B3": "programs/b3_kernel_302_7500.nema.toml",
+}
+
+BENCH_MANIFESTS: dict[str, str] = {
+    "B1": "benches/B1_small/manifest.json",
+    "B3": "benches/B3_kernel_302_7500/manifest.json",
+}
 
 
 def _load_report(path: Path) -> dict[str, Any]:
@@ -72,12 +84,146 @@ def _is_b3_302_7500(summary: dict[str, Any]) -> bool:
     return bool(count_match or target_match)
 
 
-def _evaluate_go(summaries: list[dict[str, Any]]) -> tuple[str, list[str]]:
-    reasons: list[str] = []
-    if not summaries:
-        reasons.append("No bench_report.json files found")
-        return "NO-GO", reasons
+def _discover_reports(root: Path, pattern: str) -> list[Path]:
+    return sorted(path for path in root.glob(pattern) if path.is_file())
 
+
+def _run_cmd(cmd: list[str], *, cwd: Path) -> dict[str, Any]:
+    proc = subprocess.run(cmd, cwd=cwd, check=False, capture_output=True, text=True)
+    parsed_json: dict[str, Any] | None = None
+    stdout_text = (proc.stdout or "").strip()
+    if stdout_text:
+        try:
+            maybe = json.loads(stdout_text)
+        except json.JSONDecodeError:
+            maybe = None
+        if isinstance(maybe, dict):
+            parsed_json = maybe
+
+    return {
+        "ok": proc.returncode == 0,
+        "returncode": proc.returncode,
+        "cmd": cmd,
+        "stdout": stdout_text,
+        "stderr": (proc.stderr or "").strip(),
+        "json": parsed_json,
+    }
+
+
+def _check_dsl_programs(repo_root: Path, workdir: Path) -> dict[str, Any]:
+    programs: dict[str, Any] = {}
+    compile_checks: dict[str, Any] = {}
+
+    for key, rel_path in DSL_PROGRAMS.items():
+        abs_path = (repo_root / rel_path).resolve()
+        programs[key] = {
+            "path": rel_path,
+            "exists": abs_path.exists(),
+        }
+
+        if not abs_path.exists():
+            compile_checks[key] = {
+                "dslPath": rel_path,
+                "compiledIr": None,
+                "compile": None,
+                "check": None,
+                "ok": False,
+            }
+            continue
+
+        # Compile at repo root so relative IR paths (e.g., connectomes/, artifacts/) remain valid for `nema check`.
+        out_ir = repo_root / f".audit_min_{key.lower()}.ir.json"
+        compile_cmd = [
+            sys.executable,
+            "-m",
+            "nema",
+            "dsl",
+            "compile",
+            str(abs_path),
+            "--out",
+            str(out_ir),
+        ]
+        compile_res = _run_cmd(compile_cmd, cwd=repo_root)
+
+        check_res: dict[str, Any] | None = None
+        if compile_res["ok"]:
+            check_cmd = [sys.executable, "-m", "nema", "check", str(out_ir)]
+            check_res = _run_cmd(check_cmd, cwd=repo_root)
+
+        compile_checks[key] = {
+            "dslPath": rel_path,
+            "compiledIr": str(out_ir),
+            "compile": compile_res,
+            "check": check_res,
+            "ok": bool(compile_res["ok"] and check_res is not None and check_res["ok"]),
+        }
+
+        try:
+            out_ir.unlink(missing_ok=True)
+        except OSError:
+            # Keep non-fatal cleanup issues as runtime behavior should remain deterministic.
+            pass
+
+    programs_present = all(item["exists"] for item in programs.values())
+    compile_and_check_ok = all(item["ok"] for item in compile_checks.values())
+
+    return {
+        "programs": programs,
+        "compileChecks": compile_checks,
+        "programsPresent": programs_present,
+        "compileAndCheckOk": compile_and_check_ok,
+        "ok": programs_present and compile_and_check_ok,
+    }
+
+
+def _check_bench_manifests(repo_root: Path, workdir: Path) -> dict[str, Any]:
+    checks: dict[str, Any] = {}
+
+    for key, rel_path in BENCH_MANIFESTS.items():
+        abs_path = (repo_root / rel_path).resolve()
+        exists = abs_path.exists()
+        verify_res: dict[str, Any] | None = None
+        ok = False
+
+        if exists:
+            verify_outdir = workdir / "bench_verify" / key.lower()
+            verify_outdir.mkdir(parents=True, exist_ok=True)
+            verify_cmd = [
+                sys.executable,
+                "-m",
+                "nema",
+                "bench",
+                "verify",
+                str(abs_path),
+                "--outdir",
+                str(verify_outdir),
+            ]
+            verify_res = _run_cmd(verify_cmd, cwd=repo_root)
+            ok = bool(verify_res["ok"])
+
+        checks[key] = {
+            "path": rel_path,
+            "exists": exists,
+            "verify": verify_res,
+            "ok": ok,
+        }
+
+    manifests_present = all(item["exists"] for item in checks.values())
+    verify_ok = all(item["ok"] for item in checks.values())
+
+    return {
+        "checks": checks,
+        "manifestsPresent": manifests_present,
+        "verifyOk": verify_ok,
+    }
+
+
+def _evaluate_go(
+    summaries: list[dict[str, Any]],
+    load_errors: list[str],
+    dsl_checks: dict[str, Any],
+    manifest_checks: dict[str, Any],
+) -> tuple[str, list[str], dict[str, bool]]:
     missing_normalized = [
         item
         for item in summaries
@@ -86,29 +232,42 @@ def _evaluate_go(summaries: list[dict[str, Any]]) -> tuple[str, list[str]]:
         or item["gapEdgeCount"] is None
         or item["edgeCountTotal"] is None
     ]
-    if missing_normalized:
-        reasons.append("Missing normalized graph counts in one or more bench reports")
-
     digest_failures = [item for item in summaries if not item["digestMatchOk"]]
-    if digest_failures:
-        reasons.append("Digest match failed in one or more bench reports")
-
     b3_evidence = [item for item in summaries if _is_b3_302_7500(item) and item["digestMatchOk"]]
-    if not b3_evidence:
-        reasons.append("Missing B3 302/7500 evidence with digestMatch.ok=true")
 
-    decision = "GO" if not reasons else "NO-GO"
-    return decision, reasons
+    criteria: dict[str, bool] = {
+        "benchReportsFound": len(summaries) > 0,
+        "benchReportsLoadable": len(load_errors) == 0,
+        "graphCountsNormalized": len(missing_normalized) == 0,
+        "digestMatchAll": len(digest_failures) == 0,
+        "b3Evidence302_7500": len(b3_evidence) > 0,
+        "dslProgramsPresent": bool(dsl_checks.get("programsPresent")),
+        "dslCompileAndCheckOk": bool(dsl_checks.get("compileAndCheckOk")),
+        "benchManifestsPresent": bool(manifest_checks.get("manifestsPresent")),
+        "benchVerifyOk": bool(manifest_checks.get("verifyOk")),
+    }
 
+    reason_map = {
+        "benchReportsFound": "No bench_report.json files found",
+        "benchReportsLoadable": "One or more bench_report.json files failed to load",
+        "graphCountsNormalized": "Missing normalized graph counts in one or more bench reports",
+        "digestMatchAll": "Digest match failed in one or more bench reports",
+        "b3Evidence302_7500": "Missing B3 302/7500 evidence with digestMatch.ok=true",
+        "dslProgramsPresent": "Missing required DSL programs under programs/",
+        "dslCompileAndCheckOk": "DSL compile/check failed for one or more programs",
+        "benchManifestsPresent": "Missing required bench manifests under benches/",
+        "benchVerifyOk": "Bench manifest verification failed for one or more manifests",
+    }
 
-def _discover_reports(root: Path, pattern: str) -> list[Path]:
-    return sorted(path for path in root.glob(pattern) if path.is_file())
+    reasons = [reason_map[key] for key, ok in criteria.items() if not ok]
+    decision = "GO" if all(criteria.values()) else "NO-GO"
+    return decision, reasons, criteria
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="audit_min.py",
-        description="Bench-report-only auditor for NEMA GO/NO-GO checks",
+        description="Bench-report auditor with DSL + manifest verification",
     )
     parser.add_argument("--path", type=Path, default=Path("build"), help="Root directory to scan")
     parser.add_argument(
@@ -116,8 +275,24 @@ def main(argv: list[str] | None = None) -> int:
         default="**/bench_report.json",
         help="Glob pattern under --path to locate bench reports",
     )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path("."),
+        help="Repository root containing programs/ and benches/",
+    )
+    parser.add_argument(
+        "--workdir",
+        type=Path,
+        default=Path("build/audit_min"),
+        help="Working directory for generated audit command artifacts",
+    )
     parser.add_argument("--out", type=Path, default=None, help="Optional output JSON path")
     args = parser.parse_args(argv)
+
+    repo_root = args.repo_root.resolve()
+    workdir = args.workdir if args.workdir.is_absolute() else (repo_root / args.workdir)
+    workdir.mkdir(parents=True, exist_ok=True)
 
     reports = _discover_reports(args.path, args.glob)
     summaries: list[dict[str, Any]] = []
@@ -130,14 +305,35 @@ def main(argv: list[str] | None = None) -> int:
             continue
         summaries.append(_report_summary(report_path, report))
 
-    decision, reasons = _evaluate_go(summaries)
+    dsl_checks = _check_dsl_programs(repo_root, workdir)
+    manifest_checks = _check_bench_manifests(repo_root, workdir)
+
+    decision, reasons, criteria = _evaluate_go(
+        summaries,
+        load_errors,
+        dsl_checks,
+        manifest_checks,
+    )
+
+    dsl_ready = {
+        "programsPresent": bool(dsl_checks.get("programsPresent")),
+        "dslCompileAndCheckOk": bool(dsl_checks.get("compileAndCheckOk")),
+        "benchManifestsPresent": bool(manifest_checks.get("manifestsPresent")),
+        "benchVerifyOk": bool(manifest_checks.get("verifyOk")),
+    }
+    dsl_ready["ok"] = all(dsl_ready.values())
+
     payload = {
         "ok": decision == "GO",
         "decision": decision,
         "benchReportsScanned": len(summaries),
         "loadErrors": load_errors,
         "reasons": reasons,
+        "criteria": criteria,
+        "dslReady": dsl_ready,
         "reports": summaries,
+        "dslChecks": dsl_checks,
+        "benchManifestChecks": manifest_checks,
     }
 
     if args.out is not None:

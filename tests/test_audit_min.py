@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 
 def _write_report(
@@ -37,6 +40,9 @@ def _write_report(
 
 
 def test_audit_min_go(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
     root = tmp_path / "build"
     _write_report(
         root / "B1" / "bench_report.json",
@@ -71,9 +77,16 @@ def test_audit_min_go(tmp_path: Path) -> None:
     payload = json.loads(proc.stdout)
     assert payload["decision"] == "GO"
     assert payload["benchReportsScanned"] == 2
+    assert payload["dslReady"]["ok"] is True
+    assert payload["criteria"]["dslProgramsPresent"] is True
+    assert payload["criteria"]["dslCompileAndCheckOk"] is True
+    assert payload["criteria"]["benchVerifyOk"] is True
 
 
 def test_audit_min_no_go_without_b3(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
     root = tmp_path / "build"
     _write_report(
         root / "B1" / "bench_report.json",
@@ -98,3 +111,4 @@ def test_audit_min_no_go_without_b3(tmp_path: Path) -> None:
     payload = json.loads(proc.stdout)
     assert payload["decision"] == "NO-GO"
     assert any("B3 302/7500" in reason for reason in payload["reasons"])
+    assert payload["criteria"]["b3Evidence302_7500"] is False
