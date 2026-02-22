@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from .toolchain import check_ir, run_compile, run_hwtest, run_sim
+from .toolchain import check_ir, run_compile, run_hwtest, run_sim, selftest_fixed
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -33,6 +33,9 @@ def build_parser() -> argparse.ArgumentParser:
     hwtest_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     hwtest_cmd.add_argument("--outdir", type=Path, default=Path("build"), help="output directory")
     hwtest_cmd.add_argument("--ticks", type=int, default=8, help="number of ticks for sim stage")
+
+    selftest_cmd = subparsers.add_parser("selftest", help="run built-in deterministic self tests")
+    selftest_cmd.add_argument("target", choices=["fixed"], help="selftest suite target")
 
     return parser
 
@@ -64,6 +67,13 @@ def main(argv: list[str] | None = None) -> int:
         code, report = run_hwtest(args.ir_json, outdir=args.outdir, ticks=args.ticks)
         _emit(report)
         return code
+
+    if args.command == "selftest":
+        if args.target == "fixed":
+            code, report = selftest_fixed()
+            _emit(report)
+            return code
+        parser.error(f"unknown selftest target: {args.target}")
 
     parser.error(f"unknown command: {args.command}")
     return 2

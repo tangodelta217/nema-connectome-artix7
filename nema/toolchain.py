@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .fixed import run_selftest as run_fixed_selftest
 from .ir import IRValidationError, validate_ir
 
 
@@ -156,3 +157,8 @@ def run_hwtest(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, dict]:
         "bench_report": str(bench_report_path),
         "mode": "placeholder",
     }
+
+
+def selftest_fixed() -> tuple[int, dict]:
+    report = run_fixed_selftest()
+    return (0 if report["ok"] else 1), report

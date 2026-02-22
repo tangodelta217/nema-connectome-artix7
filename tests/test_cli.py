@@ -62,3 +62,13 @@ def test_hwtest_emits_bench_report(tmp_path: Path) -> None:
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["ok"] is True
     assert report["ticks"] == 2
+
+
+def test_selftest_fixed_ok(capsys) -> None:
+    code = main(["selftest", "fixed"])
+
+    assert code == 0
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+    assert payload["ok"] is True
+    assert payload["suite"] == "fixed"
