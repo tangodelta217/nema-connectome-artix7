@@ -40,6 +40,15 @@ This runbook is a practical baseline to prepare an Ubuntu 24.04 workstation for 
 4. Run HW gates runner:
    - `bash tools/run_hw_gates.sh`
 
+## Cómo correr gates HW
+1. Ejecuta el runner de gates HW:
+   - `bash tools/run_hw_gates.sh`
+2. Genera el checkpoint de evidencia:
+   - `python tools/checkpoint_hw.py`
+3. Revisa los outputs:
+   - `checkpoint_hw_out/HW_STATUS.md`
+   - `checkpoint_hw_out/nema_hw_checkpoint_bundle.tar.gz`
+
 ## Notes
 - `tools/hw/preflight_ubuntu24.sh` is check-only and does not install or modify system packages.
 - On Ubuntu 24.04, `libtinfo.so.5` may be missing by default; the preflight script prints suggested remediation commands without executing them.
