@@ -100,6 +100,20 @@ Behavior when toolchain is missing:
 - exits with non-zero status
 - prints a clear error pointing to `hw_doctor.json`
 
+Gate-oriented HW runner (B1/B3 + audit outputs):
+
+```bash
+bash tools/run_hw_gates.sh
+```
+
+This runner:
+- activates Xilinx env via `tools/hw/activate_xilinx.sh` (fails early if missing)
+- runs B1/B3 in HW `require` mode
+- writes:
+  - `build_hw/hw_doctor.json`
+  - `build_hw/audit_min_hardware.json`
+  - `build_hw/audit_min_software.json`
+
 ## Audit Gates
 
 `tools/audit_min.py` supports three gate modes:
