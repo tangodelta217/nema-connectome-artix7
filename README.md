@@ -82,14 +82,36 @@ python -m pytest
 
 ## Audit Gates
 
-For local software development (default gate):
+`tools/audit_min.py` supports three gate modes:
+
+- `software`:
+  validates software-readiness gates (DSL ready, digest matches, B3 302/7500 evidence,
+  manifest verification, normalized graph counts on relevant B1/B3 reports).
+- `hardware`:
+  validates hardware-readiness gates (toolchain availability + HW evidence/reports).
+- `all`:
+  requires both `software` and `hardware` gates to pass.
+
+Recommended commands:
 
 ```bash
 python tools/audit_min.py --mode software
-```
-
-For HW lab environments (requires toolchain/report evidence):
-
-```bash
 python tools/audit_min.py --mode hardware
+python tools/audit_min.py --mode all
 ```
+
+Expected exit codes:
+
+- `0` => decision `GO` for the selected mode.
+- `1` => decision `NO-GO` for the selected mode.
+
+Typical local development behavior (no Vitis/Vivado in PATH):
+
+- `python tools/audit_min.py --mode software` -> usually exits `0`.
+- `python tools/audit_min.py --mode hardware` -> usually exits `1` (missing HW toolchain/evidence).
+
+`NEMA-DSL2401` interpretation:
+
+- `NEMA-DSL2401` indicates HW toolchain unavailable (`vitis_hls`/`vivado` not found).
+- In software-focused flows this is an expected warning and should not block `--mode software`.
+- In hardware-focused validation it is expected to contribute to `NO-GO` until HW toolchain/evidence is present.
