@@ -2,26 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from .parse_toml import DSLProgram
 from .typecheck import CheckedProgram, typecheck_program
 
 
-def _resolve_path(path_value: str, *, base_dir: Path) -> str:
-    path = Path(path_value)
-    if path.is_absolute():
-        return str(path)
-    return str((base_dir / path).resolve())
-
-
 def _emit_graph(checked: CheckedProgram) -> dict[str, Any]:
-    graph: dict[str, Any] = {
-        "dt": checked.graph.dt,
-        "nodes": [],
-        "edges": [],
-    }
+    graph: dict[str, Any] = {"nodes": [], "edges": []}
+    if checked.graph.dt is not None:
+        graph["dt"] = checked.graph.dt
     if checked.graph.tau_m is not None:
         graph["tauM"] = checked.graph.tau_m
 
@@ -33,11 +23,9 @@ def _emit_graph(checked: CheckedProgram) -> dict[str, Any]:
         }
 
     if checked.graph.external is not None:
-        # Keep paths executable regardless of where compiled IR gets written.
-        base_dir = checked.source_path.parent
         graph["external"] = {
-            "uri": _resolve_path(checked.graph.external.uri, base_dir=base_dir),
-            "path": _resolve_path(checked.graph.external.path, base_dir=base_dir),
+            "uri": checked.graph.external.uri,
+            "path": checked.graph.external.path,
             "subgraphId": checked.graph.external.subgraph_id,
             "formatId": checked.graph.external.format_id,
             "sha256": checked.graph.external.sha256,
@@ -94,7 +82,7 @@ def lower_checked_program_to_ir(checked: CheckedProgram) -> dict[str, Any]:
         "graph": _emit_graph(checked),
         "tanhLut": {
             "policy": checked.compile.tanh_lut_policy,
-            "artifact": _resolve_path(checked.compile.tanh_lut_artifact, base_dir=checked.source_path.parent),
+            "artifact": checked.compile.tanh_lut_artifact,
             "inputType": checked.qformats.lut_input,
             "outputType": checked.qformats.lut_output,
             "checksumSha256": checked.compile.tanh_lut_checksum_sha256,
@@ -105,24 +93,6 @@ def lower_checked_program_to_ir(checked: CheckedProgram) -> dict[str, Any]:
         ir["modelId"] = checked.module.model_id
     if checked.module.kernel_id is not None:
         ir["kernelId"] = checked.module.kernel_id
-
-    # Keep compile-time metadata visible without altering simulator semantics.
-    ir["schedule"] = {
-        "policy": checked.schedule.policy,
-        "snapshotRule": checked.schedule.snapshot_rule,
-        "evalOrder": checked.schedule.eval_order,
-    }
-    ir["qformats"] = {
-        "voltage": checked.qformats.voltage,
-        "activation": checked.qformats.activation,
-        "accum": checked.qformats.accum,
-        "lutInput": checked.qformats.lut_input,
-        "lutOutput": checked.qformats.lut_output,
-    }
-    ir["run"] = {
-        "defaultTicks": checked.run.default_ticks,
-        "seed": checked.run.seed,
-    }
 
     return ir
 

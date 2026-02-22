@@ -6,8 +6,6 @@ licenseSpdx = "MIT"
 allowedSpdx = ["Apache-2.0", "MIT"]
 
 [graph]
-dt = 1.0
-tauM = 1.0
 
 [graph.stats]
 nodeCount = 302
@@ -15,8 +13,8 @@ chemicalEdgeCount = 7500
 gapEdgeCount = 0
 
 [graph.external]
-uri = "../connectomes/celegans_herm_c302_bundle.json"
-path = "../connectomes/celegans_herm_c302_bundle.json"
+uri = "connectomes/celegans_herm_c302_bundle.json"
+path = "connectomes/celegans_herm_c302_bundle.json"
 subgraphId = "celegans_herm_c302_7500"
 formatId = "nema.connectome.bundle.v0.1"
 sha256 = "sha256:a2695caf78bd3f77869396d2e83a0cbec3e56c49a2a47310635b5212a3ee8df1"
@@ -82,7 +80,7 @@ lutOutput = "Q8.8"
 
 [compile]
 tanhLutPolicy = "nema.tanh_lut.v0.1"
-tanhLutArtifact = "../artifacts/luts/tanh_q8_8.bin"
+tanhLutArtifact = "artifacts/luts/tanh_q8_8.bin"
 tanhLutChecksumSha256 = "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88"
 
 [run]

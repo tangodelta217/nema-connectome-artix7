@@ -1,27 +1,19 @@
 [module]
 name = "example_b1_small_subgraph"
-modelId = "B1_small_subgraph"
-kernelId = 1
 licenseSpdx = "Apache-2.0"
 allowedSpdx = ["Apache-2.0", "MIT"]
 
 [graph]
-dt = 1.0
-tauM = 1.0
 
 [[graph.nodes]]
 id = "n0"
 index = 0
 canonicalOrderId = 0
-vInitRaw = 0
-tauM = 1.0
 
 [[graph.nodes]]
 id = "n1"
 index = 1
 canonicalOrderId = 1
-vInitRaw = 0
-tauM = 1.0
 
 [[graph.edges]]
 id = "e_chem_0"
@@ -61,7 +53,7 @@ lutOutput = "Q8.8"
 
 [compile]
 tanhLutPolicy = "nema.tanh_lut.v0.1"
-tanhLutArtifact = "../artifacts/luts/tanh_q8_8.bin"
+tanhLutArtifact = "artifacts/luts/tanh_q8_8.bin"
 tanhLutChecksumSha256 = "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88"
 
 [run]

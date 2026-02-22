@@ -72,6 +72,10 @@ TOML DSL files live under `programs/` with extension `.nema.toml`:
 - `programs/b1_small.nema.toml`
 - `programs/b3_kernel_302_7500.nema.toml`
 
+Defaults documented for v0.1 runtime compatibility:
+- if `graph.dt` is omitted in IR, simulator default is `1.0`
+- if `graph.tauM` and per-node `tauM` are omitted, simulator default is `1.0`
+
 Run B1 from DSL:
 
 ```bash

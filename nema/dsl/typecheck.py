@@ -63,7 +63,7 @@ class CheckedEdge:
 
 @dataclass(frozen=True)
 class CheckedGraph:
-    dt: float
+    dt: float | None
     tau_m: float | None
     stats: CheckedGraphStats | None
     external: CheckedGraphExternal | None
@@ -368,7 +368,7 @@ def _typecheck_graph(program: DSLProgram) -> CheckedGraph:
         )
 
     return CheckedGraph(
-        dt=_as_number("graph.dt", program.graph.dt, positive=True),
+        dt=_as_optional_number("graph.dt", program.graph.dt, positive=True),
         tau_m=_as_optional_number("graph.tauM", program.graph.tau_m, positive=True),
         stats=stats_checked,
         external=external_checked,
