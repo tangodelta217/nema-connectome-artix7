@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2501",
+      "col": 1,
+      "hint": "remove cyclic include chain",
+      "line": 1,
+      "message": "include loop detected",
+      "note": "2501_include_loop.nema -> 2501_loop_a.nema.inc -> 2501_loop_b.nema.inc -> 2501_loop_a.nema.inc",
+      "path": "tests/fixtures/diag/2501_loop_b.nema.inc",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

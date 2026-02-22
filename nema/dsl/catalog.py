@@ -84,6 +84,25 @@ _CATALOG: dict[str, _Template] = {
         message="HW toolchain unavailable (vitis_hls/vivado)",
         hint="install vitis_hls/vivado or run software-only mode",
     ),
+    "NEMA-DSL2501": _Template(
+        message="include loop detected",
+        hint="remove cyclic include chain",
+        note="{detail}",
+    ),
+    "NEMA-DSL2502": _Template(
+        message="include directives must appear at top of file",
+        hint='move include statements before any non-comment statement',
+    ),
+    "NEMA-DSL2503": _Template(
+        message="undefined const reference",
+        hint="define const NAME before use",
+        note="name: {name}",
+    ),
+    "NEMA-DSL2504": _Template(
+        message="duplicate const definition",
+        hint="keep a single const NAME definition",
+        note="name: {name}",
+    ),
     "NEMA-DSL2999": _Template(
         message="IR validation failed",
         hint="fix semantic issues before IR validation",

@@ -15,8 +15,9 @@ from typing import Any
 from .catalog import make_diag
 from .diagnostics import Diagnostic, Severity, sort_key
 from .errors import DslError
-from .lower import dump_json, lower_to_ir, lower_to_ir_with_locs
-from .parser import parse, parse_with_locs
+from .lower import dump_json, lower_to_ir_with_locs
+from .parser import parse_with_locs
+from .preprocess import PREPROCESSED_PATH, preprocess_file
 from .typecheck import typecheck
 from ..hwtest import run_hwtest_pipeline
 from ..ir_validate import IRValidationError, validate_ir
@@ -196,9 +197,15 @@ def _render_dsl(obj: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _compile_source_to_ir(source_text: str) -> dict[str, Any]:
-    ast = parse(source_text)
-    return lower_to_ir(ast)
+def _compile_dsl_file_to_ir_with_locs(dsl_path: Path) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    preprocessed = preprocess_file(dsl_path)
+    try:
+        ast, locs = parse_with_locs(preprocessed.text, PREPROCESSED_PATH)
+    except DslError as exc:
+        raise preprocessed.remap_error(exc) from exc
+    remapped_locs = preprocessed.source_map.remap_locs(locs)
+    lowered, lowered_locs = lower_to_ir_with_locs(ast, remapped_locs)
+    return lowered, lowered_locs
 
 
 def _resolve_runtime_path(raw: str, *, bases: list[Path]) -> str:
@@ -243,15 +250,18 @@ def _with_path(diag: Diagnostic, fallback_path: str) -> Diagnostic:
     return replace(diag, path=fallback_path)
 
 
-def _loc_from_map(locs: dict[str, dict[str, int]], field_path: str) -> tuple[int, int]:
+def _loc_from_map(locs: dict[str, dict[str, Any]], field_path: str) -> tuple[str | None, int, int]:
     raw = locs.get(field_path)
     if not isinstance(raw, dict):
-        return (1, 1)
+        return (None, 1, 1)
+    path = raw.get("path")
+    if not isinstance(path, str) or not path:
+        path = None
     line = raw.get("line")
     col = raw.get("col")
     if not isinstance(line, int) or not isinstance(col, int):
-        return (1, 1)
-    return (line, col)
+        return (path, 1, 1)
+    return (path, line, col)
 
 
 def _hw_toolchain_available() -> bool:
@@ -367,17 +377,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
 
     if command == "compile":
         try:
-            source = args.dsl_file.read_text(encoding="utf-8")
-        except OSError as exc:
-            return _finalize(
-                code=1,
-                payload={"dslPath": str(args.dsl_file), "outPath": str(args.out)},
-                diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
-                werror=werror,
-            )
-
-        try:
-            lowered = _compile_source_to_ir(source)
+            lowered, _ = _compile_dsl_file_to_ir_with_locs(args.dsl_file)
             dump_json(lowered, args.out)
         except OSError as exc:
             return _finalize(
@@ -488,18 +488,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
 
     if command == "check":
         try:
-            source = args.dsl_file.read_text(encoding="utf-8")
-        except OSError as exc:
-            return _finalize(
-                code=1,
-                payload={},
-                diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
-                werror=werror,
-            )
-
-        try:
-            ast, locs = parse_with_locs(source, str(args.dsl_file))
-            lowered, lowered_locs = lower_to_ir_with_locs(ast, locs)
+            lowered, lowered_locs = _compile_dsl_file_to_ir_with_locs(args.dsl_file)
         except (DslError, ValueError) as exc:
             return _finalize(
                 code=1,
@@ -528,12 +517,12 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
             except OSError as exc:
                 diagnostics.append(_diag_from_write_error(args.dsl_file, exc))
             except IRValidationError as exc:
-                line, col = _loc_from_map(lowered_locs, "graph")
+                loc_path, line, col = _loc_from_map(lowered_locs, "graph")
                 diagnostics.append(
                     make_diag(
                         code="NEMA-DSL2999",
                         severity=Severity.ERROR,
-                        path=str(args.dsl_file),
+                        path=(loc_path if loc_path is not None else str(args.dsl_file)),
                         line=line,
                         col=col,
                         detail=str(exc),
@@ -575,18 +564,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
             )
 
         try:
-            source = args.dsl_file.read_text(encoding="utf-8")
-        except OSError as exc:
-            return _finalize(
-                code=1,
-                payload=base_payload,
-                diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
-                werror=werror,
-            )
-
-        try:
-            ast, locs = parse_with_locs(source, str(args.dsl_file))
-            lowered, lowered_locs = lower_to_ir_with_locs(ast, locs)
+            lowered, lowered_locs = _compile_dsl_file_to_ir_with_locs(args.dsl_file)
         except (DslError, ValueError) as exc:
             return _finalize(
                 code=1,
@@ -596,13 +574,13 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
             )
 
         diagnostics: list[Diagnostic] = []
-        line, col = _loc_from_map(lowered_locs, "compile.requireHwToolchain")
+        loc_path, line, col = _loc_from_map(lowered_locs, "compile.requireHwToolchain")
         if hw_mode == "require" and not hw_available:
             diagnostics.append(
                 make_diag(
                     code="NEMA-DSL2401",
                     severity=Severity.ERROR,
-                    path=str(args.dsl_file),
+                    path=(loc_path if loc_path is not None else str(args.dsl_file)),
                     line=line,
                     col=col,
                 )
@@ -619,7 +597,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
                 make_diag(
                     code="NEMA-DSL2401",
                     severity=Severity.WARNING,
-                    path=str(args.dsl_file),
+                    path=(loc_path if loc_path is not None else str(args.dsl_file)),
                     line=line,
                     col=col,
                 )

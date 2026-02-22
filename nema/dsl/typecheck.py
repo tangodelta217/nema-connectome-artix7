@@ -13,15 +13,18 @@ from .diagnostics import Diagnostic, Severity
 from .parser import LocationMap
 
 
-def _loc(locs: LocationMap, field_path: str) -> tuple[int, int]:
+def _loc(locs: LocationMap, field_path: str, *, default_path: str) -> tuple[str, int, int]:
     item = locs.get(field_path)
     if not isinstance(item, dict):
-        return (1, 1)
+        return (default_path, 1, 1)
+    path = item.get("path")
+    if not isinstance(path, str) or not path:
+        path = default_path
     line = item.get("line")
     col = item.get("col")
     if not isinstance(line, int) or not isinstance(col, int):
-        return (1, 1)
-    return (line, col)
+        return (path, 1, 1)
+    return (path, line, col)
 
 
 def _diag(
@@ -34,12 +37,12 @@ def _diag(
     field_path: str,
     **kwargs: object,
 ) -> None:
-    line, col = _loc(locs, field_path)
+    loc_path, line, col = _loc(locs, field_path, default_path=path)
     out.append(
         make_diag(
             code=code,
             severity=severity,
-            path=path,
+            path=loc_path,
             line=line,
             col=col,
             **kwargs,
