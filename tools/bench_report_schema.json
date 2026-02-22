@@ -431,6 +431,8 @@
           "type": "object",
           "required": [
             "utilization",
+            "ii",
+            "latencyCycles",
             "timingOrLatency",
             "sourceReports"
           ],
@@ -469,6 +471,18 @@
                   ]
                 }
               }
+            },
+            "ii": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "latencyCycles": {
+              "type": [
+                "integer",
+                "null"
+              ]
             },
             "timingOrLatency": {
               "type": "object",

@@ -710,10 +710,18 @@ def _run_vitis_hls(
     }
 
 
-def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, dict[str, Any]]:
+def run_hwtest_pipeline(
+    ir_path: Path,
+    outdir: Path,
+    ticks: int,
+    *,
+    hw_mode: str = "auto",
+) -> tuple[int, dict[str, Any]]:
     """Run golden sim + C++ reference (+ optional Vitis HLS) and emit bench_report.json."""
     if ticks < 0:
         return 1, {"ok": False, "error": "--ticks must be >= 0"}
+    if hw_mode not in {"auto", "require", "off"}:
+        return 1, {"ok": False, "error": f"invalid --hw mode '{hw_mode}' (expected auto|require|off)"}
 
     try:
         ir_validation = validate_ir(ir_path, allow_external_smoke=True)
@@ -788,8 +796,26 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
         if mismatch_index is None and len(golden_digests) != len(cpp_digests):
             mismatch_index = min(len(golden_digests), len(cpp_digests))
 
-    vitis_info = _detect_vitis_hls()
-    vivado_info = _detect_vivado()
+    if hw_mode == "off":
+        vitis_info = {
+            "available": False,
+            "binary": None,
+            "version": None,
+        }
+        vivado_info = {
+            "available": False,
+            "binary": None,
+            "version": None,
+        }
+    else:
+        vitis_info = _detect_vitis_hls()
+        vivado_info = _detect_vivado()
+
+    if hw_mode == "require" and not vitis_info["available"]:
+        return 1, {
+            "ok": False,
+            "error": "hardware mode 'require' requested but vitis_hls is not available on PATH",
+        }
     run_cosim = os.environ.get("NEMA_HWTEST_RUN_COSIM", "").lower() in {"1", "true", "yes"}
     if vitis_info["available"]:
         hardware = _run_vitis_hls(

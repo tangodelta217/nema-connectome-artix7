@@ -13,6 +13,8 @@ def test_parse_vitis_qor_extracts_utilization_and_latency() -> None:
     assert payload["utilization"]["ff"] == 567
     assert payload["utilization"]["bram"] == 3
     assert payload["utilization"]["dsp"] == 4
+    assert payload["ii"] == 2
+    assert payload["latencyCycles"] == 120
     assert payload["timingOrLatency"]["ii"] == 2
     assert payload["timingOrLatency"]["latencyCycles"] == 120
     assert payload["sourceReports"] == [

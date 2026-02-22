@@ -278,24 +278,7 @@ def _run_hwtest_pipeline_with_hw_mode(
     ticks: int,
     hw_mode: str,
 ) -> tuple[int, dict[str, Any]]:
-    if hw_mode != "off":
-        return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks)
-
-    prev_vitis = os.environ.get("NEMA_HWTEST_DISABLE_VITIS")
-    prev_vivado = os.environ.get("NEMA_HWTEST_DISABLE_VIVADO")
-    os.environ["NEMA_HWTEST_DISABLE_VITIS"] = "1"
-    os.environ["NEMA_HWTEST_DISABLE_VIVADO"] = "1"
-    try:
-        return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks)
-    finally:
-        if prev_vitis is None:
-            os.environ.pop("NEMA_HWTEST_DISABLE_VITIS", None)
-        else:
-            os.environ["NEMA_HWTEST_DISABLE_VITIS"] = prev_vitis
-        if prev_vivado is None:
-            os.environ.pop("NEMA_HWTEST_DISABLE_VIVADO", None)
-        else:
-            os.environ["NEMA_HWTEST_DISABLE_VIVADO"] = prev_vivado
+    return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks, hw_mode=hw_mode)
 
 
 def _finalize(

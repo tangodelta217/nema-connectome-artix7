@@ -125,6 +125,8 @@ def _bench_report_schema_projection(report: dict) -> dict:
                 "ff": _expect_type(hardware["qor"]["utilization"]["ff"], {"int", "null"}),
                 "bram": _expect_type(hardware["qor"]["utilization"]["bram"], {"int", "null"}),
                 "dsp": _expect_type(hardware["qor"]["utilization"]["dsp"], {"int", "null"}),
+                "iiTop": _expect_type(hardware["qor"]["ii"], {"int", "null"}),
+                "latencyCyclesTop": _expect_type(hardware["qor"]["latencyCycles"], {"int", "null"}),
                 "ii": _expect_type(hardware["qor"]["timingOrLatency"]["ii"], {"int", "null"}),
                 "latencyCycles": _expect_type(
                     hardware["qor"]["timingOrLatency"]["latencyCycles"],

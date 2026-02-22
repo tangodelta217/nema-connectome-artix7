@@ -67,8 +67,11 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
     csim_ok = None
     csynth_ok = None
     cosim_ok = None
+    cosim_attempted = None
     listed_report_count = 0
     qor_utilization_partial = False
+    qor_ii = None
+    qor_latency_cycles = None
     hardware_has_reports = False
     if isinstance(hardware, dict):
         toolchain = hardware.get("toolchain")
@@ -81,8 +84,11 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         if isinstance(csynth, dict) and isinstance(csynth.get("ok"), bool):
             csynth_ok = csynth.get("ok")
         cosim = hardware.get("cosim")
-        if isinstance(cosim, dict) and isinstance(cosim.get("ok"), bool):
-            cosim_ok = cosim.get("ok")
+        if isinstance(cosim, dict):
+            if isinstance(cosim.get("ok"), bool):
+                cosim_ok = cosim.get("ok")
+            if isinstance(cosim.get("attempted"), bool):
+                cosim_attempted = cosim.get("attempted")
 
         reports = hardware.get("reports")
         if isinstance(reports, dict):
@@ -102,6 +108,12 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
                     if isinstance(value, int):
                         values.append(value)
                 qor_utilization_partial = len(values) > 0
+            ii = qor.get("ii")
+            if isinstance(ii, int):
+                qor_ii = ii
+            latency_cycles = qor.get("latencyCycles")
+            if isinstance(latency_cycles, int):
+                qor_latency_cycles = latency_cycles
             src_reports = qor.get("sourceReports")
             if isinstance(src_reports, list) and any(isinstance(item, str) and item for item in src_reports):
                 hardware_has_reports = True
@@ -134,9 +146,12 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         "csimOk": csim_ok,
         "csynthOk": csynth_ok,
         "cosimOk": cosim_ok,
+        "cosimAttempted": cosim_attempted,
         "hardwareHasReports": hardware_has_reports,
         "listedReportCount": listed_report_count,
         "qorUtilizationPartial": qor_utilization_partial,
+        "qorIi": qor_ii,
+        "qorLatencyCycles": qor_latency_cycles,
     }
 
 
@@ -415,7 +430,6 @@ def _evaluate_modes(
     load_errors: list[str],
     dsl_checks: dict[str, Any],
     manifest_checks: dict[str, Any],
-    hw_reports: list[Path],
     toolchain_hw_available: bool,
     warnings: list[str],
 ) -> tuple[str, list[str], dict[str, bool], bool, bool, bool]:
@@ -437,20 +451,20 @@ def _evaluate_modes(
     )
     bench_verify_ok = bool(manifest_checks.get("verifyOk"))
 
+    hardware_scope = relevant_summaries if relevant_summaries else summaries
     hardware_g0b = any(
         item.get("hardwareToolchainAvailable") is True
+        and item.get("csimOk") is True
         and (
-            item.get("csimOk") is True
-            or item.get("csynthOk") is True
+            item.get("cosimAttempted") is not True
             or item.get("cosimOk") is True
         )
-        for item in summaries
+        for item in hardware_scope
     )
-    hardware_g2 = bool(hw_reports) or any(
+    hardware_g2 = any(
         (item.get("listedReportCount", 0) > 0)
         or (item.get("qorUtilizationPartial") is True)
-        or (item.get("hardwareHasReports") is True)
-        for item in summaries
+        for item in hardware_scope
     )
 
     criteria: dict[str, bool] = {
@@ -498,8 +512,8 @@ def _evaluate_modes(
         "benchVerifyOk": "Bench manifest verification failed for one or more manifests",
         "graphCountsNormalized": "Missing normalized graph counts in relevant B1/B3 bench reports",
         "hardwareToolchainAvailable": "HW toolchain unavailable (vitis_hls/vivado not found)",
-        "hardwareEvidenceG0b": "No hardware evidence for G0b (toolchain available + csim/csynth/cosim ok)",
-        "hardwareEvidenceG2": "No hardware evidence for G2 (qor utilization and/or hardware report files)",
+        "hardwareEvidenceG0b": "No hardware evidence for G0b (toolchain.available + csim.ok and cosim.ok if attempted)",
+        "hardwareEvidenceG2": "No hardware evidence for G2 (reports.files or qor.utilization)",
     }
 
     mode_criteria = {
@@ -664,7 +678,6 @@ def main(argv: list[str] | None = None) -> int:
         load_errors=load_errors,
         dsl_checks=dsl_checks,
         manifest_checks=manifest_checks,
-        hw_reports=hw_reports,
         toolchain_hw_available=toolchain_hw_available,
         warnings=warnings,
     )

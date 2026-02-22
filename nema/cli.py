@@ -63,6 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
     hwtest_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     hwtest_cmd.add_argument("--outdir", type=Path, default=Path("build"), help="output directory")
     hwtest_cmd.add_argument("--ticks", type=int, default=8, help="number of ticks for sim stage")
+    hwtest_cmd.add_argument(
+        "--hw",
+        choices=("auto", "require", "off"),
+        default="auto",
+        help="hardware toolchain policy (default: auto)",
+    )
 
     selftest_cmd = subparsers.add_parser("selftest", help="run built-in deterministic self tests")
     selftest_cmd.add_argument("target", choices=["fixed"], help="selftest suite target")
@@ -133,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
         return code
 
     if args.command == "hwtest":
-        code, report = run_hwtest(args.ir_json, outdir=args.outdir, ticks=args.ticks)
+        code, report = run_hwtest(args.ir_json, outdir=args.outdir, ticks=args.ticks, hw_mode=args.hw)
         _emit(report)
         return code
 

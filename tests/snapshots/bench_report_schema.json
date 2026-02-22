@@ -103,7 +103,9 @@
       "dsp": "int|null",
       "ff": "int|null",
       "ii": "int|null",
+      "iiTop": "int|null",
       "latencyCycles": "int|null",
+      "latencyCyclesTop": "int|null",
       "lut": "int|null",
       "sourceReports": "list",
       "timingOrLatencyKeys": [
@@ -111,6 +113,8 @@
         "latencyCycles"
       ],
       "topKeys": [
+        "ii",
+        "latencyCycles",
         "sourceReports",
         "timingOrLatency",
         "utilization"

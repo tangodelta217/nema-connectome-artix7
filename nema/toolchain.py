@@ -111,8 +111,8 @@ def run_compile(ir_path: Path, outdir: Path) -> tuple[int, dict]:
     }
 
 
-def run_hwtest(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, dict]:
-    return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks)
+def run_hwtest(ir_path: Path, outdir: Path, ticks: int, *, hw_mode: str = "auto") -> tuple[int, dict]:
+    return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks, hw_mode=hw_mode)
 
 
 def run_hw_doctor() -> tuple[int, dict]:

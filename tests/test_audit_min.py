@@ -180,10 +180,12 @@ def test_audit_min_hardware_g2_true_with_qor_or_report_listed(tmp_path: Path) ->
             "toolchain": {"available": True},
             "csim": {"ok": True},
             "csynth": {"ok": True},
-            "cosim": None,
+            "cosim": {"attempted": False, "ok": None},
             "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
             "qor": {
                 "utilization": {"lut": 10, "ff": None, "bram": None, "dsp": None},
+                "ii": None,
+                "latencyCycles": None,
                 "timingOrLatency": {"ii": None, "latencyCycles": None},
                 "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
             },
@@ -201,3 +203,103 @@ def test_audit_min_hardware_g2_true_with_qor_or_report_listed(tmp_path: Path) ->
     )
     parsed = json.loads(proc.stdout)
     assert parsed["criteria"]["hardwareEvidenceG2"] is True
+
+
+def test_audit_min_hardware_g0b_requires_csim(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
+    root = tmp_path / "build"
+    report_path = root / "B3" / "bench_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "modelId": "B3_kernel_302_7500",
+        "bench": {"targetId": "B3/CE/302-7500"},
+        "ok": True,
+        "correctness": {"digestMatch": {"ok": True}},
+        "config": {
+            "graph": {
+                "nodeCount": 302,
+                "chemicalEdgeCount": 7500,
+                "gapEdgeCount": 0,
+                "edgeCountTotal": 7500,
+            }
+        },
+        "provenance": {"syntheticUsed": False, "externalVerified": True},
+        "hardware": {
+            "toolchain": {"available": True},
+            "csim": {"ok": False},
+            "csynth": {"ok": True},
+            "cosim": {"attempted": False, "ok": None},
+            "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
+            "qor": {
+                "utilization": {"lut": 10, "ff": None, "bram": None, "dsp": None},
+                "ii": None,
+                "latencyCycles": None,
+                "timingOrLatency": {"ii": None, "latencyCycles": None},
+                "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
+            },
+        },
+    }
+    report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    proc = subprocess.run(
+        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "hardware"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    parsed = json.loads(proc.stdout)
+    assert parsed["criteria"]["hardwareEvidenceG0b"] is False
+
+
+def test_audit_min_hardware_g0b_requires_cosim_ok_when_attempted(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
+    root = tmp_path / "build"
+    report_path = root / "B3" / "bench_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "modelId": "B3_kernel_302_7500",
+        "bench": {"targetId": "B3/CE/302-7500"},
+        "ok": True,
+        "correctness": {"digestMatch": {"ok": True}},
+        "config": {
+            "graph": {
+                "nodeCount": 302,
+                "chemicalEdgeCount": 7500,
+                "gapEdgeCount": 0,
+                "edgeCountTotal": 7500,
+            }
+        },
+        "provenance": {"syntheticUsed": False, "externalVerified": True},
+        "hardware": {
+            "toolchain": {"available": True},
+            "csim": {"ok": True},
+            "csynth": {"ok": True},
+            "cosim": {"attempted": True, "ok": False},
+            "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
+            "qor": {
+                "utilization": {"lut": 10, "ff": None, "bram": None, "dsp": None},
+                "ii": None,
+                "latencyCycles": None,
+                "timingOrLatency": {"ii": None, "latencyCycles": None},
+                "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
+            },
+        },
+    }
+    report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    proc = subprocess.run(
+        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "hardware"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    parsed = json.loads(proc.stdout)
+    assert parsed["criteria"]["hardwareEvidenceG0b"] is False

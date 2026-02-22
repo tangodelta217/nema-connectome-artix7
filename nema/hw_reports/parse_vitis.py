@@ -154,6 +154,8 @@ def _empty_qor() -> dict[str, Any]:
             "bram": None,
             "dsp": None,
         },
+        "ii": None,
+        "latencyCycles": None,
         "timingOrLatency": {
             "ii": None,
             "latencyCycles": None,
@@ -219,6 +221,8 @@ def parse_vitis_qor(hw_reports_dir: Path, *, source_prefix: str = "hw_reports") 
         "bram": extracted["bram"],
         "dsp": extracted["dsp"],
     }
+    payload["ii"] = extracted["ii"]
+    payload["latencyCycles"] = extracted["latencyCycles"]
     payload["timingOrLatency"] = {
         "ii": extracted["ii"],
         "latencyCycles": extracted["latencyCycles"],
