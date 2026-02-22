@@ -32,6 +32,9 @@ This runbook is a practical baseline to prepare an Ubuntu 24.04 workstation for 
      - `export XILINX_ROOT=/tools/Xilinx`
      - `export XILINX_VERSION=2025.2`
      - `source tools/hw/activate_xilinx.sh`
+   - After installing, find your actual `settings64.sh` and set:
+     - `export XILINX_SETTINGS64=/absolute/path/to/settings64.sh`
+     - `source tools/hw/activate_xilinx.sh`
 2. Verify binaries:
    - `vivado -version`
    - `vitis_hls -version`
@@ -51,5 +54,6 @@ This runbook is a practical baseline to prepare an Ubuntu 24.04 workstation for 
 
 ## Notes
 - `tools/hw/preflight_ubuntu24.sh` is check-only and does not install or modify system packages.
+- `tools/hw/install_checklist.sh` prints a manual installation checklist and post-install commands without installing anything.
 - On Ubuntu 24.04, `libtinfo.so.5` may be missing by default; the preflight script prints suggested remediation commands without executing them.
 - `tools/run_hw_gates.sh` requires a working toolchain activation and is intended for HW-capable lab machines.
