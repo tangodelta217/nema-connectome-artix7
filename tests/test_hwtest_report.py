@@ -41,6 +41,8 @@ def _bench_report_schema_projection(report: dict) -> dict:
     correctness = report["correctness"]
     performance = report["performance"]
     config = report["config"]
+    provenance = report["provenance"]
+    graph_resolved = report["graphResolved"]
 
     return {
         "topLevelKeys": sorted(report.keys()),
@@ -51,6 +53,19 @@ def _bench_report_schema_projection(report: dict) -> dict:
         "ticks": _expect_type(report["ticks"], {"int"}),
         "irPath": _expect_type(report["irPath"], {"str"}),
         "irSha256": _expect_type(report["irSha256"], {"str"}),
+        "provenance": {
+            "syntheticUsed": _expect_type(provenance["syntheticUsed"], {"bool"}),
+            "externalVerified": _expect_type(provenance["externalVerified"], {"bool"}),
+        },
+        "graphResolved": {
+            "topKeys": sorted(graph_resolved.keys()),
+            "nodeCount": _expect_type(graph_resolved["nodeCount"], {"int"}),
+            "edgeCountsKeys": sorted(graph_resolved["edgeCounts"].keys()),
+            "edgeCountsTotal": _expect_type(graph_resolved["edgeCounts"]["total"], {"int"}),
+            "edgeCountsChemical": _expect_type(graph_resolved["edgeCounts"]["chemical"], {"int"}),
+            "edgeCountsGap": _expect_type(graph_resolved["edgeCounts"]["gap"], {"int"}),
+            "edgeCountsGapDirected": _expect_type(graph_resolved["edgeCounts"]["gapDirected"], {"int"}),
+        },
         "toolchainVersions": {
             "python": _expect_type(report["toolchainVersions"]["python"], {"str", "null"}),
             "g++": _expect_type(report["toolchainVersions"]["g++"], {"str", "null"}),

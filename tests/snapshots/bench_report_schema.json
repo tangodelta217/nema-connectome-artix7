@@ -1,38 +1,16 @@
 {
-  "topLevelKeys": [
-    "artifacts",
-    "config",
-    "correctness",
-    "createdAt",
-    "gitCommit",
-    "hardware",
-    "irPath",
-    "irSha256",
-    "modelId",
-    "ok",
-    "performance",
-    "ticks",
-    "toolchainVersions",
-    "validation"
+  "artifactsKeys": [
+    "benchReport",
+    "cppRefMain",
+    "hlsCpp",
+    "hlsHeader",
+    "modelRoot"
   ],
-  "ok": "bool",
-  "modelId": "str",
-  "gitCommit": "null|str",
-  "createdAt": "str",
-  "ticks": "int",
-  "irPath": "str",
-  "irSha256": "str",
-  "toolchainVersions": {
-    "python": "null|str",
-    "g++": "null|str",
-    "vitis_hls": "null|str"
-  },
   "config": {
-    "topKeys": [
-      "dt",
-      "graph",
-      "qformats",
-      "schedule"
+    "dt": "float|int|str",
+    "graphKeys": [
+      "edgeCount",
+      "nodeCount"
     ],
     "qformatsKeys": [
       "accum",
@@ -46,25 +24,15 @@
       "policy",
       "snapshotRule"
     ],
-    "graphKeys": [
-      "edgeCount",
-      "nodeCount"
-    ],
-    "dt": "float|int|str"
+    "topKeys": [
+      "dt",
+      "graph",
+      "qformats",
+      "schedule"
+    ]
   },
   "correctness": {
-    "topKeys": [
-      "cppReference",
-      "digestMatch",
-      "goldenSim"
-    ],
-    "goldenSimKeys": [
-      "digestPath",
-      "digests",
-      "error",
-      "ok",
-      "tracePath"
-    ],
+    "cppDigests": "list",
     "cppReferenceKeys": [
       "binaryPath",
       "digests",
@@ -76,22 +44,50 @@
       "ok"
     ],
     "goldenDigests": "list",
-    "cppDigests": "list"
-  },
-  "performance": {
+    "goldenSimKeys": [
+      "digestPath",
+      "digests",
+      "error",
+      "ok",
+      "tracePath"
+    ],
     "topKeys": [
-      "cpu",
-      "hardware"
+      "cppReference",
+      "digestMatch",
+      "goldenSim"
+    ]
+  },
+  "createdAt": "str",
+  "gitCommit": "null|str",
+  "graphResolved": {
+    "edgeCountsChemical": "int",
+    "edgeCountsGap": "int",
+    "edgeCountsGapDirected": "int",
+    "edgeCountsKeys": [
+      "chemical",
+      "gap",
+      "gapDirected",
+      "total"
     ],
-    "cpuKeys": [
-      "cppRefElapsedSeconds",
-      "cppRefTicksPerSecond",
-      "goldenElapsedSeconds",
-      "goldenTicksPerSecond"
-    ],
-    "hardware": "null|object"
+    "edgeCountsTotal": "int",
+    "nodeCount": "int",
+    "topKeys": [
+      "edgeCounts",
+      "nodeCount"
+    ]
   },
   "hardware": {
+    "available": "bool",
+    "binary": "null|str",
+    "cosim": "null|object",
+    "csim": "null|object",
+    "project": "null|str",
+    "reports": "null|object",
+    "toolchainKeys": [
+      "available",
+      "binary",
+      "version"
+    ],
     "topKeys": [
       "cosim",
       "csim",
@@ -99,25 +95,52 @@
       "reports",
       "toolchain"
     ],
-    "toolchainKeys": [
-      "available",
-      "binary",
-      "version"
-    ],
-    "available": "bool",
-    "binary": "null|str",
-    "version": "null|str",
-    "project": "null|str",
-    "csim": "null|object",
-    "cosim": "null|object",
-    "reports": "null|object"
+    "version": "null|str"
   },
-  "artifactsKeys": [
-    "benchReport",
-    "cppRefMain",
-    "hlsCpp",
-    "hlsHeader",
-    "modelRoot"
+  "irPath": "str",
+  "irSha256": "str",
+  "modelId": "str",
+  "ok": "bool",
+  "performance": {
+    "cpuKeys": [
+      "cppRefElapsedSeconds",
+      "cppRefTicksPerSecond",
+      "goldenElapsedSeconds",
+      "goldenTicksPerSecond"
+    ],
+    "hardware": "null|object",
+    "topKeys": [
+      "cpu",
+      "hardware"
+    ]
+  },
+  "provenance": {
+    "externalVerified": "bool",
+    "syntheticUsed": "bool"
+  },
+  "ticks": "int",
+  "toolchainVersions": {
+    "g++": "null|str",
+    "python": "null|str",
+    "vitis_hls": "null|str"
+  },
+  "topLevelKeys": [
+    "artifacts",
+    "config",
+    "correctness",
+    "createdAt",
+    "gitCommit",
+    "graphResolved",
+    "hardware",
+    "irPath",
+    "irSha256",
+    "modelId",
+    "ok",
+    "performance",
+    "provenance",
+    "ticks",
+    "toolchainVersions",
+    "validation"
   ],
   "validationKeys": [
     "invariantsChecked",

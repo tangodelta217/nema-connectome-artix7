@@ -636,10 +636,23 @@ int main(int argc, char** argv) {{
     path.write_text(contents, encoding="utf-8")
 
 
-def generate_hls_project(ir_path: Path, outdir: Path) -> dict[str, Any]:
+def generate_hls_project(
+    ir_path: Path,
+    outdir: Path,
+    *,
+    ir_payload_override: dict[str, Any] | None = None,
+    ir_sha256_override: str | None = None,
+    base_dir: Path | None = None,
+) -> dict[str, Any]:
     """Generate HLS kernel + C++ reference harness for a model IR."""
-    ir_payload, ir_sha256 = load_ir(ir_path)
-    spec = _parse_spec(ir_payload, base_dir=ir_path.parent)
+    if ir_payload_override is None:
+        ir_payload, ir_sha256 = load_ir(ir_path)
+    else:
+        ir_payload = ir_payload_override
+        ir_sha256 = ir_sha256_override if ir_sha256_override is not None else "override"
+
+    parse_base_dir = base_dir if base_dir is not None else ir_path.parent
+    spec = _parse_spec(ir_payload, base_dir=parse_base_dir)
 
     model_root = outdir / spec.model_id
     hls_dir = model_root / "hls"

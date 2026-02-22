@@ -115,12 +115,18 @@ def _is_placeholder_sha256(value: str) -> bool:
         return True
     return (
         "placeholder" in normalized
+        or "replace" in normalized
         or normalized in {"todo", "tbd", "none", "unknown", "na", "n/a"}
         or normalized == "0" * 64
     )
 
 
-def _validate_external(graph: dict[str, Any], ir_path: Path) -> None:
+def _validate_external(
+    graph: dict[str, Any],
+    ir_path: Path,
+    *,
+    allow_missing_for_smoke: bool = False,
+) -> None:
     external = graph.get("external")
     if external is None:
         return
@@ -133,6 +139,8 @@ def _validate_external(graph: dict[str, Any], ir_path: Path) -> None:
         target = Path(rel_path)
         resolved = target if target.is_absolute() else (ir_path.parent / target)
         if not resolved.exists():
+            if allow_missing_for_smoke:
+                continue
             raise IRValidationError(
                 f"graph.external[{idx}] file does not exist: {resolved}"
             )
@@ -171,7 +179,12 @@ def _validate_license(payload: dict[str, Any]) -> None:
         )
 
 
-def _validate_graph(payload: dict[str, Any], ir_path: Path) -> tuple[int, int]:
+def _validate_graph(
+    payload: dict[str, Any],
+    ir_path: Path,
+    *,
+    allow_external_smoke: bool = False,
+) -> tuple[int, int]:
     graph = _require_object(payload.get("graph"), "graph")
     nodes = _require_array(graph.get("nodes"), "graph.nodes")
     edges = _require_array(graph.get("edges"), "graph.edges")
@@ -240,14 +253,18 @@ def _validate_graph(payload: dict[str, Any], ir_path: Path) -> tuple[int, int]:
                 f"for {source}->{target} (conductance={conductance})"
             )
 
-    _validate_external(graph, ir_path)
+    _validate_external(graph, ir_path, allow_missing_for_smoke=allow_external_smoke)
     return len(nodes), len(edges)
 
 
-def validate_ir(path: Path) -> dict[str, Any]:
+def validate_ir(path: Path, *, allow_external_smoke: bool = False) -> dict[str, Any]:
     payload, digest = load_ir(path)
     _validate_license(payload)
-    node_count, edge_count = _validate_graph(payload, path)
+    node_count, edge_count = _validate_graph(
+        payload,
+        path,
+        allow_external_smoke=allow_external_smoke,
+    )
     return {
         "ok": True,
         "ir_sha256": digest,

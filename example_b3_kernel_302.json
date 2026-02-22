@@ -1,5 +1,6 @@
 {
   "name": "example_b3_kernel_302",
+  "modelId": "B3_kernel_302_7500",
   "kernelId": 302,
   "constraints": {
     "allowedSpdx": [
@@ -11,6 +12,15 @@
     "spdxId": "MIT"
   },
   "graph": {
+    "stats": {
+      "nodeCount": 302,
+      "chemicalEdgeCount": 7500,
+      "gapEdgeCount": 0
+    },
+    "external": {
+      "path": "artifacts/graphs/b3_kernel_302_7500.json",
+      "sha256": "sha256:REPLACE"
+    },
     "nodes": [
       {
         "id": "n10",

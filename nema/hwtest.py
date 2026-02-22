@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from .codegen.hls_gen import generate_hls_project
-from .ir_validate import IRValidationError, load_ir, validate_ir
+from .ir_resolve import resolve_ir_for_execution
+from .ir_validate import IRValidationError, validate_ir
 from .sim import simulate
 
 
@@ -84,12 +85,19 @@ def _tool_versions(vitis_binary: str | None) -> dict[str, Any]:
     return versions
 
 
-def _config_summary(ir: dict[str, Any]) -> dict[str, Any]:
+def _config_summary(ir: dict[str, Any], *, graph_resolved: dict[str, Any] | None = None) -> dict[str, Any]:
     graph = ir.get("graph", {})
     tanh_lut = ir.get("tanhLut", {})
-    nodes = graph.get("nodes", [])
-    edges = graph.get("edges", [])
     dt = graph.get("dt", 1.0)
+    if graph_resolved is None:
+        nodes = graph.get("nodes", [])
+        edges = graph.get("edges", [])
+        resolved_node_count = len(nodes) if isinstance(nodes, list) else None
+        resolved_edge_count = len(edges) if isinstance(edges, list) else None
+    else:
+        resolved_node_count = graph_resolved.get("nodeCount")
+        edge_counts = graph_resolved.get("edgeCounts", {})
+        resolved_edge_count = edge_counts.get("total")
     return {
         "qformats": {
             "voltage": "Q8.8",
@@ -105,8 +113,8 @@ def _config_summary(ir: dict[str, Any]) -> dict[str, Any]:
             "evalOrder": "index",
         },
         "graph": {
-            "nodeCount": len(nodes) if isinstance(nodes, list) else None,
-            "edgeCount": len(edges) if isinstance(edges, list) else None,
+            "nodeCount": resolved_node_count,
+            "edgeCount": resolved_edge_count,
         },
     }
 
@@ -346,8 +354,12 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
         return 1, {"ok": False, "error": "--ticks must be >= 0"}
 
     try:
-        ir_validation = validate_ir(ir_path)
-        ir_payload, ir_sha256 = load_ir(ir_path)
+        ir_validation = validate_ir(ir_path, allow_external_smoke=True)
+        resolved = resolve_ir_for_execution(ir_path)
+        ir_payload = resolved["ir"]
+        ir_sha256 = resolved["ir_sha256"]
+        provenance = resolved["provenance"]
+        graph_resolved = resolved["graphResolved"]
     except FileNotFoundError:
         return 1, {"ok": False, "error": f"file not found: {ir_path}"}
     except (IRValidationError, ValueError) as exc:
@@ -361,7 +373,13 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
     model_root.mkdir(parents=True, exist_ok=True)
 
     try:
-        gen_report = generate_hls_project(ir_path=ir_path, outdir=outdir)
+        gen_report = generate_hls_project(
+            ir_path=ir_path,
+            outdir=outdir,
+            ir_payload_override=ir_payload,
+            ir_sha256_override=ir_sha256,
+            base_dir=ir_path.parent,
+        )
     except (FileNotFoundError, ValueError) as exc:
         return 1, {"ok": False, "error": f"codegen failed: {exc}"}
 
@@ -465,7 +483,9 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
         "gitCommit": _git_commit(),
         "createdAt": created_at,
         "toolchainVersions": tool_versions,
-        "config": _config_summary(ir_payload),
+        "config": _config_summary(ir_payload, graph_resolved=graph_resolved),
+        "provenance": provenance,
+        "graphResolved": graph_resolved,
         "correctness": correctness,
         "performance": {
             "cpu": {
@@ -505,5 +525,8 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
         "cpp_ref_ok": cpp_report["ok"],
         "digest_match": digests_match,
         "hls_toolchain_available": hardware["toolchain"]["available"],
+        "synthetic_used": provenance["syntheticUsed"],
+        "external_verified": provenance["externalVerified"],
+        "graph_resolved": graph_resolved,
     }
     return (0 if bench_report["ok"] else 1), summary
