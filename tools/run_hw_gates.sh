@@ -8,8 +8,32 @@ cd "${REPO_ROOT}"
 
 mkdir -p build_hw
 
-# Must fail early on machines without an installed Xilinx toolchain.
-source tools/hw/activate_xilinx.sh
+timestamp_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+git_hash="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+cat > build_hw/run_meta.json <<EOF
+{
+  "createdAtUtc": "${timestamp_utc}",
+  "gitHash": "${git_hash}",
+  "runner": "tools/run_hw_gates.sh"
+}
+EOF
+
+# Must fail early on machines without an installed Xilinx toolchain, while
+# still leaving minimal evidence artifacts under build_hw/.
+if ! source tools/hw/activate_xilinx.sh 2> build_hw/activate.stderr.log; then
+  cat > build_hw/audit_min_hardware.json <<'EOF'
+{
+  "ok": false,
+  "decision": "NO-GO",
+  "mode": "hardware",
+  "reasons": [
+    "toolchain not found"
+  ],
+  "toolchainHwAvailable": false
+}
+EOF
+  exit 1
+fi
 
 bash tools/hw/preflight_ubuntu24.sh > build_hw/preflight.txt
 
