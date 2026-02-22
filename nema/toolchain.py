@@ -8,7 +8,8 @@ import subprocess
 from pathlib import Path
 
 from .fixed import run_selftest as run_fixed_selftest
-from .ir_validate import IRValidationError, validate_ir
+from .ir_validate import IRValidationError, load_ir, validate_ir
+from .sim import simulate
 
 
 def write_json(path: Path, payload: dict) -> None:
@@ -26,30 +27,47 @@ def check_ir(ir_path: Path) -> tuple[int, dict]:
     return 0, report
 
 
-def run_sim(ir_path: Path, ticks: int, out_path: Path) -> tuple[int, dict]:
+def run_sim(
+    ir_path: Path,
+    ticks: int,
+    out_path: Path,
+    *,
+    digest_path: Path | None = None,
+    seed: int = 0,
+) -> tuple[int, dict]:
     code, report = check_ir(ir_path)
     if code != 0:
         return code, report
     if ticks < 0:
         return 1, {"ok": False, "error": "--ticks must be >= 0"}
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", encoding="utf-8") as stream:
-        for tick in range(ticks):
-            line = {
-                "tick": tick,
-                "kind": "placeholder_tick",
-                "ir_sha256": report["ir_sha256"],
-                "note": "golden semantics not implemented yet",
-            }
-            stream.write(json.dumps(line, sort_keys=True) + "\n")
+    if digest_path is None:
+        digest_path = out_path.with_name("digest.json")
+
+    try:
+        ir_payload, _ = load_ir(ir_path)
+        sim_report = simulate(
+            ir_payload,
+            ticks=ticks,
+            seed=seed,
+            trace_path=out_path,
+            base_dir=ir_path.parent,
+        )
+    except (FileNotFoundError, ValueError, IRValidationError) as exc:
+        return 1, {"ok": False, "error": str(exc)}
+
+    write_json(digest_path, sim_report)
 
     return 0, {
         "ok": True,
         "trace_path": str(out_path),
+        "digest_path": str(digest_path),
         "ticks": ticks,
         "ir_sha256": report["ir_sha256"],
-        "mode": "placeholder",
+        "policy": sim_report["policy"],
+        "last_digest_sha256": (
+            sim_report["tickDigestsSha256"][-1] if sim_report["tickDigestsSha256"] else None
+        ),
     }
 
 
@@ -129,7 +147,13 @@ def _detect_vitis_hls() -> dict:
 def run_hwtest(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, dict]:
     outdir.mkdir(parents=True, exist_ok=True)
 
-    sim_code, sim_report = run_sim(ir_path, ticks=ticks, out_path=outdir / "trace.jsonl")
+    sim_code, sim_report = run_sim(
+        ir_path,
+        ticks=ticks,
+        out_path=outdir / "trace.jsonl",
+        digest_path=outdir / "digest.json",
+        seed=0,
+    )
     if sim_code != 0:
         return sim_code, sim_report
 

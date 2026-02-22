@@ -17,10 +17,17 @@ def build_parser() -> argparse.ArgumentParser:
     check_cmd = subparsers.add_parser("check", help="validate IR JSON against invariants")
     check_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
 
-    sim_cmd = subparsers.add_parser("sim", help="run golden simulation placeholder")
+    sim_cmd = subparsers.add_parser("sim", help="run golden simulation (nema.tick.v0.1)")
     sim_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     sim_cmd.add_argument("--ticks", type=int, required=True, help="number of ticks")
     sim_cmd.add_argument("--out", type=Path, required=True, help="trace JSONL output path")
+    sim_cmd.add_argument(
+        "--digest-out",
+        type=Path,
+        default=None,
+        help="digest JSON output path (default: sibling digest.json)",
+    )
+    sim_cmd.add_argument("--seed", type=int, default=0, help="deterministic simulation seed")
 
     compile_cmd = subparsers.add_parser("compile", help="generate HLS C++ placeholder")
     compile_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
@@ -54,7 +61,13 @@ def main(argv: list[str] | None = None) -> int:
         return code
 
     if args.command == "sim":
-        code, report = run_sim(args.ir_json, ticks=args.ticks, out_path=args.out)
+        code, report = run_sim(
+            args.ir_json,
+            ticks=args.ticks,
+            out_path=args.out,
+            digest_path=args.digest_out,
+            seed=args.seed,
+        )
         _emit(report)
         return code
 

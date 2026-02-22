@@ -7,13 +7,14 @@ from nema.cli import main
 
 
 def write_ir(path: Path) -> None:
+    lut_path = Path("artifacts/luts/tanh_q8_8.bin").resolve()
     payload = {
         "constraints": {"allowedSpdx": ["MIT"]},
         "license": {"spdxId": "MIT"},
         "graph": {
             "nodes": [
-                {"id": "n0", "index": 0, "canonicalOrderId": 0},
-                {"id": "n1", "index": 1, "canonicalOrderId": 1},
+                {"id": "n0", "index": 0, "canonicalOrderId": 0, "vInitRaw": 128, "tauM": 2.0},
+                {"id": "n1", "index": 1, "canonicalOrderId": 1, "vInitRaw": -64, "tauM": 3.0},
             ],
             "edges": [
                 {
@@ -25,6 +26,13 @@ def write_ir(path: Path) -> None:
                     "conductance": 0.1,
                 }
             ],
+            "dt": 1.0,
+        },
+        "tanhLut": {
+            "policy": "nema.tanh_lut.v0.1",
+            "artifact": str(lut_path),
+            "inputType": "Q8.8",
+            "outputType": "Q8.8",
         },
     }
     path.write_text(json.dumps(payload), encoding="utf-8")
@@ -55,6 +63,7 @@ def test_sim_creates_trace(tmp_path: Path) -> None:
     assert len(lines) == 3
     first = json.loads(lines[0])
     assert first["tick"] == 0
+    assert (tmp_path / "digest.json").exists()
 
 
 def test_compile_creates_kernel_and_manifest(tmp_path: Path) -> None:
