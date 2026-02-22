@@ -7,7 +7,15 @@ import json
 import sys
 from pathlib import Path
 
-from .toolchain import check_ir, dump_csr, run_compile, run_hwtest, run_sim, selftest_fixed
+from .toolchain import (
+    check_ir,
+    dump_csr,
+    run_compile,
+    run_hwtest,
+    run_materialize_external,
+    run_sim,
+    selftest_fixed,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,6 +44,13 @@ def build_parser() -> argparse.ArgumentParser:
     dump_csr_cmd = subparsers.add_parser("dump-csr", help="lower graph and dump deterministic CSR JSON")
     dump_csr_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     dump_csr_cmd.add_argument("--out", type=Path, required=True, help="CSR dump output path")
+
+    materialize_cmd = subparsers.add_parser(
+        "materialize-external",
+        help="materialize deterministic external connectome bundle for IR graph.external",
+    )
+    materialize_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
+    materialize_cmd.add_argument("--out", type=Path, required=True, help="output JSON bundle path")
 
     hwtest_cmd = subparsers.add_parser(
         "hwtest",
@@ -82,6 +97,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "dump-csr":
         code, report = dump_csr(args.ir_json, out_path=args.out)
+        _emit(report)
+        return code
+
+    if args.command == "materialize-external":
+        code, report = run_materialize_external(args.ir_json, out_path=args.out)
         _emit(report)
         return code
 

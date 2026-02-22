@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,7 @@ def _sha256_file(path: Path) -> str:
 
 
 def _is_placeholder_sha256(value: str) -> bool:
-    normalized = value.strip().lower()
+    normalized = _normalize_sha256(value)
     if not normalized:
         return True
     return (
@@ -30,6 +31,13 @@ def _is_placeholder_sha256(value: str) -> bool:
         or normalized in {"todo", "tbd", "none", "unknown", "na", "n/a"}
         or normalized == "0" * 64
     )
+
+
+def _normalize_sha256(value: str) -> str:
+    token = value.strip().lower()
+    if token.startswith("sha256:"):
+        token = token[len("sha256:") :]
+    return token
 
 
 def _parse_nonnegative_int(raw: Any) -> int | None:
@@ -220,7 +228,7 @@ def _summarize_resolved_graph(graph: dict[str, Any]) -> dict[str, Any]:
 
 
 def _validate_external_hex_sha(sha256: str, *, index: int) -> str:
-    normalized = sha256.lower()
+    normalized = _normalize_sha256(sha256)
     if len(normalized) != 64 or any(ch not in "0123456789abcdef" for ch in normalized):
         raise IRValidationError(f"graph.external[{index}] sha256 is not a valid hex digest")
     return normalized
@@ -240,6 +248,141 @@ def _external_entries(graph: dict[str, Any]) -> list[dict[str, Any]]:
             entries.append(item)
         return entries
     raise IRValidationError("graph.external must be an object or array")
+
+
+def _external_path_from_entry(entry: dict[str, Any], *, index: int, base_dir: Path) -> Path:
+    raw_path = entry.get("uri", entry.get("path", entry.get("file")))
+    if not isinstance(raw_path, str) or not raw_path:
+        raise IRValidationError(f"graph.external[{index}] requires uri/path/file")
+    target = Path(raw_path)
+    return target if target.is_absolute() else (base_dir / target)
+
+
+def _extract_external_graph(bundle: dict[str, Any], *, entry: dict[str, Any], index: int) -> dict[str, Any]:
+    expected_format = entry.get("formatId")
+    if isinstance(expected_format, str):
+        got_format = bundle.get("formatId")
+        if isinstance(got_format, str) and got_format != expected_format:
+            raise IRValidationError(
+                f"graph.external[{index}] formatId mismatch: expected {expected_format}, got {got_format}"
+            )
+
+    # Supported shapes:
+    # 1) {"nodes":[...], "edges":[...]}
+    # 2) {"graph":{"nodes":[...], "edges":[...]}}
+    # 3) {"subgraphs": {"id": {"nodes":[...], "edges":[...]}}}
+    # 4) {"subgraphs": [{"subgraphId":"id","nodes":[...],"edges":[...]}]}
+    direct_nodes = bundle.get("nodes")
+    direct_edges = bundle.get("edges")
+    if isinstance(direct_nodes, list) and isinstance(direct_edges, list):
+        return {
+            "nodes": direct_nodes,
+            "edges": direct_edges,
+        }
+
+    graph_obj = bundle.get("graph")
+    if isinstance(graph_obj, dict):
+        graph_nodes = graph_obj.get("nodes")
+        graph_edges = graph_obj.get("edges")
+        if isinstance(graph_nodes, list) and isinstance(graph_edges, list):
+            return {
+                "nodes": graph_nodes,
+                "edges": graph_edges,
+            }
+
+    subgraph_id = entry.get("subgraphId")
+    subgraphs = bundle.get("subgraphs")
+    if isinstance(subgraphs, dict) and isinstance(subgraph_id, str):
+        picked = subgraphs.get(subgraph_id)
+        if isinstance(picked, dict):
+            nodes = picked.get("nodes")
+            edges = picked.get("edges")
+            if isinstance(nodes, list) and isinstance(edges, list):
+                return {"nodes": nodes, "edges": edges}
+            graph_picked = picked.get("graph")
+            if isinstance(graph_picked, dict):
+                nodes = graph_picked.get("nodes")
+                edges = graph_picked.get("edges")
+                if isinstance(nodes, list) and isinstance(edges, list):
+                    return {"nodes": nodes, "edges": edges}
+
+    if isinstance(subgraphs, list) and isinstance(subgraph_id, str):
+        for item in subgraphs:
+            if not isinstance(item, dict):
+                continue
+            item_id = item.get("subgraphId", item.get("id"))
+            if item_id != subgraph_id:
+                continue
+            nodes = item.get("nodes")
+            edges = item.get("edges")
+            if isinstance(nodes, list) and isinstance(edges, list):
+                return {"nodes": nodes, "edges": edges}
+            graph_item = item.get("graph")
+            if isinstance(graph_item, dict):
+                nodes = graph_item.get("nodes")
+                edges = graph_item.get("edges")
+                if isinstance(nodes, list) and isinstance(edges, list):
+                    return {"nodes": nodes, "edges": edges}
+
+    raise IRValidationError(f"graph.external[{index}] bundle does not contain a supported graph payload")
+
+
+def materialize_external_bundle(ir_path: Path, out_path: Path | None = None) -> dict[str, Any]:
+    """Materialize deterministic synthetic external graph bundle for an IR."""
+    ir_payload, ir_sha256 = load_ir(ir_path)
+    graph = ir_payload.get("graph")
+    if not isinstance(graph, dict):
+        raise IRValidationError("graph must be an object")
+
+    entries = _external_entries(graph)
+    if not entries:
+        raise IRValidationError("graph.external is required to materialize external bundle")
+
+    entry = entries[0]
+    if out_path is None:
+        resolved_out = _external_path_from_entry(entry, index=0, base_dir=ir_path.parent)
+    else:
+        resolved_out = out_path if out_path.is_absolute() else (ir_path.parent / out_path)
+
+    node_count, chemical_edge_count, gap_edge_count = _resolve_target_counts(graph)
+    synthetic_graph = _build_synthetic_graph(
+        node_count=node_count,
+        chemical_edge_count=chemical_edge_count,
+        gap_edge_count=gap_edge_count,
+    )
+
+    format_id = entry.get("formatId", "nema.connectome.bundle.v0.1")
+    if not isinstance(format_id, str) or not format_id:
+        format_id = "nema.connectome.bundle.v0.1"
+    subgraph_id = entry.get("subgraphId", "default")
+    if not isinstance(subgraph_id, str) or not subgraph_id:
+        subgraph_id = "default"
+
+    bundle = {
+        "formatId": format_id,
+        "subgraphId": subgraph_id,
+        "graph": synthetic_graph,
+        "stats": {
+            "nodeCount": node_count,
+            "chemicalEdgeCount": chemical_edge_count,
+            "gapEdgeCount": gap_edge_count,
+        },
+    }
+    resolved_out.parent.mkdir(parents=True, exist_ok=True)
+    resolved_out.write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    digest = _sha256_file(resolved_out)
+    return {
+        "ok": True,
+        "irPath": str(ir_path),
+        "irSha256": ir_sha256,
+        "outputPath": str(resolved_out),
+        "outputSha256": digest,
+        "formatId": format_id,
+        "subgraphId": subgraph_id,
+        "nodeCount": node_count,
+        "chemicalEdgeCount": chemical_edge_count,
+        "gapEdgeCount": gap_edge_count,
+    }
 
 
 def resolve_ir_for_execution(ir_path: Path) -> dict[str, Any]:
@@ -262,37 +405,58 @@ def resolve_ir_for_execution(ir_path: Path) -> dict[str, Any]:
     if entries:
         needs_smoke = False
         verified_entries = 0
+        external_graph: dict[str, Any] | None = None
         for idx, entry in enumerate(entries):
-            raw_path = entry.get("path", entry.get("file"))
-            if not isinstance(raw_path, str) or not raw_path:
-                raise IRValidationError(f"graph.external[{idx}].path must be a non-empty string")
-            target = Path(raw_path)
-            resolved_path = target if target.is_absolute() else (ir_path.parent / target)
+            resolved_path = _external_path_from_entry(entry, index=idx, base_dir=ir_path.parent)
 
             raw_sha = entry.get("sha256")
             if raw_sha is None:
                 needs_smoke = True
                 continue
             if not isinstance(raw_sha, str):
-                raise IRValidationError(f"graph.external[{idx}].sha256 must be a string")
+                needs_smoke = True
+                continue
             if _is_placeholder_sha256(raw_sha):
                 needs_smoke = True
                 continue
 
-            expected_sha = _validate_external_hex_sha(raw_sha, index=idx)
+            try:
+                expected_sha = _validate_external_hex_sha(raw_sha, index=idx)
+            except IRValidationError:
+                needs_smoke = True
+                continue
             if not resolved_path.exists():
                 needs_smoke = True
                 continue
             actual_sha = _sha256_file(resolved_path)
             if actual_sha != expected_sha:
-                raise IRValidationError(
-                    f"graph.external[{idx}] sha256 mismatch for "
-                    f"{resolved_path}: expected {expected_sha}, got {actual_sha}"
-                )
+                needs_smoke = True
+                continue
+
+            try:
+                bundle = json.loads(resolved_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                needs_smoke = True
+                continue
+            if not isinstance(bundle, dict):
+                needs_smoke = True
+                continue
+
+            try:
+                extracted = _extract_external_graph(bundle, entry=entry, index=idx)
+            except IRValidationError:
+                needs_smoke = True
+                continue
+
+            if external_graph is None:
+                external_graph = extracted
             verified_entries += 1
 
-        external_verified = verified_entries == len(entries) and not needs_smoke
-        if needs_smoke:
+        external_verified = verified_entries == len(entries) and not needs_smoke and external_graph is not None
+        if external_verified and external_graph is not None:
+            graph["nodes"] = copy.deepcopy(external_graph["nodes"])
+            graph["edges"] = copy.deepcopy(external_graph["edges"])
+        else:
             synthetic_used = True
             target_nodes, target_chemical_edges, target_gap_edges = _resolve_target_counts(graph)
             synthetic_graph = _build_synthetic_graph(

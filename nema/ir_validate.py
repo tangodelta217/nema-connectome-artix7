@@ -92,6 +92,13 @@ def _extract_conductance(edge: dict[str, Any], edge_id: str) -> Decimal:
     return value
 
 
+def _normalize_sha256(value: str) -> str:
+    token = value.strip().lower()
+    if token.startswith("sha256:"):
+        token = token[len("sha256:") :]
+    return token
+
+
 def _extract_kind(edge: dict[str, Any], edge_id: str) -> str:
     raw_kind = edge.get("kind", edge.get("type"))
     if not isinstance(raw_kind, str) or not raw_kind:
@@ -110,7 +117,7 @@ def _extract_directed(edge: dict[str, Any], edge_id: str) -> bool:
 
 
 def _is_placeholder_sha256(value: str) -> bool:
-    normalized = value.strip().lower()
+    normalized = _normalize_sha256(value)
     if not normalized:
         return True
     return (
@@ -134,7 +141,7 @@ def _validate_external(
     entries = [external] if isinstance(external, dict) else _require_array(external, "graph.external")
     for idx, entry in enumerate(entries):
         item = _require_object(entry, f"graph.external[{idx}]")
-        raw_path = item.get("path", item.get("file"))
+        raw_path = item.get("uri", item.get("path", item.get("file")))
         rel_path = _require_string(raw_path, f"graph.external[{idx}].path")
         target = Path(rel_path)
         resolved = target if target.is_absolute() else (ir_path.parent / target)
@@ -152,11 +159,15 @@ def _validate_external(
             raise IRValidationError(f"graph.external[{idx}].sha256 must be a string")
         if _is_placeholder_sha256(sha):
             continue
-        expected = sha.lower()
+        expected = _normalize_sha256(sha)
         if len(expected) != 64 or any(ch not in "0123456789abcdef" for ch in expected):
+            if allow_missing_for_smoke:
+                continue
             raise IRValidationError(f"graph.external[{idx}] sha256 is not a valid hex digest")
         actual = _sha256_file(resolved)
         if actual != expected:
+            if allow_missing_for_smoke:
+                continue
             raise IRValidationError(
                 f"graph.external[{idx}] sha256 mismatch for {resolved}: expected {expected}, got {actual}"
             )

@@ -46,7 +46,8 @@ def test_b3_smoke_hwtest_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     bench_report = json.loads(bench_report_path.read_text(encoding="utf-8"))
 
     assert bench_report["correctness"]["digestMatch"]["ok"] is True
-    assert bench_report["provenance"]["syntheticUsed"] is True
+    assert bench_report["provenance"]["syntheticUsed"] is False
+    assert bench_report["provenance"]["externalVerified"] is True
     assert bench_report["graphResolved"]["nodeCount"] == 302
     assert bench_report["graphResolved"]["edgeCounts"]["chemical"] == 7500
     assert bench_report["config"]["graph"]["nodeCount"] == 302

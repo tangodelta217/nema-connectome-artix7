@@ -18,8 +18,11 @@
       "gapEdgeCount": 0
     },
     "external": {
-      "path": "artifacts/graphs/b3_kernel_302_7500.json",
-      "sha256": "sha256:REPLACE"
+      "uri": "connectomes/celegans_herm_c302_bundle.json",
+      "path": "connectomes/celegans_herm_c302_bundle.json",
+      "subgraphId": "celegans_herm_c302_7500",
+      "formatId": "nema.connectome.bundle.v0.1",
+      "sha256": "sha256:a2695caf78bd3f77869396d2e83a0cbec3e56c49a2a47310635b5212a3ee8df1"
     },
     "nodes": [
       {

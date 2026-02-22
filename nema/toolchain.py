@@ -8,6 +8,7 @@ from pathlib import Path
 from .codegen.hls_gen import generate_hls_project
 from .fixed import run_selftest as run_fixed_selftest
 from .hwtest import run_hwtest_pipeline
+from .ir_resolve import materialize_external_bundle
 from .ir_validate import IRValidationError, load_ir, validate_ir
 from .lowering.csr import lower_ir_to_csr
 from .sim import simulate
@@ -138,3 +139,13 @@ def dump_csr(ir_path: Path, out_path: Path) -> tuple[int, dict]:
         "gap_edge_count": lowered["gap_edge_count"],
         "lowering_policy": lowered["loweringPolicy"],
     }
+
+
+def run_materialize_external(ir_path: Path, out_path: Path) -> tuple[int, dict]:
+    try:
+        report = materialize_external_bundle(ir_path=ir_path, out_path=out_path)
+    except FileNotFoundError:
+        return 1, {"ok": False, "error": f"file not found: {ir_path}"}
+    except (IRValidationError, ValueError) as exc:
+        return 1, {"ok": False, "error": str(exc)}
+    return 0, report

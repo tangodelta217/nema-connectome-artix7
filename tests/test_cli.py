@@ -38,6 +38,40 @@ def write_ir(path: Path) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def write_ir_with_external(path: Path) -> None:
+    lut_path = Path("artifacts/luts/tanh_q8_8.bin").resolve()
+    payload = {
+        "constraints": {"allowedSpdx": ["MIT"]},
+        "license": {"spdxId": "MIT"},
+        "graph": {
+            "stats": {
+                "nodeCount": 8,
+                "chemicalEdgeCount": 16,
+                "gapEdgeCount": 0,
+            },
+            "external": {
+                "uri": "connectomes/test_bundle.json",
+                "path": "connectomes/test_bundle.json",
+                "subgraphId": "test_subgraph",
+                "formatId": "nema.connectome.bundle.v0.1",
+                "sha256": "sha256:REPLACE",
+            },
+            "nodes": [
+                {"id": "n0", "index": 0, "canonicalOrderId": 0},
+            ],
+            "edges": [],
+            "dt": 1.0,
+        },
+        "tanhLut": {
+            "policy": "nema.tanh_lut.v0.1",
+            "artifact": str(lut_path),
+            "inputType": "Q8.8",
+            "outputType": "Q8.8",
+        },
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_check_command_ok(tmp_path: Path, capsys) -> None:
     ir = tmp_path / "ir.json"
     write_ir(ir)
@@ -123,3 +157,19 @@ def test_selftest_fixed_ok(capsys) -> None:
     payload = json.loads(out)
     assert payload["ok"] is True
     assert payload["suite"] == "fixed"
+
+
+def test_materialize_external_creates_bundle(tmp_path: Path) -> None:
+    ir = tmp_path / "ir_external.json"
+    out = tmp_path / "connectomes" / "bundle.json"
+    write_ir_with_external(ir)
+
+    code = main(["materialize-external", str(ir), "--out", str(out)])
+
+    assert code == 0
+    assert out.exists()
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["formatId"] == "nema.connectome.bundle.v0.1"
+    assert payload["subgraphId"] == "test_subgraph"
+    assert len(payload["graph"]["nodes"]) == 8
+    assert len(payload["graph"]["edges"]) == 16
