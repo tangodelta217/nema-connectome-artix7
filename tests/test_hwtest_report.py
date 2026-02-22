@@ -75,6 +75,7 @@ def _bench_report_schema_projection(report: dict) -> dict:
             "python": _expect_type(report["toolchainVersions"]["python"], {"str", "null"}),
             "g++": _expect_type(report["toolchainVersions"]["g++"], {"str", "null"}),
             "vitis_hls": _expect_type(report["toolchainVersions"]["vitis_hls"], {"str", "null"}),
+            "vivado": _expect_type(report["toolchainVersions"]["vivado"], {"str", "null"}),
         },
         "config": {
             "topKeys": sorted(config.keys()),
@@ -108,6 +109,9 @@ def _bench_report_schema_projection(report: dict) -> dict:
             "available": _expect_type(toolchain["available"], {"bool"}),
             "binary": _expect_type(toolchain["binary"], {"str", "null"}),
             "version": _expect_type(toolchain["version"], {"str", "null"}),
+            "vivadoAvailable": _expect_type(toolchain["vivadoAvailable"], {"bool"}),
+            "vivadoBinary": _expect_type(toolchain["vivadoBinary"], {"str", "null"}),
+            "vivadoVersion": _expect_type(toolchain["vivadoVersion"], {"str", "null"}),
             "project": _expect_type(hardware["project"], {"str", "null"}),
             "csim": _expect_type(hardware["csim"], {"object", "null"}),
             "cosim": _expect_type(hardware["cosim"], {"object", "null"}),

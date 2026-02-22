@@ -56,7 +56,8 @@
       "required": [
         "python",
         "g++",
-        "vitis_hls"
+        "vitis_hls",
+        "vivado"
       ],
       "properties": {
         "python": {
@@ -72,6 +73,12 @@
           ]
         },
         "vitis_hls": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vivado": {
           "type": [
             "string",
             "null"
@@ -339,7 +346,10 @@
           "required": [
             "available",
             "binary",
-            "version"
+            "version",
+            "vivadoAvailable",
+            "vivadoBinary",
+            "vivadoVersion"
           ],
           "properties": {
             "available": {
@@ -352,6 +362,21 @@
               ]
             },
             "version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "vivadoAvailable": {
+              "type": "boolean"
+            },
+            "vivadoBinary": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "vivadoVersion": {
               "type": [
                 "string",
                 "null"

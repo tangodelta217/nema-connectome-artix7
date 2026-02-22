@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +14,7 @@ from datetime import datetime, timezone
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 from .codegen.hls_gen import generate_hls_project
 from .ir_resolve import resolve_ir_for_execution
@@ -70,11 +72,12 @@ def _git_commit() -> str | None:
     return commit or None
 
 
-def _tool_versions(vitis_binary: str | None) -> dict[str, Any]:
+def _tool_versions(vitis_binary: str | None, vivado_binary: str | None) -> dict[str, Any]:
     versions: dict[str, Any] = {
         "python": _first_line(sys.version),
         "g++": None,
         "vitis_hls": None,
+        "vivado": None,
     }
     gpp = shutil.which("g++")
     if gpp:
@@ -83,6 +86,9 @@ def _tool_versions(vitis_binary: str | None) -> dict[str, Any]:
     if vitis_binary:
         proc = subprocess.run([vitis_binary, "-version"], check=False, capture_output=True, text=True)
         versions["vitis_hls"] = _first_line(proc.stdout or proc.stderr)
+    if vivado_binary:
+        proc = subprocess.run([vivado_binary, "-version"], check=False, capture_output=True, text=True)
+        versions["vivado"] = _first_line(proc.stdout or proc.stderr)
     return versions
 
 
@@ -272,6 +278,39 @@ def _detect_vitis_hls() -> dict[str, Any]:
     }
 
 
+def _detect_vivado() -> dict[str, Any]:
+    if os.environ.get("NEMA_HWTEST_DISABLE_VIVADO", "").lower() in {"1", "true", "yes"}:
+        return {
+            "available": False,
+            "binary": None,
+            "version": None,
+        }
+    binary = shutil.which("vivado")
+    if not binary:
+        return {
+            "available": False,
+            "binary": None,
+            "version": None,
+        }
+    proc = subprocess.run([binary, "-version"], check=False, capture_output=True, text=True)
+    return {
+        "available": True,
+        "binary": binary,
+        "version": _first_line(proc.stdout or proc.stderr),
+    }
+
+
+def _toolchain_descriptor(vitis_info: dict[str, Any], vivado_info: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "available": bool(vitis_info.get("available")),
+        "binary": vitis_info.get("binary"),
+        "version": vitis_info.get("version"),
+        "vivadoAvailable": bool(vivado_info.get("available")),
+        "vivadoBinary": vivado_info.get("binary"),
+        "vivadoVersion": vivado_info.get("version"),
+    }
+
+
 def _run_cpp_reference(
     *,
     hls_cpp: Path,
@@ -403,18 +442,164 @@ def _collect_hls_reports(solution_dir: Path) -> dict[str, Any] | None:
     if not solution_dir.exists():
         return None
     report_files = sorted(str(p) for p in solution_dir.rglob("*") if p.is_file() and p.suffix in {".rpt", ".xml"})
+    csynth_xml = next((p for p in report_files if p.endswith("csynth.xml")), None)
+    csynth_rpt = next((p for p in report_files if p.endswith("csynth.rpt")), None)
     util_report = next((p for p in report_files if "util" in p.lower() or "csynth.rpt" in p.lower()), None)
     timing_report = next((p for p in report_files if "timing" in p.lower() or "csynth.rpt" in p.lower()), None)
     return {
         "reportFiles": report_files,
+        "csynthXml": csynth_xml,
+        "csynthRpt": csynth_rpt,
         "utilizationReport": util_report,
         "timingReport": timing_report,
+    }
+
+
+def _as_int(text: str | None) -> int | None:
+    if text is None:
+        return None
+    token = text.strip()
+    if not token:
+        return None
+    token = token.replace(",", "")
+    if not token.isdigit():
+        return None
+    return int(token)
+
+
+def _parse_csynth_xml(report_path: Path) -> dict[str, Any] | None:
+    try:
+        root = ElementTree.parse(report_path).getroot()
+    except (ElementTree.ParseError, OSError):
+        return None
+
+    def find_text(xpath: str) -> str | None:
+        node = root.find(xpath)
+        if node is None or node.text is None:
+            return None
+        return node.text.strip()
+
+    metrics = {
+        "latencyCycles": {
+            "best": _as_int(find_text(".//SummaryOfOverallLatency/Best-caseLatency")),
+            "avg": _as_int(find_text(".//SummaryOfOverallLatency/Average-caseLatency")),
+            "worst": _as_int(find_text(".//SummaryOfOverallLatency/Worst-caseLatency")),
+        },
+        "ii": {
+            "min": _as_int(find_text(".//SummaryOfOverallLatency/Interval-min")),
+            "max": _as_int(find_text(".//SummaryOfOverallLatency/Interval-max")),
+        },
+        "utilization": {
+            "BRAM_18K": _as_int(find_text(".//AreaEstimates/Resources/BRAM_18K")),
+            "DSP": _as_int(find_text(".//AreaEstimates/Resources/DSP")),
+            "FF": _as_int(find_text(".//AreaEstimates/Resources/FF")),
+            "LUT": _as_int(find_text(".//AreaEstimates/Resources/LUT")),
+            "URAM": _as_int(find_text(".//AreaEstimates/Resources/URAM")),
+        },
+    }
+
+    has_any = any(value is not None for section in metrics.values() for value in section.values())
+    return metrics if has_any else None
+
+
+def _parse_csynth_rpt(report_path: Path) -> dict[str, Any] | None:
+    try:
+        text = report_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+    def _resource(name: str) -> int | None:
+        # Typical row: | BRAM_18K | 0 | ... |
+        match = re.search(rf"\|\s*{re.escape(name)}\s*\|\s*(\d+)\s*\|", text)
+        return int(match.group(1)) if match else None
+
+    latency = {"best": None, "avg": None, "worst": None}
+    ii = {"min": None, "max": None}
+
+    # Common format snippet:
+    # | Latency (cycles) | min | max |
+    # | ...              | 123 | 456 |
+    latency_match = re.search(
+        r"Latency\s*\(cycles\).*?\n.*?\|\s*(\d+)\s*\|\s*(\d+)\s*\|",
+        text,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if latency_match:
+        latency["best"] = int(latency_match.group(1))
+        latency["worst"] = int(latency_match.group(2))
+
+    ii_match = re.search(r"Interval.*?\|\s*(\d+)\s*\|\s*(\d+)\s*\|", text, re.IGNORECASE)
+    if ii_match:
+        ii["min"] = int(ii_match.group(1))
+        ii["max"] = int(ii_match.group(2))
+
+    utilization = {
+        "BRAM_18K": _resource("BRAM_18K"),
+        "DSP": _resource("DSP"),
+        "FF": _resource("FF"),
+        "LUT": _resource("LUT"),
+        "URAM": _resource("URAM"),
+    }
+
+    has_any = any(value is not None for section in (latency, ii, utilization) for value in section.values())
+    if not has_any:
+        return None
+    return {
+        "latencyCycles": latency,
+        "ii": ii,
+        "utilization": utilization,
+    }
+
+
+def _parse_hls_metrics(reports: dict[str, Any] | None) -> dict[str, Any] | None:
+    if reports is None:
+        return None
+
+    csynth_xml = reports.get("csynthXml")
+    if isinstance(csynth_xml, str):
+        parsed = _parse_csynth_xml(Path(csynth_xml))
+        if parsed is not None:
+            return parsed
+
+    csynth_rpt = reports.get("csynthRpt")
+    if isinstance(csynth_rpt, str):
+        parsed = _parse_csynth_rpt(Path(csynth_rpt))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _copy_hw_reports(*, report_files: list[str], solution_dir: Path, model_root: Path) -> dict[str, Any]:
+    hw_reports_dir = model_root / "hw_reports"
+    if not report_files:
+        return {
+            "directory": str(hw_reports_dir),
+            "copiedFiles": [],
+        }
+
+    copied: list[str] = []
+    for item in report_files:
+        src = Path(item)
+        if not src.exists():
+            continue
+        try:
+            rel = src.relative_to(solution_dir)
+        except ValueError:
+            rel = Path(src.name)
+        dst = hw_reports_dir / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        copied.append(str(dst))
+    return {
+        "directory": str(hw_reports_dir),
+        "copiedFiles": copied,
     }
 
 
 def _run_vitis_hls(
     *,
     vitis_binary: str,
+    vivado_info: dict[str, Any],
     hls_cpp: Path,
     cpp_ref_main: Path,
     model_root: Path,
@@ -444,6 +629,12 @@ def _run_vitis_hls(
     proc = _cmd([vitis_binary, "-f", str(tcl_path)], cwd=project_dir)
     solution_dir = project_dir / "nema_hwtest" / "sol1"
     reports = _collect_hls_reports(solution_dir)
+    report_files = reports["reportFiles"] if isinstance(reports, dict) else []
+    copied_reports = _copy_hw_reports(report_files=report_files, solution_dir=solution_dir, model_root=model_root)
+    parsed_metrics = _parse_hls_metrics(reports)
+    if reports is not None:
+        reports["copied"] = copied_reports
+        reports["parsed"] = parsed_metrics
 
     csim_ok = proc.ok
     cosim_result: dict[str, Any] | None
@@ -461,11 +652,14 @@ def _run_vitis_hls(
         }
 
     return {
-        "toolchain": {
-            "available": True,
-            "binary": vitis_binary,
-            "version": _detect_vitis_hls().get("version"),
-        },
+        "toolchain": _toolchain_descriptor(
+            {
+                "available": True,
+                "binary": vitis_binary,
+                "version": _detect_vitis_hls().get("version"),
+            },
+            vivado_info,
+        ),
         "project": str(project_dir),
         "csim": {
             "attempted": True,
@@ -558,10 +752,12 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
             mismatch_index = min(len(golden_digests), len(cpp_digests))
 
     vitis_info = _detect_vitis_hls()
+    vivado_info = _detect_vivado()
     run_cosim = os.environ.get("NEMA_HWTEST_RUN_COSIM", "").lower() in {"1", "true", "yes"}
     if vitis_info["available"]:
         hardware = _run_vitis_hls(
             vitis_binary=str(vitis_info["binary"]),
+            vivado_info=vivado_info,
             hls_cpp=hls_cpp,
             cpp_ref_main=cpp_ref_main,
             model_root=model_root,
@@ -569,14 +765,17 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
         )
     else:
         hardware = {
-            "toolchain": vitis_info,
+            "toolchain": _toolchain_descriptor(vitis_info, vivado_info),
             "project": None,
             "csim": None,
             "cosim": None,
             "reports": None,
         }
 
-    tool_versions = _tool_versions(vitis_binary=str(vitis_info["binary"]) if vitis_info["available"] else None)
+    tool_versions = _tool_versions(
+        vitis_binary=str(vitis_info["binary"]) if vitis_info["available"] else None,
+        vivado_binary=str(vivado_info["binary"]) if vivado_info["available"] else None,
+    )
     cpp_tps = (ticks / cpp_report["elapsedSeconds"]) if cpp_report["ok"] and cpp_report["elapsedSeconds"] else None
     golden_tps = (ticks / golden_elapsed) if golden_ok and golden_elapsed > 0 else None
 
