@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .parser import FixedLit, TimeLit
+from .parser import FixedLit, LocationMap, TimeLit
 
 
 _TIME_FACTORS = {
@@ -47,6 +47,11 @@ def lower_to_ir(ast: object) -> dict:
     if not isinstance(lowered, dict):
         raise ValueError("root AST must lower to an object")
     return lowered
+
+
+def lower_to_ir_with_locs(ast: object, locs: LocationMap) -> tuple[dict, LocationMap]:
+    """Lower AST while preserving parser-provided location mapping."""
+    return lower_to_ir(ast), dict(locs)
 
 
 def dump_json(obj: Any, path: Path) -> None:
