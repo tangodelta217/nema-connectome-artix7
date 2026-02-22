@@ -74,8 +74,14 @@ def test_compile_creates_kernel_and_manifest(tmp_path: Path) -> None:
     code = main(["compile", str(ir), "--outdir", str(outdir)])
 
     assert code == 0
-    assert (outdir / "kernel.cpp").exists()
-    assert (outdir / "compile_manifest.json").exists()
+    # Inspect generated model directory by searching for compile_manifest.json
+    manifests = list(outdir.glob("*/compile_manifest.json"))
+    assert len(manifests) == 1
+    manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
+    artifacts = manifest["artifacts"]
+    assert Path(artifacts["hls_header"]).exists()
+    assert Path(artifacts["hls_cpp"]).exists()
+    assert Path(artifacts["cpp_ref_main"]).exists()
 
 
 def test_dump_csr_creates_json(tmp_path: Path) -> None:

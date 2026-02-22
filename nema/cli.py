@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sim_cmd.add_argument("--seed", type=int, default=0, help="deterministic simulation seed")
 
-    compile_cmd = subparsers.add_parser("compile", help="generate HLS C++ placeholder")
+    compile_cmd = subparsers.add_parser("compile", help="generate HLS kernel + C++ reference harness")
     compile_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     compile_cmd.add_argument("--outdir", type=Path, default=Path("build"), help="output directory")
 
