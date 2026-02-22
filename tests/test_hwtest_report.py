@@ -43,11 +43,16 @@ def _bench_report_schema_projection(report: dict) -> dict:
     config = report["config"]
     provenance = report["provenance"]
     graph_resolved = report["graphResolved"]
+    bench = report["bench"]
 
     return {
         "topLevelKeys": sorted(report.keys()),
         "ok": _expect_type(report["ok"], {"bool"}),
         "modelId": _expect_type(report["modelId"], {"str"}),
+        "bench": {
+            "topKeys": sorted(bench.keys()),
+            "targetId": _expect_type(bench["targetId"], {"str"}),
+        },
         "gitCommit": _expect_type(report["gitCommit"], {"str", "null"}),
         "createdAt": _expect_type(report["createdAt"], {"str"}),
         "ticks": _expect_type(report["ticks"], {"int"}),
@@ -77,6 +82,12 @@ def _bench_report_schema_projection(report: dict) -> dict:
             "scheduleKeys": sorted(config["schedule"].keys()),
             "graphKeys": sorted(config["graph"].keys()),
             "dt": _expect_type(config["dt"], {"int", "float", "str"}),
+            "dtNanoseconds": _expect_type(config["dtNanoseconds"], {"int", "null"}),
+            "snapshotRule": _expect_type(config["schedule"]["snapshotRule"], {"bool"}),
+            "graphNodeCount": _expect_type(config["graph"]["nodeCount"], {"int"}),
+            "graphChemicalEdgeCount": _expect_type(config["graph"]["chemicalEdgeCount"], {"int"}),
+            "graphGapEdgeCount": _expect_type(config["graph"]["gapEdgeCount"], {"int"}),
+            "graphEdgeCountTotal": _expect_type(config["graph"]["edgeCountTotal"], {"int"}),
         },
         "correctness": {
             "topKeys": sorted(correctness.keys()),

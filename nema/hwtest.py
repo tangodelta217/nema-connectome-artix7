@@ -10,6 +10,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -85,19 +86,62 @@ def _tool_versions(vitis_binary: str | None) -> dict[str, Any]:
     return versions
 
 
+def _round_fraction_rne(value: Fraction) -> int:
+    sign = -1 if value < 0 else 1
+    num = abs(value.numerator)
+    den = value.denominator
+    q, r = divmod(num, den)
+    two_r = 2 * r
+    if two_r > den or (two_r == den and (q & 1)):
+        q += 1
+    return sign * q
+
+
+def _dt_nanoseconds(dt: Any) -> int | None:
+    if isinstance(dt, bool) or not isinstance(dt, (int, float, str)):
+        return None
+    try:
+        frac = Fraction(str(dt))
+    except (ValueError, ZeroDivisionError):
+        return None
+    return _round_fraction_rne(frac * 1_000_000_000)
+
+
+def _resolved_graph_counts(ir: dict[str, Any], graph_resolved: dict[str, Any] | None) -> dict[str, int]:
+    if graph_resolved is not None:
+        edge_counts = graph_resolved.get("edgeCounts", {})
+        return {
+            "nodeCount": int(graph_resolved.get("nodeCount", 0)),
+            "chemicalEdgeCount": int(edge_counts.get("chemical", 0)),
+            "gapEdgeCount": int(edge_counts.get("gap", 0)),
+            "edgeCountTotal": int(edge_counts.get("total", 0)),
+        }
+
+    graph = ir.get("graph", {})
+    nodes = graph.get("nodes", [])
+    edges = graph.get("edges", [])
+    node_count = len(nodes) if isinstance(nodes, list) else 0
+    if not isinstance(edges, list):
+        edges = []
+    chemical_count = sum(
+        1 for edge in edges if isinstance(edge, dict) and str(edge.get("kind", edge.get("type", ""))).upper() == "CHEMICAL"
+    )
+    gap_directed_count = sum(
+        1 for edge in edges if isinstance(edge, dict) and str(edge.get("kind", edge.get("type", ""))).upper() == "GAP"
+    )
+    return {
+        "nodeCount": node_count,
+        "chemicalEdgeCount": chemical_count,
+        "gapEdgeCount": gap_directed_count // 2,
+        "edgeCountTotal": len(edges),
+    }
+
+
 def _config_summary(ir: dict[str, Any], *, graph_resolved: dict[str, Any] | None = None) -> dict[str, Any]:
     graph = ir.get("graph", {})
     tanh_lut = ir.get("tanhLut", {})
     dt = graph.get("dt", 1.0)
-    if graph_resolved is None:
-        nodes = graph.get("nodes", [])
-        edges = graph.get("edges", [])
-        resolved_node_count = len(nodes) if isinstance(nodes, list) else None
-        resolved_edge_count = len(edges) if isinstance(edges, list) else None
-    else:
-        resolved_node_count = graph_resolved.get("nodeCount")
-        edge_counts = graph_resolved.get("edgeCounts", {})
-        resolved_edge_count = edge_counts.get("total")
+    graph_counts = _resolved_graph_counts(ir, graph_resolved)
     return {
         "qformats": {
             "voltage": "Q8.8",
@@ -107,16 +151,103 @@ def _config_summary(ir: dict[str, Any], *, graph_resolved: dict[str, Any] | None
             "lutOutput": str(tanh_lut.get("outputType", "Q8.8")),
         },
         "dt": dt,
+        "dtNanoseconds": _dt_nanoseconds(dt),
         "schedule": {
             "policy": "nema.tick.v0.1",
             "snapshotRule": True,
             "evalOrder": "index",
         },
-        "graph": {
-            "nodeCount": resolved_node_count,
-            "edgeCount": resolved_edge_count,
-        },
+        "graph": graph_counts,
     }
+
+
+def _build_target_id(model_id: str, *, ir: dict[str, Any], graph_resolved: dict[str, Any]) -> str:
+    bench_obj = ir.get("bench")
+    if isinstance(bench_obj, dict):
+        raw_target = bench_obj.get("targetId")
+        if isinstance(raw_target, str) and raw_target.strip():
+            return raw_target.strip()
+
+    edge_counts = graph_resolved.get("edgeCounts", {})
+    node_count = int(graph_resolved.get("nodeCount", 0))
+    chemical_edges = int(edge_counts.get("chemical", 0))
+    return f"{model_id}/CE/{node_count}-{chemical_edges}"
+
+
+def _schema_matches_type(value: Any, schema_type: str) -> bool:
+    if schema_type == "object":
+        return isinstance(value, dict)
+    if schema_type == "array":
+        return isinstance(value, list)
+    if schema_type == "string":
+        return isinstance(value, str)
+    if schema_type == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if schema_type == "number":
+        return (isinstance(value, int) and not isinstance(value, bool)) or isinstance(value, float)
+    if schema_type == "boolean":
+        return isinstance(value, bool)
+    if schema_type == "null":
+        return value is None
+    return False
+
+
+def _schema_validate(value: Any, schema: dict[str, Any], *, path: str = "$") -> None:
+    raw_type = schema.get("type")
+    if raw_type is not None:
+        allowed_types = raw_type if isinstance(raw_type, list) else [raw_type]
+        if not any(_schema_matches_type(value, schema_type) for schema_type in allowed_types):
+            raise ValueError(f"{path}: expected type {allowed_types}, got {type(value).__name__}")
+
+    if "enum" in schema and value not in schema["enum"]:
+        raise ValueError(f"{path}: value '{value}' is not in enum {schema['enum']}")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        minimum = schema.get("minimum")
+        maximum = schema.get("maximum")
+        if minimum is not None and value < minimum:
+            raise ValueError(f"{path}: value {value} is less than minimum {minimum}")
+        if maximum is not None and value > maximum:
+            raise ValueError(f"{path}: value {value} is greater than maximum {maximum}")
+
+    if isinstance(value, str):
+        min_length = schema.get("minLength")
+        if min_length is not None and len(value) < min_length:
+            raise ValueError(f"{path}: string shorter than minLength {min_length}")
+
+    if isinstance(value, list):
+        min_items = schema.get("minItems")
+        if min_items is not None and len(value) < min_items:
+            raise ValueError(f"{path}: array has fewer than {min_items} items")
+        items_schema = schema.get("items")
+        if isinstance(items_schema, dict):
+            for idx, item in enumerate(value):
+                _schema_validate(item, items_schema, path=f"{path}[{idx}]")
+
+    if isinstance(value, dict):
+        required = schema.get("required", [])
+        for key in required:
+            if key not in value:
+                raise ValueError(f"{path}: missing required key '{key}'")
+
+        properties = schema.get("properties", {})
+        additional = schema.get("additionalProperties", True)
+        for key, item in value.items():
+            if key in properties and isinstance(properties[key], dict):
+                _schema_validate(item, properties[key], path=f"{path}.{key}")
+                continue
+            if additional is False:
+                raise ValueError(f"{path}: unexpected key '{key}'")
+            if isinstance(additional, dict):
+                _schema_validate(item, additional, path=f"{path}.{key}")
+
+
+def _validate_bench_report_schema(bench_report: dict[str, Any]) -> None:
+    schema_path = Path(__file__).resolve().parents[1] / "tools" / "bench_report_schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    if not isinstance(schema, dict):
+        raise ValueError("tools/bench_report_schema.json must contain a JSON object")
+    _schema_validate(bench_report, schema, path="$")
 
 
 def _detect_vitis_hls() -> dict[str, Any]:
@@ -480,6 +611,9 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
     bench_report = {
         "ok": bool(golden_ok and cpp_report["ok"] and digests_match and hardware_ok),
         "modelId": model_id,
+        "bench": {
+            "targetId": _build_target_id(model_id, ir=ir_payload, graph_resolved=graph_resolved),
+        },
         "gitCommit": _git_commit(),
         "createdAt": created_at,
         "toolchainVersions": tool_versions,
@@ -512,6 +646,11 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
             "invariantsChecked": ir_validation.get("invariants_checked", []),
         },
     }
+
+    try:
+        _validate_bench_report_schema(bench_report)
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
+        return 1, {"ok": False, "error": f"bench_report schema validation failed: {exc}"}
 
     bench_report_path = model_root / "bench_report.json"
     _write_json(bench_report_path, bench_report)

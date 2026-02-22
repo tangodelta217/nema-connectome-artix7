@@ -49,6 +49,13 @@ def test_b3_smoke_hwtest_pipeline(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert bench_report["provenance"]["syntheticUsed"] is True
     assert bench_report["graphResolved"]["nodeCount"] == 302
     assert bench_report["graphResolved"]["edgeCounts"]["chemical"] == 7500
+    assert bench_report["config"]["graph"]["nodeCount"] == 302
+    assert bench_report["config"]["graph"]["chemicalEdgeCount"] == 7500
+    assert bench_report["config"]["graph"]["gapEdgeCount"] == 0
+    assert bench_report["config"]["graph"]["edgeCountTotal"] == 7500
+    assert bench_report["config"]["schedule"]["snapshotRule"] is True
+    assert isinstance(bench_report["config"]["dtNanoseconds"], int)
+    assert isinstance(bench_report["bench"]["targetId"], str)
 
     assert Path(bench_report["correctness"]["goldenSim"]["digestPath"]).exists()
     assert Path(bench_report["correctness"]["goldenSim"]["tracePath"]).exists()

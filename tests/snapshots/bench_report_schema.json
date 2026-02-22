@@ -6,12 +6,25 @@
     "hlsHeader",
     "modelRoot"
   ],
+  "bench": {
+    "targetId": "str",
+    "topKeys": [
+      "targetId"
+    ]
+  },
   "config": {
     "dt": "float|int|str",
+    "dtNanoseconds": "int|null",
+    "graphChemicalEdgeCount": "int",
+    "graphEdgeCountTotal": "int",
+    "graphGapEdgeCount": "int",
     "graphKeys": [
-      "edgeCount",
+      "chemicalEdgeCount",
+      "edgeCountTotal",
+      "gapEdgeCount",
       "nodeCount"
     ],
+    "graphNodeCount": "int",
     "qformatsKeys": [
       "accum",
       "activation",
@@ -24,8 +37,10 @@
       "policy",
       "snapshotRule"
     ],
+    "snapshotRule": "bool",
     "topKeys": [
       "dt",
+      "dtNanoseconds",
       "graph",
       "qformats",
       "schedule"
@@ -126,6 +141,7 @@
   },
   "topLevelKeys": [
     "artifacts",
+    "bench",
     "config",
     "correctness",
     "createdAt",

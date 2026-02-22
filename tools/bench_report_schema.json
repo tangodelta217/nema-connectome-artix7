@@ -1,0 +1,429 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NEMA Bench Report Schema v0.1",
+  "type": "object",
+  "required": [
+    "ok",
+    "modelId",
+    "bench",
+    "gitCommit",
+    "createdAt",
+    "toolchainVersions",
+    "config",
+    "provenance",
+    "graphResolved",
+    "correctness",
+    "performance",
+    "hardware",
+    "ticks",
+    "irPath",
+    "irSha256",
+    "artifacts",
+    "validation"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "modelId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bench": {
+      "type": "object",
+      "required": [
+        "targetId"
+      ],
+      "properties": {
+        "targetId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "gitCommit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "toolchainVersions": {
+      "type": "object",
+      "required": [
+        "python",
+        "g++",
+        "vitis_hls"
+      ],
+      "properties": {
+        "python": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "g++": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vitis_hls": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": [
+        "qformats",
+        "dt",
+        "dtNanoseconds",
+        "schedule",
+        "graph"
+      ],
+      "properties": {
+        "qformats": {
+          "type": "object"
+        },
+        "dt": {
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "dtNanoseconds": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "schedule": {
+          "type": "object",
+          "required": [
+            "policy",
+            "snapshotRule",
+            "evalOrder"
+          ],
+          "properties": {
+            "policy": {
+              "type": "string"
+            },
+            "snapshotRule": {
+              "type": "boolean"
+            },
+            "evalOrder": {
+              "type": "string"
+            }
+          }
+        },
+        "graph": {
+          "type": "object",
+          "required": [
+            "nodeCount",
+            "chemicalEdgeCount",
+            "gapEdgeCount",
+            "edgeCountTotal"
+          ],
+          "properties": {
+            "nodeCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "chemicalEdgeCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "gapEdgeCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "edgeCountTotal": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "syntheticUsed",
+        "externalVerified"
+      ],
+      "properties": {
+        "syntheticUsed": {
+          "type": "boolean"
+        },
+        "externalVerified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "graphResolved": {
+      "type": "object",
+      "required": [
+        "nodeCount",
+        "edgeCounts"
+      ],
+      "properties": {
+        "nodeCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "edgeCounts": {
+          "type": "object",
+          "required": [
+            "total",
+            "chemical",
+            "gap",
+            "gapDirected"
+          ],
+          "properties": {
+            "total": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "chemical": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "gap": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "gapDirected": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "correctness": {
+      "type": "object",
+      "required": [
+        "goldenSim",
+        "cppReference",
+        "digestMatch"
+      ],
+      "properties": {
+        "goldenSim": {
+          "type": "object",
+          "required": [
+            "ok",
+            "digests",
+            "digestPath",
+            "tracePath",
+            "error"
+          ],
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            },
+            "digests": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "digestPath": {
+              "type": "string"
+            },
+            "tracePath": {
+              "type": "string"
+            },
+            "error": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "cppReference": {
+          "type": "object",
+          "required": [
+            "ok",
+            "digests",
+            "binaryPath",
+            "error"
+          ],
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            },
+            "digests": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "binaryPath": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "error": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "digestMatch": {
+          "type": "object",
+          "required": [
+            "ok",
+            "mismatchTick"
+          ],
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            },
+            "mismatchTick": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "required": [
+        "cpu",
+        "hardware"
+      ],
+      "properties": {
+        "cpu": {
+          "type": "object",
+          "required": [
+            "goldenTicksPerSecond",
+            "cppRefTicksPerSecond",
+            "goldenElapsedSeconds",
+            "cppRefElapsedSeconds"
+          ]
+        },
+        "hardware": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "hardware": {
+      "type": "object",
+      "required": [
+        "toolchain",
+        "project",
+        "csim",
+        "cosim",
+        "reports"
+      ],
+      "properties": {
+        "toolchain": {
+          "type": "object",
+          "required": [
+            "available",
+            "binary",
+            "version"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "binary": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "project": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "csim": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "cosim": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "reports": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "ticks": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "irPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "irSha256": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifacts": {
+      "type": "object",
+      "required": [
+        "modelRoot",
+        "hlsCpp",
+        "hlsHeader",
+        "cppRefMain",
+        "benchReport"
+      ]
+    },
+    "validation": {
+      "type": "object",
+      "required": [
+        "ok",
+        "invariantsChecked"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "invariantsChecked": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
