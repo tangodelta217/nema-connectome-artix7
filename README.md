@@ -6,6 +6,7 @@ This repository contains a clean scaffold for the NEMA v0.1 toolchain:
 - Golden simulator (`nema sim`)
 - HLS C++ generator (`nema compile`)
 - End-to-end harness (`nema hwtest`)
+- Bench manifest verification (`nema bench verify`)
 
 ## Normative Contract
 
@@ -32,6 +33,8 @@ nema check <ir.json>
 nema sim <ir.json> --ticks N --out trace.jsonl
 nema compile <ir.json> --outdir build/
 nema hwtest <ir.json> --outdir build/
+nema materialize-external <ir.json> --out connectomes/<bundle>.json
+nema bench verify benches/<name>/manifest.json
 ```
 
 ## Benchmark Repro Commands
@@ -43,6 +46,7 @@ nema check example_b1_small_subgraph.json
 nema sim example_b1_small_subgraph.json --ticks 32 --out build/b1/trace.jsonl
 nema compile example_b1_small_subgraph.json --outdir build/b1
 nema hwtest example_b1_small_subgraph.json --ticks 32 --outdir build/b1
+nema bench verify benches/B1_small/manifest.json
 cat build/b1/bench_report.json
 ```
 
@@ -53,6 +57,7 @@ nema check example_b3_kernel_302.json
 nema sim example_b3_kernel_302.json --ticks 128 --out build/b3/trace.jsonl
 nema compile example_b3_kernel_302.json --outdir build/b3
 nema hwtest example_b3_kernel_302.json --ticks 128 --outdir build/b3
+nema bench verify benches/B3_kernel_302_7500/manifest.json
 cat build/b3/bench_report.json
 ```
 

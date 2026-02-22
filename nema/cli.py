@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .toolchain import (
+    run_bench_verify,
     check_ir,
     dump_csr,
     run_compile,
@@ -63,6 +64,17 @@ def build_parser() -> argparse.ArgumentParser:
     selftest_cmd = subparsers.add_parser("selftest", help="run built-in deterministic self tests")
     selftest_cmd.add_argument("target", choices=["fixed"], help="selftest suite target")
 
+    bench_cmd = subparsers.add_parser("bench", help="benchmark utilities")
+    bench_subparsers = bench_cmd.add_subparsers(dest="bench_command", required=True)
+    bench_verify_cmd = bench_subparsers.add_parser("verify", help="run hwtest and verify against manifest")
+    bench_verify_cmd.add_argument("manifest_json", type=Path, help="path to bench manifest JSON")
+    bench_verify_cmd.add_argument(
+        "--outdir",
+        type=Path,
+        default=None,
+        help="optional isolated output directory (default: temp dir under build/)",
+    )
+
     return parser
 
 
@@ -116,6 +128,13 @@ def main(argv: list[str] | None = None) -> int:
             _emit(report)
             return code
         parser.error(f"unknown selftest target: {args.target}")
+
+    if args.command == "bench":
+        if args.bench_command == "verify":
+            code, report = run_bench_verify(args.manifest_json, outdir=args.outdir)
+            _emit(report)
+            return code
+        parser.error(f"unknown bench command: {args.bench_command}")
 
     parser.error(f"unknown command: {args.command}")
     return 2

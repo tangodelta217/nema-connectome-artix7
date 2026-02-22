@@ -24,3 +24,9 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+      - name: Verify Bench Manifest (B3)
+        env:
+          NEMA_HWTEST_DISABLE_VITIS: "1"
+          NEMA_HWTEST_DISABLE_VIVADO: "1"
+        run: python -m nema bench verify benches/B3_kernel_302_7500/manifest.json
