@@ -3,11 +3,17 @@
 This repository contains a clean scaffold for the NEMA v0.1 toolchain:
 
 - IR validation (`nema check`)
-- Golden simulator placeholder (`nema sim`)
-- HLS C++ generator placeholder (`nema compile`)
-- End-to-end harness placeholder (`nema hwtest`)
+- Golden simulator (`nema sim`)
+- HLS C++ generator (`nema compile`)
+- End-to-end harness (`nema hwtest`)
 
-Semantics are intentionally not implemented yet.
+## Normative Contract
+
+The normative project contract is versioned at these exact paths:
+- `./spec.md`
+- `./nema_ir.proto`
+
+These two files define the v0.1 semantics and IR schema used by the current implementation.
 
 ## Setup
 

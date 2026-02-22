@@ -5,14 +5,16 @@ Implement NEMA v0.1 as a deterministic toolchain:
 IR (JSON for debug, later Protobuf) -> golden CPU sim (bit-exact fixed-point) -> HLS C++ kernel (Vitis HLS) -> cosim -> bench_report.json.
 
 ## Normative spec
-- spec.md is normative for:
+- `./spec.md` is normative for:
   - fixed-point rounding (RNE) + saturation behavior
   - tanh_lut policy and checksum behavior
   - tick semantics (snapshot rule)
   - RefConfig-MVP v1 signal/Q-format table
   - G0 conformance checklist
 
-If any ambiguity arises, follow spec.md and add a regression test.
+- `./nema_ir.proto` is normative for IR schema contract versioning.
+
+If any ambiguity arises, follow `./spec.md` and `./nema_ir.proto`, then add a regression test.
 
 ## Key input artifacts
 - example_b1_small_subgraph.json (B1)

@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package nema.v0_1;
+
+option java_multiple_files = true;
+
+// NEMA IR contract v0.1.
+//
+// This proto is a versioned schema companion for JSON IR currently consumed by:
+// - nema/ir_validate.py
+// - nema/sim.py
+// - nema/lowering/csr.py
+// - nema/codegen/hls_gen.py
+//
+// Notes:
+// - Field names are canonical; implementation may also accept JSON aliases.
+// - This schema is intentionally minimal for contract/versioning stability in v0.1.
+
+message NemaIR {
+  string spec_version = 1;  // e.g. "v0.1"
+  string name = 2;
+  string model_id = 3;
+  int32 kernel_id = 4;
+
+  Constraints constraints = 10;
+  License license = 11;
+  Graph graph = 12;
+  TanhLut tanh_lut = 13;
+}
+
+message Constraints {
+  repeated string allowed_spdx = 1;
+}
+
+message License {
+  string spdx_id = 1;
+}
+
+message Graph {
+  repeated Node nodes = 1;
+  repeated Edge edges = 2;
+
+  // Tick integration step. If omitted in JSON, current implementation defaults to 1.0.
+  double dt = 3;
+
+  // Optional graph-level default tau_m.
+  double tau_m = 4;
+
+  // External artifact references used by graph.
+  repeated ExternalRef external = 5;
+}
+
+message Node {
+  string id = 1;
+  uint32 index = 2;
+  uint32 canonical_order_id = 3;
+
+  // Optional initial voltage raw (Q8.8 signed int16 range expected by current sim path).
+  sint32 v_init_raw = 4;
+
+  // Optional per-node membrane time constant.
+  double tau_m = 5;
+}
+
+enum EdgeKind {
+  EDGE_KIND_UNSPECIFIED = 0;
+  EDGE_KIND_CHEMICAL = 1;
+  EDGE_KIND_GAP = 2;
+}
+
+enum ChemicalModelId {
+  CHEMICAL_MODEL_UNSPECIFIED = 0;
+  CHEMICAL_CURRENT_V0 = 1;
+}
+
+enum GapModelId {
+  GAP_MODEL_UNSPECIFIED = 0;
+  GAP_CONDUCTANCE_V0 = 1;
+}
+
+message Edge {
+  string id = 1;
+  EdgeKind kind = 2;
+
+  // Canonical endpoint fields.
+  string source = 3;
+  string target = 4;
+
+  // CHEMICAL edges are required to be directed by validator.
+  bool directed = 5;
+
+  // Non-negative conductance used by validator and GAP model.
+  double conductance = 6;
+
+  // Optional chemical coefficient; if absent, implementation may fall back to conductance.
+  double weight = 7;
+
+  // Generic model id as encoded in JSON today.
+  uint32 model_id = 8;
+}
+
+message ExternalRef {
+  // Canonical path field.
+  string path = 1;
+
+  // Optional alias used by current validator ("file").
+  string file = 2;
+
+  // Optional content digest. Placeholders are accepted by current validator.
+  string sha256 = 3;
+}
+
+message TanhLut {
+  string policy = 1;           // expected: "nema.tanh_lut.v0.1"
+  string artifact = 2;         // path to .bin LUT artifact
+  string input_type = 3;       // expected current sim path: "Q8.8"
+  string output_type = 4;      // expected current sim path: "Q8.8"
+  string checksum_sha256 = 5;  // optional checksum field used in JSON examples
+}
