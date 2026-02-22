@@ -512,6 +512,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--path", type=Path, default=Path("build"), help="Root directory to scan")
     parser.add_argument(
+        "--extra-scan-root",
+        action="append",
+        type=Path,
+        default=[],
+        help="Additional root(s) to scan for bench_report.json (can be passed multiple times)",
+    )
+    parser.add_argument(
         "--glob",
         default="**/bench_report.json",
         help="Glob pattern under --path to locate bench reports",
@@ -535,7 +542,18 @@ def main(argv: list[str] | None = None) -> int:
     workdir = args.workdir if args.workdir.is_absolute() else (repo_root / args.workdir)
     workdir.mkdir(parents=True, exist_ok=True)
 
-    reports = _discover_reports(args.path, args.glob)
+    scan_roots_raw: list[Path] = [args.path, *list(args.extra_scan_root or [])]
+    scan_roots: list[Path] = []
+    for root in scan_roots_raw:
+        if root.is_absolute():
+            scan_roots.append(root.resolve())
+        else:
+            scan_roots.append((repo_root / root).resolve())
+
+    report_set: set[Path] = set()
+    for scan_root in scan_roots:
+        report_set.update(_discover_reports(scan_root, args.glob))
+    reports = sorted(report_set)
     summaries: list[dict[str, Any]] = []
     load_errors: list[str] = []
     for report_path in reports:
@@ -548,7 +566,10 @@ def main(argv: list[str] | None = None) -> int:
 
     dsl_checks = _check_dsl_programs(repo_root, workdir)
     manifest_checks = _check_bench_manifests(repo_root, workdir)
-    hw_reports = _discover_hw_reports(args.path)
+    hw_report_set: set[Path] = set()
+    for scan_root in scan_roots:
+        hw_report_set.update(_discover_hw_reports(scan_root))
+    hw_reports = sorted(hw_report_set)
 
     relevant_paths, relevance_warnings = _relevant_report_paths(
         repo_root,
@@ -618,6 +639,7 @@ def main(argv: list[str] | None = None) -> int:
         "hardware_ok": hardware_ok,
         "all_ok": all_ok,
         "benchReportsScanned": len(summaries),
+        "scanRoots": [str(path) for path in scan_roots],
         "relevantReportsScanned": len(relevant_summaries),
         "loadErrors": load_errors,
         "warnings": warnings,
