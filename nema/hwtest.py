@@ -438,10 +438,15 @@ def _run_cpp_reference(
     }
 
 
-def _collect_hls_reports(solution_dir: Path) -> dict[str, Any] | None:
-    if not solution_dir.exists():
+def _collect_hls_reports(project_dir: Path, solution_dir: Path) -> dict[str, Any] | None:
+    if not project_dir.exists():
         return None
-    report_files = sorted(str(p) for p in solution_dir.rglob("*") if p.is_file() and p.suffix in {".rpt", ".xml"})
+
+    report_files = sorted(
+        str(p)
+        for p in project_dir.rglob("*")
+        if p.is_file() and p.suffix.lower() in {".rpt", ".xml", ".log"}
+    )
     csynth_xml = next((p for p in report_files if p.endswith("csynth.xml")), None)
     csynth_rpt = next((p for p in report_files if p.endswith("csynth.rpt")), None)
     util_report = next((p for p in report_files if "util" in p.lower() or "csynth.rpt" in p.lower()), None)
@@ -452,6 +457,7 @@ def _collect_hls_reports(solution_dir: Path) -> dict[str, Any] | None:
         "csynthRpt": csynth_rpt,
         "utilizationReport": util_report,
         "timingReport": timing_report,
+        "solutionDir": str(solution_dir),
     }
 
 
@@ -569,30 +575,39 @@ def _parse_hls_metrics(reports: dict[str, Any] | None) -> dict[str, Any] | None:
     return None
 
 
-def _copy_hw_reports(*, report_files: list[str], solution_dir: Path, model_root: Path) -> dict[str, Any]:
+def _copy_hw_reports(*, report_files: list[str], project_dir: Path, model_root: Path) -> dict[str, Any]:
     hw_reports_dir = model_root / "hw_reports"
     if not report_files:
         return {
-            "directory": str(hw_reports_dir),
+            "directory": str(hw_reports_dir.relative_to(model_root)),
             "copiedFiles": [],
+            "files": [],
+            "sourceToFile": {},
         }
 
-    copied: list[str] = []
+    copied_abs: list[str] = []
+    copied_rel: list[str] = []
+    source_to_file: dict[str, str] = {}
     for item in report_files:
         src = Path(item)
         if not src.exists():
             continue
         try:
-            rel = src.relative_to(solution_dir)
+            rel = src.relative_to(project_dir)
         except ValueError:
             rel = Path(src.name)
         dst = hw_reports_dir / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
-        copied.append(str(dst))
+        rel_to_model = str(dst.relative_to(model_root))
+        copied_abs.append(str(dst))
+        copied_rel.append(rel_to_model)
+        source_to_file[str(src)] = rel_to_model
     return {
-        "directory": str(hw_reports_dir),
-        "copiedFiles": copied,
+        "directory": str(hw_reports_dir.relative_to(model_root)),
+        "copiedFiles": sorted(copied_abs),
+        "files": sorted(copied_rel),
+        "sourceToFile": source_to_file,
     }
 
 
@@ -605,7 +620,7 @@ def _run_vitis_hls(
     model_root: Path,
     run_cosim: bool,
 ) -> dict[str, Any]:
-    project_dir = model_root / "vitis_hls"
+    project_dir = model_root / "hls_proj"
     project_dir.mkdir(parents=True, exist_ok=True)
     tcl_path = project_dir / "run_hls.tcl"
     part = os.environ.get("NEMA_VITIS_PART", "xc7z020clg400-1")
@@ -628,15 +643,29 @@ def _run_vitis_hls(
 
     proc = _cmd([vitis_binary, "-f", str(tcl_path)], cwd=project_dir)
     solution_dir = project_dir / "nema_hwtest" / "sol1"
-    reports = _collect_hls_reports(solution_dir)
-    report_files = reports["reportFiles"] if isinstance(reports, dict) else []
-    copied_reports = _copy_hw_reports(report_files=report_files, solution_dir=solution_dir, model_root=model_root)
-    parsed_metrics = _parse_hls_metrics(reports)
-    if reports is not None:
-        reports["copied"] = copied_reports
-        reports["parsed"] = parsed_metrics
+    reports_raw = _collect_hls_reports(project_dir, solution_dir)
+    report_files = reports_raw["reportFiles"] if isinstance(reports_raw, dict) else []
+    copied_reports = _copy_hw_reports(report_files=report_files, project_dir=project_dir, model_root=model_root)
+    parsed_metrics = _parse_hls_metrics(reports_raw)
+    source_to_file = copied_reports.get("sourceToFile", {})
+
+    def _copied_path(raw_path: str | None) -> str | None:
+        if raw_path is None:
+            return None
+        return source_to_file.get(raw_path)
+
+    reports = {
+        "directory": copied_reports.get("directory"),
+        "files": copied_reports.get("files", []),
+        "csynthXml": _copied_path(reports_raw.get("csynthXml")) if isinstance(reports_raw, dict) else None,
+        "csynthRpt": _copied_path(reports_raw.get("csynthRpt")) if isinstance(reports_raw, dict) else None,
+        "utilizationReport": _copied_path(reports_raw.get("utilizationReport")) if isinstance(reports_raw, dict) else None,
+        "timingReport": _copied_path(reports_raw.get("timingReport")) if isinstance(reports_raw, dict) else None,
+        "parsed": parsed_metrics,
+    }
 
     csim_ok = proc.ok
+    csynth_ok = proc.ok
     cosim_result: dict[str, Any] | None
     if run_cosim:
         cosim_result = {
@@ -664,6 +693,13 @@ def _run_vitis_hls(
         "csim": {
             "attempted": True,
             "ok": csim_ok,
+            "returncode": proc.returncode,
+            "elapsedSeconds": proc.elapsed_s,
+            "logTail": (proc.stdout + "\n" + proc.stderr)[-4000:],
+        },
+        "csynth": {
+            "attempted": True,
+            "ok": csynth_ok,
             "returncode": proc.returncode,
             "elapsedSeconds": proc.elapsed_s,
             "logTail": (proc.stdout + "\n" + proc.stderr)[-4000:],
@@ -768,6 +804,7 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
             "toolchain": _toolchain_descriptor(vitis_info, vivado_info),
             "project": None,
             "csim": None,
+            "csynth": None,
             "cosim": None,
             "reports": None,
         }
@@ -802,7 +839,8 @@ def run_hwtest_pipeline(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, d
     hardware_ok = True
     if hardware["toolchain"]["available"]:
         csim = hardware.get("csim")
-        hardware_ok = bool(csim and csim.get("ok"))
+        csynth = hardware.get("csynth")
+        hardware_ok = bool(csim and csim.get("ok")) and bool(csynth and csynth.get("ok"))
         cosim = hardware.get("cosim")
         if cosim and cosim.get("attempted"):
             hardware_ok = hardware_ok and bool(cosim.get("ok"))

@@ -337,6 +337,7 @@
         "toolchain",
         "project",
         "csim",
+        "csynth",
         "cosim",
         "reports"
       ],
@@ -396,6 +397,12 @@
             "null"
           ]
         },
+        "csynth": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "cosim": {
           "type": [
             "object",
@@ -406,7 +413,18 @@
           "type": [
             "object",
             "null"
-          ]
+          ],
+          "required": [
+            "files"
+          ],
+          "properties": {
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },

@@ -96,6 +96,7 @@
     "binary": "null|str",
     "cosim": "null|object",
     "csim": "null|object",
+    "csynth": "null|object",
     "project": "null|str",
     "reports": "null|object",
     "toolchainKeys": [
@@ -109,6 +110,7 @@
     "topKeys": [
       "cosim",
       "csim",
+      "csynth",
       "project",
       "reports",
       "toolchain"

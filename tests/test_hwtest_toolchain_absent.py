@@ -10,11 +10,17 @@ from nema.cli import main
 
 
 def test_hwtest_graceful_without_vitis_or_vivado(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    if shutil.which("g++") is None:
+    real_which = shutil.which
+    gpp = real_which("g++")
+    if gpp is None:
         pytest.skip("g++ not available")
 
-    monkeypatch.setenv("NEMA_HWTEST_DISABLE_VITIS", "1")
-    monkeypatch.setenv("NEMA_HWTEST_DISABLE_VIVADO", "1")
+    def fake_which(name: str) -> str | None:
+        if name in {"vitis_hls", "vivado"}:
+            return None
+        return real_which(name)
+
+    monkeypatch.setattr("nema.hwtest.shutil.which", fake_which)
 
     outdir = tmp_path / "build"
     code = main(
@@ -36,4 +42,5 @@ def test_hwtest_graceful_without_vitis_or_vivado(tmp_path: Path, monkeypatch: py
     toolchain = report["hardware"]["toolchain"]
     assert toolchain["available"] is False
     assert toolchain["vivadoAvailable"] is False
+    assert report["hardware"]["csynth"] is None
     assert report["correctness"]["digestMatch"]["ok"] is True

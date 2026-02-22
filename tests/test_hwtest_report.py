@@ -114,6 +114,7 @@ def _bench_report_schema_projection(report: dict) -> dict:
             "vivadoVersion": _expect_type(toolchain["vivadoVersion"], {"str", "null"}),
             "project": _expect_type(hardware["project"], {"str", "null"}),
             "csim": _expect_type(hardware["csim"], {"object", "null"}),
+            "csynth": _expect_type(hardware["csynth"], {"object", "null"}),
             "cosim": _expect_type(hardware["cosim"], {"object", "null"}),
             "reports": _expect_type(hardware["reports"], {"object", "null"}),
         },
