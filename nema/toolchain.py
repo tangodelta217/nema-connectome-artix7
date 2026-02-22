@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 from .codegen.hls_gen import generate_hls_project
+from .dsl import DSLParseError, DSLTypeError, lower_to_ir, parse_toml_file, typecheck_program
 from .fixed import run_selftest as run_fixed_selftest
 from .hwtest import run_hwtest_pipeline
 from .ir_resolve import materialize_external_bundle
@@ -150,6 +151,74 @@ def run_materialize_external(ir_path: Path, out_path: Path) -> tuple[int, dict]:
     except (IRValidationError, ValueError) as exc:
         return 1, {"ok": False, "error": str(exc)}
     return 0, report
+
+
+def check_dsl(dsl_path: Path) -> tuple[int, dict]:
+    try:
+        parsed = parse_toml_file(dsl_path)
+        checked = typecheck_program(parsed)
+    except (FileNotFoundError, DSLParseError, DSLTypeError, ValueError) as exc:
+        return 1, {"ok": False, "error": str(exc)}
+
+    return 0, {
+        "ok": True,
+        "dsl_path": str(dsl_path),
+        "module": checked.module.name,
+        "model_id": checked.module.model_id,
+        "kernel_id": checked.module.kernel_id,
+        "node_count": len(checked.graph.nodes),
+        "edge_count": len(checked.graph.edges),
+    }
+
+
+def compile_dsl(dsl_path: Path, out_path: Path) -> tuple[int, dict]:
+    try:
+        parsed = parse_toml_file(dsl_path)
+        ir_payload = lower_to_ir(parsed)
+    except (FileNotFoundError, DSLParseError, DSLTypeError, ValueError) as exc:
+        return 1, {"ok": False, "error": str(exc)}
+
+    write_json(out_path, ir_payload)
+    code, check_report = check_ir(out_path)
+    if code != 0:
+        return 1, {
+            "ok": False,
+            "error": "compiled IR failed invariants",
+            "dsl_path": str(dsl_path),
+            "ir_path": str(out_path),
+            "check_report": check_report,
+        }
+
+    return 0, {
+        "ok": True,
+        "dsl_path": str(dsl_path),
+        "ir_path": str(out_path),
+        "ir_sha256": check_report["ir_sha256"],
+        "node_count": check_report["node_count"],
+        "edge_count": check_report["edge_count"],
+    }
+
+
+def run_dsl_hwtest(dsl_path: Path, *, outdir: Path, ticks: int) -> tuple[int, dict]:
+    if ticks < 0:
+        return 1, {"ok": False, "error": "--ticks must be >= 0"}
+    outdir.mkdir(parents=True, exist_ok=True)
+    ir_out = outdir / "_dsl" / f"{dsl_path.stem}.ir.json"
+    code, compile_report = compile_dsl(dsl_path, ir_out)
+    if code != 0:
+        return code, compile_report
+
+    code, hw_report = run_hwtest(ir_out, outdir=outdir, ticks=ticks)
+    if code != 0:
+        return code, hw_report
+
+    return 0, {
+        "ok": True,
+        "dsl_path": str(dsl_path),
+        "compiled_ir": str(ir_out),
+        "ticks": ticks,
+        "hwtest": hw_report,
+    }
 
 
 def _resolve_ir_path(ir_path_raw: str, *, manifest_path: Path) -> Path:

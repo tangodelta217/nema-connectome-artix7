@@ -7,6 +7,7 @@ This repository contains a clean scaffold for the NEMA v0.1 toolchain:
 - HLS C++ generator (`nema compile`)
 - End-to-end harness (`nema hwtest`)
 - Bench manifest verification (`nema bench verify`)
+- DSL frontend (`nema dsl ...`)
 
 ## Normative Contract
 
@@ -35,6 +36,9 @@ nema compile <ir.json> --outdir build/
 nema hwtest <ir.json> --outdir build/
 nema materialize-external <ir.json> --out connectomes/<bundle>.json
 nema bench verify benches/<name>/manifest.json
+python -m nema dsl check programs/b1_small.nema.toml
+python -m nema dsl compile programs/b1_small.nema.toml --out build/b1_from_dsl.ir.json
+python -m nema dsl hwtest programs/b1_small.nema.toml --ticks 20 --outdir build/b1_dsl
 ```
 
 ## Benchmark Repro Commands
@@ -59,6 +63,29 @@ nema compile example_b3_kernel_302.json --outdir build/b3
 nema hwtest example_b3_kernel_302.json --ticks 128 --outdir build/b3
 nema bench verify benches/B3_kernel_302_7500/manifest.json
 cat build/b3/bench_report.json
+```
+
+## DSL Programs (MVP Frontend)
+
+TOML DSL files live under `programs/` with extension `.nema.toml`:
+
+- `programs/b1_small.nema.toml`
+- `programs/b3_kernel_302_7500.nema.toml`
+
+Run B1 from DSL:
+
+```bash
+python -m nema dsl check programs/b1_small.nema.toml
+python -m nema dsl compile programs/b1_small.nema.toml --out build/b1_from_dsl.ir.json
+python -m nema dsl hwtest programs/b1_small.nema.toml --ticks 20 --outdir build/b1_dsl
+```
+
+Run B3 from DSL:
+
+```bash
+python -m nema dsl check programs/b3_kernel_302_7500.nema.toml
+python -m nema dsl compile programs/b3_kernel_302_7500.nema.toml --out build/b3_from_dsl.ir.json
+python -m nema dsl hwtest programs/b3_kernel_302_7500.nema.toml --ticks 20 --outdir build/b3_dsl
 ```
 
 ## Testing

@@ -8,10 +8,13 @@ import sys
 from pathlib import Path
 
 from .toolchain import (
+    check_dsl,
     run_bench_verify,
     check_ir,
+    compile_dsl,
     dump_csr,
     run_compile,
+    run_dsl_hwtest,
     run_hwtest,
     run_materialize_external,
     run_sim,
@@ -75,6 +78,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional isolated output directory (default: temp dir under build/)",
     )
 
+    dsl_cmd = subparsers.add_parser("dsl", help="NEMA TOML DSL frontend commands")
+    dsl_subparsers = dsl_cmd.add_subparsers(dest="dsl_command", required=True)
+
+    dsl_check_cmd = dsl_subparsers.add_parser("check", help="parse and typecheck a .nema.toml file")
+    dsl_check_cmd.add_argument("dsl_file", type=Path, help="path to .nema.toml source")
+
+    dsl_compile_cmd = dsl_subparsers.add_parser("compile", help="compile .nema.toml to IR JSON")
+    dsl_compile_cmd.add_argument("dsl_file", type=Path, help="path to .nema.toml source")
+    dsl_compile_cmd.add_argument("--out", type=Path, required=True, help="compiled IR JSON output path")
+
+    dsl_hwtest_cmd = dsl_subparsers.add_parser(
+        "hwtest",
+        help="compile DSL to IR and run nema hwtest pipeline",
+    )
+    dsl_hwtest_cmd.add_argument("dsl_file", type=Path, help="path to .nema.toml source")
+    dsl_hwtest_cmd.add_argument("--ticks", type=int, required=True, help="number of ticks for sim stage")
+    dsl_hwtest_cmd.add_argument("--outdir", type=Path, default=Path("build"), help="output directory")
+
     return parser
 
 
@@ -135,6 +156,21 @@ def main(argv: list[str] | None = None) -> int:
             _emit(report)
             return code
         parser.error(f"unknown bench command: {args.bench_command}")
+
+    if args.command == "dsl":
+        if args.dsl_command == "check":
+            code, report = check_dsl(args.dsl_file)
+            _emit(report)
+            return code
+        if args.dsl_command == "compile":
+            code, report = compile_dsl(args.dsl_file, out_path=args.out)
+            _emit(report)
+            return code
+        if args.dsl_command == "hwtest":
+            code, report = run_dsl_hwtest(args.dsl_file, outdir=args.outdir, ticks=args.ticks)
+            _emit(report)
+            return code
+        parser.error(f"unknown dsl command: {args.dsl_command}")
 
     parser.error(f"unknown command: {args.command}")
     return 2
