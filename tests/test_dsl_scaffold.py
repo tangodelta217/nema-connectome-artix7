@@ -24,12 +24,10 @@ def test_dsl_help_lists_planned_subcommands() -> None:
     assert "from-ir" in output
 
 
-def test_dsl_subcommands_return_nyi_exit_code_2() -> None:
+def test_dsl_nyi_subcommands_return_exit_code_2() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     commands = [
-        ["check", "programs/b1_small.nema.toml"],
         ["hwtest", "programs/b1_small.nema.toml", "--ticks", "1", "--outdir", "build"],
-        ["from-ir", "example_b1_small_subgraph.json", "--out", "build/nyi.dsl"],
     ]
 
     for sub in commands:
@@ -54,6 +52,33 @@ def test_dsl_compile_smoke_outputs_json(tmp_path: Path) -> None:
 
     proc = subprocess.run(
         [sys.executable, "-m", "nema", "dsl", "compile", str(dsl_path), "--out", str(out_path)],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert out_path.exists()
+
+
+def test_dsl_from_ir_smoke_outputs_source(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    out_path = tmp_path / "from_ir.nema"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "nema",
+            "dsl",
+            "from-ir",
+            "example_b1_small_subgraph.json",
+            "--out",
+            str(out_path),
+        ],
         cwd=repo_root,
         check=False,
         capture_output=True,

@@ -172,6 +172,9 @@ class _Parser:
             if self._cur().kind == "IDENT" and str(self._cur().value) in _TIME_UNITS:
                 return self._parse_time_literal(tok)
             return int(tok.value)
+        if tok.kind == "FLOAT":
+            self._advance()
+            return float(tok.value)
         if tok.kind == "IDENT":
             self._advance()
             if self._cur().kind == "LPAREN":

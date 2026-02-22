@@ -167,8 +167,17 @@ def lex(text: str) -> list[Token]:
             advance()
             while i < n and text[i].isdigit():
                 advance()
+            is_float = False
+            if i < n and text[i] == "." and (i + 1) < n and text[i + 1].isdigit():
+                is_float = True
+                advance()
+                while i < n and text[i].isdigit():
+                    advance()
             raw = text[start:i]
-            push("INT", int(raw), tok_line, tok_col, start, i)
+            if is_float:
+                push("FLOAT", float(raw), tok_line, tok_col, start, i)
+            else:
+                push("INT", int(raw), tok_line, tok_col, start, i)
             continue
 
         if ch.isdigit():
@@ -176,8 +185,17 @@ def lex(text: str) -> list[Token]:
             tok_line, tok_col = line, col
             while i < n and text[i].isdigit():
                 advance()
+            is_float = False
+            if i < n and text[i] == "." and (i + 1) < n and text[i + 1].isdigit():
+                is_float = True
+                advance()
+                while i < n and text[i].isdigit():
+                    advance()
             raw = text[start:i]
-            push("INT", int(raw), tok_line, tok_col, start, i)
+            if is_float:
+                push("FLOAT", float(raw), tok_line, tok_col, start, i)
+            else:
+                push("INT", int(raw), tok_line, tok_col, start, i)
             continue
 
         if _is_ident_start(ch):

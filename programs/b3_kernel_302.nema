@@ -1,0 +1,32 @@
+constraints {
+  allowedSpdx = [Apache-2.0, MIT];
+};
+graph {
+  edges = [{ conductance = 0.25; directed = true; id = e_chem_10; kind = CHEMICAL; source = n10; target = n11; }, { conductance = 0.2; directed = true; id = e_chem_11; kind = CHEMICAL; source = n11; target = n12; }, { conductance = 0.05; directed = true; id = e_gap_10_fwd; kind = GAP; source = n10; target = n12; }, { conductance = 0.05; directed = true; id = e_gap_10_rev; kind = GAP; source = n12; target = n10; }];
+  external {
+    formatId = nema.connectome.bundle.v0.1;
+    path = connectomes/celegans_herm_c302_bundle.json;
+    sha256 = "sha256:a2695caf78bd3f77869396d2e83a0cbec3e56c49a2a47310635b5212a3ee8df1";
+    subgraphId = celegans_herm_c302_7500;
+    uri = connectomes/celegans_herm_c302_bundle.json;
+  };
+  nodes = [{ canonicalOrderId = 0; id = n10; index = 0; }, { canonicalOrderId = 1; id = n11; index = 1; }, { canonicalOrderId = 2; id = n12; index = 2; }];
+  stats {
+    chemicalEdgeCount = 7500;
+    gapEdgeCount = 0;
+    nodeCount = 302;
+  };
+};
+kernelId = 302;
+license {
+  spdxId = MIT;
+};
+modelId = B3_kernel_302_7500;
+name = example_b3_kernel_302;
+tanhLut {
+  artifact = artifacts/luts/tanh_q8_8.bin;
+  checksumSha256 = "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88";
+  inputType = Q8.8;
+  outputType = Q8.8;
+  policy = nema.tanh_lut.v0.1;
+};

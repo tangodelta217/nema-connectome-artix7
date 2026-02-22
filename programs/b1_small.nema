@@ -1,0 +1,18 @@
+constraints {
+  allowedSpdx = [Apache-2.0, MIT];
+};
+graph {
+  edges = [{ conductance = 0.5; directed = true; id = e_chem_0; kind = CHEMICAL; source = n0; target = n1; }, { conductance = 0.125; directed = true; id = e_gap_0_fwd; kind = GAP; source = n0; target = n1; }, { conductance = 0.125; directed = true; id = e_gap_0_rev; kind = GAP; source = n1; target = n0; }];
+  nodes = [{ canonicalOrderId = 0; id = n0; index = 0; }, { canonicalOrderId = 1; id = n1; index = 1; }];
+};
+license {
+  spdxId = Apache-2.0;
+};
+name = example_b1_small_subgraph;
+tanhLut {
+  artifact = artifacts/luts/tanh_q8_8.bin;
+  checksumSha256 = "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88";
+  inputType = Q8.8;
+  outputType = Q8.8;
+  policy = nema.tanh_lut.v0.1;
+};
