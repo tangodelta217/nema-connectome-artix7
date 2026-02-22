@@ -20,8 +20,27 @@ def test_dsl_diag_snapshots_match_goldens() -> None:
 
     for fixture in fixtures:
         rel_fixture = fixture.relative_to(repo_root).as_posix()
+        if fixture.stem == "2401_hw_toolchain_unavailable":
+            cmd = [
+                sys.executable,
+                "-m",
+                "nema",
+                "dsl",
+                "hwtest",
+                rel_fixture,
+                "--hw",
+                "require",
+                "--ticks",
+                "1",
+                "--outdir",
+                "build_test",
+                "--format",
+                "json",
+            ]
+        else:
+            cmd = [sys.executable, "-m", "nema", "dsl", "check", rel_fixture, "--format", "json"]
         proc = subprocess.run(
-            [sys.executable, "-m", "nema", "dsl", "check", rel_fixture, "--format", "json"],
+            cmd,
             cwd=repo_root,
             env=env,
             check=False,

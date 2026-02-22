@@ -29,6 +29,8 @@ def test_dsl_hwtest_b3_end_to_end(tmp_path: Path) -> None:
             "dsl",
             "hwtest",
             "programs/b3_kernel_302.nema",
+            "--format",
+            "json",
             "--ticks",
             "2",
             "--outdir",
@@ -45,7 +47,7 @@ def test_dsl_hwtest_b3_end_to_end(tmp_path: Path) -> None:
     payload = json.loads(proc.stdout)
     assert payload["ok"] is True
 
-    bench_report_path = Path(payload["benchReport"])
+    bench_report_path = Path(payload["benchReportPath"])
     if not bench_report_path.is_absolute():
         bench_report_path = (repo_root / bench_report_path).resolve()
     assert bench_report_path.exists()

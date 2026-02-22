@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
 import tempfile
 from dataclasses import replace
 from pathlib import Path
@@ -67,6 +69,12 @@ def add_dsl_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     hwtest_cmd.add_argument("dsl_file", type=Path, help="path to .nema source")
     hwtest_cmd.add_argument("--ticks", type=int, required=True, help="number of ticks")
     hwtest_cmd.add_argument("--outdir", type=Path, default=Path("build"), help="output directory")
+    hwtest_cmd.add_argument(
+        "--hw",
+        choices=("auto", "require", "off"),
+        default="auto",
+        help="hardware toolchain policy (default: auto)",
+    )
 
     from_ir_cmd = dsl_subparsers.add_parser("from-ir", help="generate DSL source from IR JSON")
     _add_diag_flags(from_ir_cmd)
@@ -244,6 +252,40 @@ def _loc_from_map(locs: dict[str, dict[str, int]], field_path: str) -> tuple[int
     if not isinstance(line, int) or not isinstance(col, int):
         return (1, 1)
     return (line, col)
+
+
+def _hw_toolchain_available() -> bool:
+    forced_unavailable = os.environ.get("NEMA_DSL_FORCE_HW_UNAVAILABLE", "").strip().lower()
+    if forced_unavailable in {"1", "true", "yes"}:
+        return False
+    return shutil.which("vitis_hls") is not None and shutil.which("vivado") is not None
+
+
+def _run_hwtest_pipeline_with_hw_mode(
+    *,
+    ir_path: Path,
+    outdir: Path,
+    ticks: int,
+    hw_mode: str,
+) -> tuple[int, dict[str, Any]]:
+    if hw_mode != "off":
+        return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks)
+
+    prev_vitis = os.environ.get("NEMA_HWTEST_DISABLE_VITIS")
+    prev_vivado = os.environ.get("NEMA_HWTEST_DISABLE_VIVADO")
+    os.environ["NEMA_HWTEST_DISABLE_VITIS"] = "1"
+    os.environ["NEMA_HWTEST_DISABLE_VIVADO"] = "1"
+    try:
+        return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks)
+    finally:
+        if prev_vitis is None:
+            os.environ.pop("NEMA_HWTEST_DISABLE_VITIS", None)
+        else:
+            os.environ["NEMA_HWTEST_DISABLE_VITIS"] = prev_vitis
+        if prev_vivado is None:
+            os.environ.pop("NEMA_HWTEST_DISABLE_VIVADO", None)
+        else:
+            os.environ["NEMA_HWTEST_DISABLE_VIVADO"] = prev_vivado
 
 
 def _finalize(
@@ -509,6 +551,13 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
         )
 
     if command == "hwtest":
+        hw_mode = getattr(args, "hw", "auto")
+        hw_available = _hw_toolchain_available()
+        base_payload: dict[str, Any] = {
+            "benchReportPath": None,
+            "hwToolchainAvailable": hw_available,
+        }
+
         if args.ticks < 0:
             diag = make_diag(
                 code="NEMA-DSL9001",
@@ -520,27 +569,60 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
             )
             return _finalize(
                 code=1,
-                payload={"dslPath": str(args.dsl_file)},
+                payload=base_payload,
                 diagnostics=[diag],
                 werror=werror,
             )
 
         try:
             source = args.dsl_file.read_text(encoding="utf-8")
-            lowered = _compile_source_to_ir(source)
         except OSError as exc:
             return _finalize(
                 code=1,
-                payload={"dslPath": str(args.dsl_file)},
+                payload=base_payload,
                 diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
                 werror=werror,
             )
+
+        try:
+            ast, locs = parse_with_locs(source, str(args.dsl_file))
+            lowered, lowered_locs = lower_to_ir_with_locs(ast, locs)
         except (DslError, ValueError) as exc:
             return _finalize(
                 code=1,
-                payload={"dslPath": str(args.dsl_file)},
+                payload=base_payload,
                 diagnostics=[_diag_from_exception(args.dsl_file, exc)],
                 werror=werror,
+            )
+
+        diagnostics: list[Diagnostic] = []
+        line, col = _loc_from_map(lowered_locs, "compile.requireHwToolchain")
+        if hw_mode == "require" and not hw_available:
+            diagnostics.append(
+                make_diag(
+                    code="NEMA-DSL2401",
+                    severity=Severity.ERROR,
+                    path=str(args.dsl_file),
+                    line=line,
+                    col=col,
+                )
+            )
+            return _finalize(
+                code=1,
+                payload=base_payload,
+                diagnostics=diagnostics,
+                werror=werror,
+            )
+
+        if hw_mode == "auto" and not hw_available:
+            diagnostics.append(
+                make_diag(
+                    code="NEMA-DSL2401",
+                    severity=Severity.WARNING,
+                    path=str(args.dsl_file),
+                    line=line,
+                    col=col,
+                )
             )
 
         model_id = lowered.get("modelId") if isinstance(lowered, dict) else None
@@ -553,10 +635,11 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
                 col=1,
                 detail="dsl hwtest requires root field 'modelId'",
             )
+            diagnostics.append(diag)
             return _finalize(
                 code=1,
-                payload={"dslPath": str(args.dsl_file)},
-                diagnostics=[diag],
+                payload=base_payload,
+                diagnostics=diagnostics,
                 werror=werror,
             )
         model_id = model_id.strip()
@@ -569,28 +652,31 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
         except OSError as exc:
             return _finalize(
                 code=1,
-                payload={"dslPath": str(args.dsl_file), "irPath": str(ir_path)},
-                diagnostics=[_diag_from_write_error(ir_path, exc)],
+                payload=base_payload,
+                diagnostics=diagnostics + [_diag_from_write_error(ir_path, exc)],
                 werror=werror,
             )
 
-        code, hw_summary = run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=args.ticks)
-        bench_report = None
+        code, hw_summary = _run_hwtest_pipeline_with_hw_mode(
+            ir_path=ir_path,
+            outdir=outdir,
+            ticks=args.ticks,
+            hw_mode=hw_mode,
+        )
+        bench_report_path = None
         if isinstance(hw_summary, dict):
             raw_bench = hw_summary.get("bench_report")
             if isinstance(raw_bench, str):
-                bench_report = raw_bench
+                bench_report_path = raw_bench
 
         payload: dict[str, Any] = {
-            "dslPath": str(args.dsl_file),
-            "irPath": str(ir_path),
-            "benchReport": bench_report,
-            "hwtest": hw_summary,
+            "benchReportPath": bench_report_path,
+            "hwToolchainAvailable": hw_available,
         }
         return _finalize(
             code=code,
             payload=payload,
-            diagnostics=[],
+            diagnostics=diagnostics,
             werror=werror,
         )
 

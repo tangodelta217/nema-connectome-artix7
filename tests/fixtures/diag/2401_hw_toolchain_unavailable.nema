@@ -1,3 +1,5 @@
+modelId = diag_2401_hw_toolchain_unavailable;
+name = diag_2401_hw_toolchain_unavailable;
 constraints {
   allowedSpdx = [MIT];
 };
@@ -8,6 +10,13 @@ compile {
   requireHwToolchain = true;
 };
 graph {
-  nodes = [];
-  edges = [];
+  nodes = [{ id = n0; index = 0; canonicalOrderId = 0; }, { id = n1; index = 1; canonicalOrderId = 1; }];
+  edges = [{ id = e0; kind = CHEMICAL; source = n0; target = n1; directed = true; conductance = 0.5; }];
+};
+tanhLut {
+  policy = nema.tanh_lut.v0.1;
+  artifact = artifacts/luts/tanh_q8_8.bin;
+  inputType = Q8.8;
+  outputType = Q8.8;
+  checksumSha256 = "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88";
 };
