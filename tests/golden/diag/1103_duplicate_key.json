@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL1103",
+      "col": 3,
+      "hint": "keep only one assignment/block per key within a single object",
+      "line": 3,
+      "message": "duplicate key in same object",
+      "note": "duplicate key: foo",
+      "path": "tests/fixtures/diag/1103_duplicate_key.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

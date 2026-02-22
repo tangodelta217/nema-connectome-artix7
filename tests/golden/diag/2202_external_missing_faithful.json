@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2202",
+      "col": 5,
+      "hint": "provide an existing external artifact and matching sha256",
+      "line": 11,
+      "message": "external artifact missing or sha mismatch",
+      "note": "artifact not found: connectomes/does_not_exist_bundle.json",
+      "path": "tests/fixtures/diag/2202_external_missing_faithful.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

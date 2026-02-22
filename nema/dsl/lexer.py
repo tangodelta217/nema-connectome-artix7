@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .catalog import make_diag
+from .diagnostics import Severity
 from .errors import DslError
 
 
@@ -46,7 +48,7 @@ def _is_ident_part(ch: str) -> bool:
     return ch.isalnum() or ch in {"_", ".", "-", "/"}
 
 
-def lex(text: str) -> list[Token]:
+def lex(text: str, *, path: str = "<input>") -> list[Token]:
     """Tokenize DSL text into a flat token stream."""
     i = 0
     n = len(text)
@@ -54,11 +56,29 @@ def lex(text: str) -> list[Token]:
     col = 1
     tokens: list[Token] = []
 
-    def error(message: str, *, err_line: int, err_col: int, start: int, end: int | None = None) -> DslError:
-        return DslError(
-            message,
+    def error(
+        code: str,
+        *,
+        err_line: int,
+        err_col: int,
+        start: int,
+        end: int | None = None,
+        escape: str | None = None,
+    ) -> DslError:
+        kwargs: dict[str, object] = {}
+        if escape is not None:
+            kwargs["escape"] = escape
+        diag = make_diag(
+            code=code,
+            severity=Severity.ERROR,
+            path=path,
             line=err_line,
             col=err_col,
+            **kwargs,
+        )
+        return DslError(
+            diag.message,
+            diagnostic=diag,
             start=start,
             end=(start if end is None else end),
         )
@@ -121,7 +141,7 @@ def lex(text: str) -> list[Token]:
                     advance()
                     if i >= n:
                         raise error(
-                            "unterminated string literal",
+                            "NEMA-DSL1001",
                             err_line=tok_line,
                             err_col=tok_col,
                             start=start,
@@ -131,18 +151,19 @@ def lex(text: str) -> list[Token]:
                     mapped = _STRING_ESCAPES.get(esc_ch)
                     if mapped is None:
                         raise error(
-                            f"invalid string escape '\\{esc_ch}'",
+                            "NEMA-DSL1002",
                             err_line=line,
                             err_col=col,
                             start=i,
                             end=i + 1,
+                            escape=esc_ch,
                         )
                     advance()
                     parts.append(mapped)
                     continue
                 if cur == "\n":
                     raise error(
-                        "unterminated string literal",
+                        "NEMA-DSL1001",
                         err_line=tok_line,
                         err_col=tok_col,
                         start=start,
@@ -152,7 +173,7 @@ def lex(text: str) -> list[Token]:
                 advance()
             if not terminated:
                 raise error(
-                    "unterminated string literal",
+                    "NEMA-DSL1001",
                     err_line=tok_line,
                     err_col=tok_col,
                     start=start,
@@ -215,13 +236,7 @@ def lex(text: str) -> list[Token]:
                 push("IDENT", raw, tok_line, tok_col, start, i)
             continue
 
-        raise error(
-            f"unexpected character '{ch}'",
-            err_line=line,
-            err_col=col,
-            start=i,
-            end=i + 1,
-        )
+        raise error("NEMA-DSL1101", err_line=line, err_col=col, start=i, end=i + 1)
 
     push("EOF", None, line, col, i, i)
     return tokens

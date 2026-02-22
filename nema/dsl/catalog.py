@@ -15,57 +15,94 @@ class _Template:
 
 
 _CATALOG: dict[str, _Template] = {
-    "DSL0001": _Template(
-        message="unexpected character '{char}'",
-        hint="remove the character or escape it inside a string literal",
-    ),
-    "DSL0002": _Template(
-        message="unterminated string literal",
+    "NEMA-DSL1001": _Template(
+        message="unterminated string",
         hint='close the string with a matching double quote (\")',
     ),
-    "DSL0003": _Template(
-        message="invalid string escape '\\{escape}'",
+    "NEMA-DSL1002": _Template(
+        message="invalid escape",
         hint=r"use one of: \" \\ \n \t",
     ),
-    "DSL0004": _Template(
-        message="expected token {expected}, got {actual}",
+    "NEMA-DSL1101": _Template(
+        message="unexpected token",
+        hint="check token order and block delimiters",
+        note="expected: {expected}; got: {actual}",
     ),
-    "DSL0005": _Template(
-        message="expected value, got {actual}",
+    "NEMA-DSL1102": _Template(
+        message="missing semicolon",
+        hint="terminate assignments with ';'",
     ),
-    "DSL0006": _Template(
-        message="duplicate key '{key}'",
-        hint="keep only one assignment/block for each key at the same object level",
+    "NEMA-DSL1103": _Template(
+        message="duplicate key in same object",
+        hint="keep only one assignment/block per key within a single object",
+        note="duplicate key: {key}",
     ),
-    "DSL0007": _Template(
-        message="expected time unit ns/us/ms/s",
-        hint="append one valid unit to the integer literal (example: 15ms)",
+    "NEMA-DSL2001": _Template(
+        message="missing required top-level field",
+        hint="add required root field '{field}'",
+        note="missing field: {field}",
     ),
-    "DSL0008": _Template(
-        message="invalid fixed literal suffix '{suffix}'",
-        hint="use signed form TypeId(INT) or unsigned form TypeId(INTu)",
+    "NEMA-DSL2002": _Template(
+        message='unsupported irVersion (expected "0.1")',
+        hint='set irVersion = "0.1"',
+        note="got: {got}",
     ),
-    "DSL0009": _Template(
-        message="failed to read file: {detail}",
+    "NEMA-DSL2101": _Template(
+        message="graph must define exactly one of {{inline, external}}",
+        hint="define either graph.inline or graph.external, but not both",
     ),
-    "DSL0010": _Template(
-        message="failed to write file: {detail}",
+    "NEMA-DSL2201": _Template(
+        message="external.sha256 placeholder",
+        hint="replace placeholder with real sha256:<digest>",
+        note="mode: {mode}",
     ),
-    "DSL0011": _Template(
-        message="invalid JSON input: {detail}",
+    "NEMA-DSL2202": _Template(
+        message="external artifact missing or sha mismatch",
+        hint="provide an existing external artifact and matching sha256",
+        note="{detail}",
     ),
-    "DSL0012": _Template(
-        message="IR validation failed: {detail}",
+    "NEMA-DSL2301": _Template(
+        message="qformats.*TypeId references unknown typeId",
+        hint="define referenced typeId in typeTable",
+        note="{field} -> {type_id}",
     ),
-    "DSL0013": _Template(
-        message="dsl hwtest requires root field 'modelId'",
-        hint="set a non-empty root key: modelId = <IDENT|STRING>;",
+    "NEMA-DSL2302": _Template(
+        message="schedule policy/snapshotRule mismatch (must be nema.tick.v0.1 and snapshotRule=true)",
+        hint="set schedule.policy = nema.tick.v0.1 and schedule.snapshotRule = true",
     ),
-    "DSL0014": _Template(
-        message="unknown DSL subcommand '{command}'",
+    "NEMA-DSL2303": _Template(
+        message="non-negative conductance violated",
+        hint="set conductance >= 0",
+        note="value: {value}",
     ),
-    "DSL0015": _Template(
+    "NEMA-DSL2304": _Template(
+        message="license.spdxId not in constraints.allowedSpdx",
+        hint="add license.spdxId to constraints.allowedSpdx or change spdxId",
+        note="spdxId: {spdx_id}",
+    ),
+    "NEMA-DSL2401": _Template(
+        message="HW toolchain unavailable (vitis_hls/vivado)",
+        hint="install vitis_hls/vivado or run software-only mode",
+    ),
+    "NEMA-DSL2999": _Template(
+        message="IR validation failed",
+        hint="fix semantic issues before IR validation",
+        note="{detail}",
+    ),
+    "NEMA-DSL9001": _Template(
         message="{detail}",
+    ),
+    "NEMA-DSL9002": _Template(
+        message="failed to read file",
+        hint="{detail}",
+    ),
+    "NEMA-DSL9003": _Template(
+        message="failed to write file",
+        hint="{detail}",
+    ),
+    "NEMA-DSL9004": _Template(
+        message="unknown DSL subcommand",
+        note="{command}",
     ),
 }
 

@@ -1,0 +1,13 @@
+constraints {
+  allowedSpdx = [MIT];
+};
+license {
+  spdxId = MIT;
+};
+compile {
+  requireHwToolchain = true;
+};
+graph {
+  nodes = [];
+  edges = [];
+};

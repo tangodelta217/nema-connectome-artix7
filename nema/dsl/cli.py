@@ -13,8 +13,9 @@ from typing import Any
 from .catalog import make_diag
 from .diagnostics import Diagnostic, Severity, sort_key
 from .errors import DslError
-from .lower import dump_json, lower_to_ir
-from .parser import parse
+from .lower import dump_json, lower_to_ir, lower_to_ir_with_locs
+from .parser import parse, parse_with_locs
+from .typecheck import typecheck
 from ..hwtest import run_hwtest_pipeline
 from ..ir_validate import IRValidationError, validate_ir
 
@@ -234,6 +235,17 @@ def _with_path(diag: Diagnostic, fallback_path: str) -> Diagnostic:
     return replace(diag, path=fallback_path)
 
 
+def _loc_from_map(locs: dict[str, dict[str, int]], field_path: str) -> tuple[int, int]:
+    raw = locs.get(field_path)
+    if not isinstance(raw, dict):
+        return (1, 1)
+    line = raw.get("line")
+    col = raw.get("col")
+    if not isinstance(line, int) or not isinstance(col, int):
+        return (1, 1)
+    return (line, col)
+
+
 def _finalize(
     *,
     code: int,
@@ -259,7 +271,7 @@ def _finalize(
 
 def _diag_from_file_error(path: Path, exc: OSError) -> Diagnostic:
     return make_diag(
-        code="DSL0009",
+        code="NEMA-DSL9002",
         severity=Severity.ERROR,
         path=str(path),
         line=1,
@@ -270,7 +282,7 @@ def _diag_from_file_error(path: Path, exc: OSError) -> Diagnostic:
 
 def _diag_from_write_error(path: Path, exc: OSError) -> Diagnostic:
     return make_diag(
-        code="DSL0010",
+        code="NEMA-DSL9003",
         severity=Severity.ERROR,
         path=str(path),
         line=1,
@@ -283,7 +295,7 @@ def _diag_from_exception(path: Path, exc: Exception) -> Diagnostic:
     if isinstance(exc, DslError):
         return _with_path(exc.diagnostic, str(path))
     return make_diag(
-        code="DSL0015",
+        code="NEMA-DSL9001",
         severity=Severity.ERROR,
         path=str(path),
         line=1,
@@ -297,7 +309,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
     command = getattr(args, "dsl_command", None)
     if command not in {"compile", "check", "hwtest", "from-ir"}:
         diag = make_diag(
-            code="DSL0014",
+            code="NEMA-DSL9004",
             severity=Severity.ERROR,
             path="<cli>",
             line=1,
@@ -362,7 +374,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
             )
         except json.JSONDecodeError as exc:
             diag = make_diag(
-                code="DSL0011",
+                code="NEMA-DSL9001",
                 severity=Severity.ERROR,
                 path=str(args.ir_json),
                 line=exc.lineno or 1,
@@ -378,7 +390,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
 
         if not isinstance(raw, dict):
             diag = make_diag(
-                code="DSL0015",
+                code="NEMA-DSL9001",
                 severity=Severity.ERROR,
                 path=str(args.ir_json),
                 line=1,
@@ -400,7 +412,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
                 payload={"irPath": str(args.ir_json), "outPath": str(args.out)},
                 diagnostics=[
                     make_diag(
-                        code="DSL0015",
+                        code="NEMA-DSL9001",
                         severity=Severity.ERROR,
                         path=str(args.ir_json),
                         line=1,
@@ -435,77 +447,71 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
     if command == "check":
         try:
             source = args.dsl_file.read_text(encoding="utf-8")
-            lowered = _compile_source_to_ir(source)
         except OSError as exc:
             return _finalize(
                 code=1,
-                payload={"dslPath": str(args.dsl_file)},
+                payload={},
                 diagnostics=[_diag_from_file_error(args.dsl_file, exc)],
                 werror=werror,
             )
+
+        try:
+            ast, locs = parse_with_locs(source, str(args.dsl_file))
+            lowered, lowered_locs = lower_to_ir_with_locs(ast, locs)
         except (DslError, ValueError) as exc:
             return _finalize(
                 code=1,
-                payload={"dslPath": str(args.dsl_file)},
+                payload={},
                 diagnostics=[_diag_from_exception(args.dsl_file, exc)],
                 werror=werror,
             )
 
-        temp_path: Path | None = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                encoding="utf-8",
-                suffix=".json",
-                prefix=".nema_dsl_check_",
-                dir=str(Path.cwd()),
-                delete=False,
-            ) as handle:
-                temp_path = Path(handle.name)
-                handle.write(json.dumps(lowered, indent=2, sort_keys=True) + "\n")
-            report = validate_ir(temp_path)
-        except OSError as exc:
-            return _finalize(
-                code=1,
-                payload={"dslPath": str(args.dsl_file)},
-                diagnostics=[_diag_from_write_error(args.dsl_file, exc)],
-                werror=werror,
-            )
-        except IRValidationError as exc:
-            diag = make_diag(
-                code="DSL0012",
-                severity=Severity.ERROR,
-                path=str(args.dsl_file),
-                line=1,
-                col=1,
-                detail=str(exc),
-            )
-            return _finalize(
-                code=1,
-                payload={"dslPath": str(args.dsl_file)},
-                diagnostics=[diag],
-                werror=werror,
-            )
-        finally:
-            if temp_path is not None:
-                temp_path.unlink(missing_ok=True)
+        diagnostics = typecheck(lowered, lowered_locs, str(args.dsl_file))
+
+        has_typecheck_error = any(diag.severity == Severity.ERROR for diag in diagnostics)
+        if not has_typecheck_error:
+            temp_path: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    encoding="utf-8",
+                    suffix=".json",
+                    prefix=".nema_dsl_check_",
+                    dir=str(Path.cwd()),
+                    delete=False,
+                ) as handle:
+                    temp_path = Path(handle.name)
+                    handle.write(json.dumps(lowered, indent=2, sort_keys=True) + "\n")
+                validate_ir(temp_path)
+            except OSError as exc:
+                diagnostics.append(_diag_from_write_error(args.dsl_file, exc))
+            except IRValidationError as exc:
+                line, col = _loc_from_map(lowered_locs, "graph")
+                diagnostics.append(
+                    make_diag(
+                        code="NEMA-DSL2999",
+                        severity=Severity.ERROR,
+                        path=str(args.dsl_file),
+                        line=line,
+                        col=col,
+                        detail=str(exc),
+                    )
+                )
+            finally:
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
 
         return _finalize(
             code=0,
-            payload={
-                "dslPath": str(args.dsl_file),
-                "nodeCount": report.get("node_count"),
-                "edgeCount": report.get("edge_count"),
-                "irSha256": report.get("ir_sha256"),
-            },
-            diagnostics=[],
+            payload={},
+            diagnostics=diagnostics,
             werror=werror,
         )
 
     if command == "hwtest":
         if args.ticks < 0:
             diag = make_diag(
-                code="DSL0015",
+                code="NEMA-DSL9001",
                 severity=Severity.ERROR,
                 path=str(args.dsl_file),
                 line=1,
@@ -540,11 +546,12 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
         model_id = lowered.get("modelId") if isinstance(lowered, dict) else None
         if not isinstance(model_id, str) or not model_id.strip():
             diag = make_diag(
-                code="DSL0013",
+                code="NEMA-DSL9001",
                 severity=Severity.ERROR,
                 path=str(args.dsl_file),
                 line=1,
                 col=1,
+                detail="dsl hwtest requires root field 'modelId'",
             )
             return _finalize(
                 code=1,
@@ -588,7 +595,7 @@ def run_dsl_command(args: argparse.Namespace) -> tuple[int, dict]:
         )
 
     diag = make_diag(
-        code="DSL0014",
+        code="NEMA-DSL9004",
         severity=Severity.ERROR,
         path="<cli>",
         line=1,
@@ -619,7 +626,7 @@ def _payload_to_diagnostics(payload: dict[str, Any]) -> list[Diagnostic]:
             severity = Severity.ERROR
         diags.append(
             Diagnostic(
-                code=str(item.get("code", "DSL0015")),
+                code=str(item.get("code", "NEMA-DSL9001")),
                 severity=severity,
                 path=str(item.get("path", "<input>")),
                 line=int(item.get("line", 1)),

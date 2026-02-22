@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2201",
+      "col": 5,
+      "hint": "replace placeholder with real sha256:<digest>",
+      "line": 11,
+      "message": "external.sha256 placeholder",
+      "note": "mode: AUGMENTED",
+      "path": "tests/fixtures/diag/2201_sha_placeholder_augmented.nema",
+      "severity": "WARNING"
+    }
+  ],
+  "ok": true
+}

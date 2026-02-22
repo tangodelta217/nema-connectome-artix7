@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2001",
+      "col": 1,
+      "hint": "add required root field 'graph'",
+      "line": 1,
+      "message": "missing required top-level field",
+      "note": "missing field: graph",
+      "path": "tests/fixtures/diag/2001_missing_graph.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2303",
+      "col": 19,
+      "hint": "set conductance >= 0",
+      "line": 9,
+      "message": "non-negative conductance violated",
+      "note": "value: -1",
+      "path": "tests/fixtures/diag/2303_negative_conductance.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

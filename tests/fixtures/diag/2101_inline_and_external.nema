@@ -1,0 +1,16 @@
+constraints {
+  allowedSpdx = [MIT];
+  mode = FAITHFUL;
+};
+license {
+  spdxId = MIT;
+};
+graph {
+  inline {};
+  external {
+    uri = connectomes/celegans_herm_c302_bundle.json;
+    sha256 = "sha256:a2695caf78bd3f77869396d2e83a0cbec3e56c49a2a47310635b5212a3ee8df1";
+  };
+  nodes = [];
+  edges = [];
+};

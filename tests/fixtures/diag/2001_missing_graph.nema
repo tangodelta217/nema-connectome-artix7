@@ -1,0 +1,6 @@
+constraints {
+  allowedSpdx = [MIT];
+};
+license {
+  spdxId = MIT;
+};

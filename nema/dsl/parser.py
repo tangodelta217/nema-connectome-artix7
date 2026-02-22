@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .catalog import make_diag
+from .diagnostics import Severity
 from .errors import DslError
 from .lexer import Token, lex
 
@@ -68,20 +70,46 @@ class _Parser:
         self.locs[field_path] = {"line": token.line, "col": token.col}
 
     def _error(self, message: str, *, token: Token | None = None) -> DslError:
+        return self._diag_error(
+            code="NEMA-DSL1101",
+            token=token,
+            expected="valid syntax",
+            actual=(self._cur() if token is None else token).kind,
+        )
+
+    def _diag_error(
+        self,
+        *,
+        code: str,
+        token: Token | None = None,
+        expected: str | None = None,
+        actual: str | None = None,
+        key: str | None = None,
+    ) -> DslError:
         tok = self._cur() if token is None else token
-        return DslError(
-            message,
+        diag = make_diag(
+            code=code,
+            severity=Severity.ERROR,
+            path=self.source_path,
             line=tok.line,
             col=tok.col,
+            expected=(expected if expected is not None else ""),
+            actual=(actual if actual is not None else tok.kind),
+            key=(key if key is not None else ""),
+        )
+        return DslError(
+            diag.message,
+            diagnostic=diag,
             start=tok.start,
             end=tok.end,
-            path=self.source_path,
         )
 
     def _expect(self, kind: str) -> Token:
         tok = self._cur()
         if tok.kind != kind:
-            raise self._error(f"expected token {kind}, got {tok.kind}", token=tok)
+            if kind == "SEMI":
+                raise self._diag_error(code="NEMA-DSL1102", token=tok)
+            raise self._diag_error(code="NEMA-DSL1101", token=tok, expected=kind, actual=tok.kind)
         return self._advance()
 
     def _parse_key(self) -> tuple[str, Token]:
@@ -89,7 +117,7 @@ class _Parser:
         if tok.kind in {"IDENT", "STRING"}:
             self._advance()
             return str(tok.value), tok
-        raise self._error(f"expected token IDENT, got {tok.kind}", token=tok)
+        raise self._diag_error(code="NEMA-DSL1101", token=tok, expected="IDENT", actual=tok.kind)
 
     def parse_program(self) -> dict[str, Any]:
         root = self._parse_statements(until_kind="EOF", prefix="")
@@ -113,7 +141,7 @@ class _Parser:
                 value = self._parse_value(context_path=field_path)
                 self._expect("SEMI")
                 if key in obj:
-                    raise self._error(f"duplicate key '{key}'", token=sep)
+                    raise self._diag_error(code="NEMA-DSL1103", token=key_tok, key=key)
                 obj[key] = value
                 continue
 
@@ -122,11 +150,11 @@ class _Parser:
                 if self._cur().kind == "SEMI":
                     self._advance()
                 if key in obj:
-                    raise self._error(f"duplicate key '{key}'", token=sep)
+                    raise self._diag_error(code="NEMA-DSL1103", token=key_tok, key=key)
                 obj[key] = value
                 continue
 
-            raise self._error(f"expected token EQUAL, got {sep.kind}", token=sep)
+            raise self._diag_error(code="NEMA-DSL1101", token=sep, expected="EQUAL", actual=sep.kind)
 
         return obj
 
@@ -161,13 +189,10 @@ class _Parser:
     def _parse_time_literal(self, int_token: Token) -> TimeLit:
         unit_tok = self._cur()
         if unit_tok.kind != "IDENT":
-            raise self._error(f"expected token IDENT, got {unit_tok.kind}", token=unit_tok)
+            raise self._diag_error(code="NEMA-DSL1101", token=unit_tok, expected="IDENT", actual=unit_tok.kind)
         unit = str(unit_tok.value)
         if unit not in _TIME_UNITS:
-            raise self._error(
-                "expected time unit ns/us/ms/s",
-                token=unit_tok,
-            )
+            raise self._diag_error(code="NEMA-DSL1101", token=unit_tok, expected="time-unit", actual=unit)
         self._advance()
         return TimeLit(value=int(int_token.value), unit=unit)
 
@@ -219,7 +244,7 @@ class _Parser:
                 return self._parse_typed_object(tok, context_path=context_path)
             return str(tok.value)
 
-        raise self._error(f"expected value, got {tok.kind}", token=tok)
+        raise self._diag_error(code="NEMA-DSL1101", token=tok, expected="value", actual=tok.kind)
 
 
 def parse(source: str) -> dict[str, Any]:
@@ -230,6 +255,6 @@ def parse(source: str) -> dict[str, Any]:
 
 def parse_with_locs(source: str, path: str) -> tuple[dict[str, Any], LocationMap]:
     """Parse NEMA-DSL and return (AST object, field location map)."""
-    parser = _Parser(lex(source), source_path=path)
+    parser = _Parser(lex(source, path=path), source_path=path)
     root = parser.parse_program()
     return root, dict(parser.locs)

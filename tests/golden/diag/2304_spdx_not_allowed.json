@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2304",
+      "col": 3,
+      "hint": "add license.spdxId to constraints.allowedSpdx or change spdxId",
+      "line": 5,
+      "message": "license.spdxId not in constraints.allowedSpdx",
+      "note": "spdxId: Apache-2.0",
+      "path": "tests/fixtures/diag/2304_spdx_not_allowed.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

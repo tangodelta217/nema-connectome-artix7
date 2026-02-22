@@ -63,9 +63,10 @@ def test_lex_unterminated_string_reports_line_col() -> None:
     text = 'a = "unterminated\nnext = 1;'
 
     with pytest.raises(DslError) as exc_info:
-        lex(text)
+        lex(text, path="tests/fixtures/diag/1001_unterminated_string.nema")
 
     err = exc_info.value
-    assert "unterminated string literal" in str(err)
+    assert err.diagnostic.code == "NEMA-DSL1001"
+    assert "unterminated string" in err.diagnostic.message
     assert err.line == 1
     assert err.col == 5

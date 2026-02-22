@@ -1,0 +1,14 @@
+constraints {
+  allowedSpdx = [MIT];
+};
+license {
+  spdxId = MIT;
+};
+schedule {
+  policy = wrong.tick.v0;
+  snapshotRule = false;
+};
+graph {
+  nodes = [];
+  edges = [];
+};

@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2401",
+      "col": 3,
+      "hint": "install vitis_hls/vivado or run software-only mode",
+      "line": 8,
+      "message": "HW toolchain unavailable (vitis_hls/vivado)",
+      "note": null,
+      "path": "tests/fixtures/diag/2401_hw_toolchain_unavailable.nema",
+      "severity": "WARNING"
+    }
+  ],
+  "ok": true
+}

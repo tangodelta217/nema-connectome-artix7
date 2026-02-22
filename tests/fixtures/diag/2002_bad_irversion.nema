@@ -1,0 +1,11 @@
+irVersion = "0.2";
+constraints {
+  allowedSpdx = [MIT];
+};
+license {
+  spdxId = MIT;
+};
+graph {
+  nodes = [];
+  edges = [];
+};

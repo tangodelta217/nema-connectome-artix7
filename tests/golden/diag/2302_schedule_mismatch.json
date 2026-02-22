@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2302",
+      "col": 3,
+      "hint": "set schedule.policy = nema.tick.v0.1 and schedule.snapshotRule = true",
+      "line": 8,
+      "message": "schedule policy/snapshotRule mismatch (must be nema.tick.v0.1 and snapshotRule=true)",
+      "note": null,
+      "path": "tests/fixtures/diag/2302_schedule_mismatch.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

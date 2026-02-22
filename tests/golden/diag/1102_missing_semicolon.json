@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL1102",
+      "col": 1,
+      "hint": "terminate assignments with ';'",
+      "line": 3,
+      "message": "missing semicolon",
+      "note": null,
+      "path": "tests/fixtures/diag/1102_missing_semicolon.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

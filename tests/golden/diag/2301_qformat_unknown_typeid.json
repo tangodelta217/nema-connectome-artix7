@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2301",
+      "col": 5,
+      "hint": "define referenced typeId in typeTable",
+      "line": 10,
+      "message": "qformats.*TypeId references unknown typeId",
+      "note": "compile.qformats.stateTypeId -> unknown_state_q8_8",
+      "path": "tests/fixtures/diag/2301_qformat_unknown_typeid.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

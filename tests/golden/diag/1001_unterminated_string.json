@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL1001",
+      "col": 10,
+      "hint": "close the string with a matching double quote (\")",
+      "line": 2,
+      "message": "unterminated string",
+      "note": null,
+      "path": "tests/fixtures/diag/1001_unterminated_string.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

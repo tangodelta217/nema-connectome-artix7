@@ -60,6 +60,7 @@ def test_parse_missing_semicolon_reports_location() -> None:
         parse(text)
 
     err = exc_info.value
-    assert "expected token SEMI" in str(err)
+    assert err.diagnostic.code == "NEMA-DSL1102"
+    assert "missing semicolon" in err.diagnostic.message
     assert err.line == 2
     assert err.col == 1

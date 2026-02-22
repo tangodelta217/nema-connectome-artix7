@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2101",
+      "col": 1,
+      "hint": "define either graph.inline or graph.external, but not both",
+      "line": 8,
+      "message": "graph must define exactly one of {inline, external}",
+      "note": null,
+      "path": "tests/fixtures/diag/2101_inline_and_external.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

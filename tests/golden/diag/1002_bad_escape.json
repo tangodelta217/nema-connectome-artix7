@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL1002",
+      "col": 15,
+      "hint": "use one of: \\\" \\\\ \\n \\t",
+      "line": 2,
+      "message": "invalid escape",
+      "note": null,
+      "path": "tests/fixtures/diag/1002_bad_escape.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

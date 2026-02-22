@@ -1,0 +1,10 @@
+constraints {
+  allowedSpdx = [MIT];
+};
+license {
+  spdxId = Apache-2.0;
+};
+graph {
+  nodes = [];
+  edges = [];
+};

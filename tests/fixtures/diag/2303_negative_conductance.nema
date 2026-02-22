@@ -1,0 +1,13 @@
+constraints {
+  allowedSpdx = [MIT];
+};
+license {
+  spdxId = MIT;
+};
+graph {
+  inline {
+    gapEdges = [{ conductance = -1; }];
+  };
+  nodes = [];
+  edges = [];
+};

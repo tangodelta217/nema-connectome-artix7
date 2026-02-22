@@ -1,0 +1,16 @@
+constraints {
+  allowedSpdx = [MIT];
+};
+license {
+  spdxId = MIT;
+};
+typeTable = [{ typeId = state_q8_8; }];
+compile {
+  qformats {
+    stateTypeId = unknown_state_q8_8;
+  };
+};
+graph {
+  nodes = [];
+  edges = [];
+};

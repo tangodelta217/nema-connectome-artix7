@@ -16,7 +16,7 @@ class DslError(Exception):
         self,
         message: str,
         *,
-        code: str = "DSL0015",
+        code: str = "NEMA-DSL9001",
         severity: Severity = Severity.ERROR,
         path: str = "<input>",
         line: int | None = None,
@@ -97,7 +97,14 @@ def raise_error(
         line=line,
         col=col,
         detail=message,
-        message=message,
+        got=message,
+        expected=message,
+        field=message,
+        type_id=message,
+        key=message,
+        value=message,
+        spdx_id=message,
+        mode=message,
     )
     if hint is not None:
         diag = replace(diag, hint=hint)

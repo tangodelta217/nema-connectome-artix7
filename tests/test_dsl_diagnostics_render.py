@@ -7,23 +7,23 @@ from nema.dsl.diagnostics import Diagnostic, Severity, sort_key
 
 def test_diagnostics_text_render_and_sort_order_are_stable() -> None:
     first = Diagnostic(
-        code="DSL0004",
+        code="NEMA-DSL1102",
         severity=Severity.ERROR,
         path="programs/b3_kernel_302.nema",
         line=9,
         col=13,
-        message="expected token SEMI, got IDENT",
+        message="missing semicolon",
         hint="add ';' after the assignment",
         note="parser stopped at next statement boundary",
     )
     second = Diagnostic(
-        code="DSLW0001",
+        code="NEMA-DSL2401",
         severity=Severity.WARNING,
         path="programs/b1_small.nema",
         line=1,
         col=1,
-        message="deprecated field alias",
-        hint="use canonical field names",
+        message="HW toolchain unavailable (vitis_hls/vivado)",
+        hint="install vitis_hls/vivado or run software-only mode",
         note=None,
     )
 
@@ -34,11 +34,11 @@ def test_diagnostics_text_render_and_sort_order_are_stable() -> None:
     ]
 
     assert ordered[0].format_text(no_color=True) == (
-        "programs/b1_small.nema:1:1: WARNING DSLW0001: deprecated field alias\n"
-        "  hint: use canonical field names"
+        "programs/b1_small.nema:1:1: WARNING NEMA-DSL2401: HW toolchain unavailable (vitis_hls/vivado)\n"
+        "  hint: install vitis_hls/vivado or run software-only mode"
     )
     assert ordered[1].format_text(no_color=True) == (
-        "programs/b3_kernel_302.nema:9:13: ERROR DSL0004: expected token SEMI, got IDENT\n"
+        "programs/b3_kernel_302.nema:9:13: ERROR NEMA-DSL1102: missing semicolon\n"
         "  hint: add ';' after the assignment\n"
         "  note: parser stopped at next statement boundary"
     )
@@ -47,7 +47,7 @@ def test_diagnostics_text_render_and_sort_order_are_stable() -> None:
 def test_diagnostics_json_render_is_stable() -> None:
     diagnostics = [
         Diagnostic(
-            code="DSL0001",
+            code="NEMA-DSL1101",
             severity=Severity.ERROR,
             path="programs/b1_small.nema",
             line=3,
@@ -57,12 +57,12 @@ def test_diagnostics_json_render_is_stable() -> None:
             note=None,
         ),
         Diagnostic(
-            code="DSL0002",
+            code="NEMA-DSL1001",
             severity=Severity.ERROR,
             path="programs/b1_small.nema",
             line=4,
             col=9,
-            message="unterminated string literal",
+            message="unterminated string",
             hint='close the string with a matching quote (\")',
             note="string started at line 4, col 9",
         ),
@@ -74,7 +74,7 @@ def test_diagnostics_json_render_is_stable() -> None:
         '{\n'
         '  "diagnostics": [\n'
         "    {\n"
-        '      "code": "DSL0001",\n'
+        '      "code": "NEMA-DSL1101",\n'
         '      "col": 7,\n'
         '      "hint": "remove the character or quote it in a string",\n'
         '      "line": 3,\n'
@@ -84,11 +84,11 @@ def test_diagnostics_json_render_is_stable() -> None:
         '      "severity": "ERROR"\n'
         "    },\n"
         "    {\n"
-        '      "code": "DSL0002",\n'
+        '      "code": "NEMA-DSL1001",\n'
         '      "col": 9,\n'
         '      "hint": "close the string with a matching quote (\\")",\n'
         '      "line": 4,\n'
-        '      "message": "unterminated string literal",\n'
+        '      "message": "unterminated string",\n'
         '      "note": "string started at line 4, col 9",\n'
         '      "path": "programs/b1_small.nema",\n'
         '      "severity": "ERROR"\n'

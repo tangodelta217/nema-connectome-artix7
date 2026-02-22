@@ -1,0 +1,15 @@
+constraints {
+  allowedSpdx = [MIT];
+  mode = FAITHFUL;
+};
+license {
+  spdxId = MIT;
+};
+graph {
+  external {
+    uri = connectomes/does_not_exist_bundle.json;
+    sha256 = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+  };
+  nodes = [];
+  edges = [];
+};

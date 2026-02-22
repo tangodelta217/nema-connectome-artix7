@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2002",
+      "col": 1,
+      "hint": "set irVersion = \"0.1\"",
+      "line": 1,
+      "message": "unsupported irVersion (expected \"0.1\")",
+      "note": "got: 0.2",
+      "path": "tests/fixtures/diag/2002_bad_irversion.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

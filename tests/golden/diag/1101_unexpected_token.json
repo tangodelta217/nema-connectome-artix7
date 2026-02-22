@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL1101",
+      "col": 7,
+      "hint": "check token order and block delimiters",
+      "line": 2,
+      "message": "unexpected token",
+      "note": "expected: EQUAL; got: INT",
+      "path": "tests/fixtures/diag/1101_unexpected_token.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}
