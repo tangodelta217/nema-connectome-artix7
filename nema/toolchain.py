@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .codegen.hls_gen import generate_hls_project
 from .fixed import run_selftest as run_fixed_selftest
+from .hw_doctor import run_hw_doctor as run_hw_doctor_command
 from .hwtest import run_hwtest_pipeline
 from .ir_resolve import materialize_external_bundle
 from .ir_validate import IRValidationError, load_ir, validate_ir
@@ -112,6 +113,10 @@ def run_compile(ir_path: Path, outdir: Path) -> tuple[int, dict]:
 
 def run_hwtest(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, dict]:
     return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks)
+
+
+def run_hw_doctor() -> tuple[int, dict]:
+    return run_hw_doctor_command()
 
 
 def selftest_fixed() -> tuple[int, dict]:

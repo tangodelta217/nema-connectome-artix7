@@ -8,10 +8,12 @@ import sys
 from pathlib import Path
 
 from .dsl.cli import add_dsl_subparser, emit as emit_dsl, run_dsl_command
+from .hw_doctor import render_hw_doctor_text
 from .toolchain import (
     run_bench_verify,
     check_ir,
     dump_csr,
+    run_hw_doctor,
     run_compile,
     run_hwtest,
     run_materialize_external,
@@ -76,6 +78,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional isolated output directory (default: temp dir under build/)",
     )
 
+    hw_cmd = subparsers.add_parser("hw", help="hardware toolchain utilities")
+    hw_subparsers = hw_cmd.add_subparsers(dest="hw_command", required=True)
+    hw_doctor_cmd = hw_subparsers.add_parser("doctor", help="diagnose hardware toolchain environment")
+    hw_doctor_cmd.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+
     add_dsl_subparser(subparsers)
 
     return parser
@@ -138,6 +150,16 @@ def main(argv: list[str] | None = None) -> int:
             _emit(report)
             return code
         parser.error(f"unknown bench command: {args.bench_command}")
+
+    if args.command == "hw":
+        if args.hw_command == "doctor":
+            code, report = run_hw_doctor()
+            if args.format == "json":
+                _emit(report)
+            else:
+                print(render_hw_doctor_text(report))
+            return code
+        parser.error(f"unknown hw command: {args.hw_command}")
 
     if args.command == "dsl":
         code, report = run_dsl_command(args)
