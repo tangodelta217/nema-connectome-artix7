@@ -37,7 +37,10 @@ This runbook is a practical baseline to prepare an Ubuntu 24.04 workstation for 
    - `vitis_hls -version`
 3. Run NEMA preflight:
    - `bash tools/hw/preflight_ubuntu24.sh`
+4. Run HW gates runner:
+   - `bash tools/run_hw_gates.sh`
 
 ## Notes
 - `tools/hw/preflight_ubuntu24.sh` is check-only and does not install or modify system packages.
 - On Ubuntu 24.04, `libtinfo.so.5` may be missing by default; the preflight script prints suggested remediation commands without executing them.
+- `tools/run_hw_gates.sh` requires a working toolchain activation and is intended for HW-capable lab machines.

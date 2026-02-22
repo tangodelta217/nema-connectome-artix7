@@ -23,21 +23,26 @@ detect_os_release_value() {
   fi
 }
 
-print_header "System"
-if command_exists lsb_release; then
-  lsb_release -a 2>/dev/null || true
-else
+print_header "OS (/etc/os-release)"
+if [[ -f /etc/os-release ]]; then
+  print_kv "source" "/etc/os-release"
+  os_pretty_name="$(detect_os_release_value PRETTY_NAME)"
   os_name="$(detect_os_release_value NAME)"
   os_version="$(detect_os_release_value VERSION)"
   os_id="$(detect_os_release_value ID)"
   os_version_id="$(detect_os_release_value VERSION_ID)"
-  print_kv "OS name" "${os_name:-UNKNOWN}"
-  print_kv "OS version" "${os_version:-UNKNOWN}"
-  print_kv "OS id" "${os_id:-UNKNOWN}"
-  print_kv "OS version id" "${os_version_id:-UNKNOWN}"
+  print_kv "PRETTY_NAME" "${os_pretty_name:-UNKNOWN}"
+  print_kv "NAME" "${os_name:-UNKNOWN}"
+  print_kv "VERSION" "${os_version:-UNKNOWN}"
+  print_kv "ID" "${os_id:-UNKNOWN}"
+  print_kv "VERSION_ID" "${os_version_id:-UNKNOWN}"
+else
+  print_kv "source" "MISSING (/etc/os-release not found)"
 fi
 
 kernel_release="$(uname -r 2>/dev/null || echo UNKNOWN)"
+echo
+print_header "Kernel"
 print_kv "Kernel release" "${kernel_release}"
 
 echo
@@ -103,15 +108,17 @@ fi
 
 echo
 print_header "Licensing env"
+license_printed="false"
 if [[ -n "${XILINXD_LICENSE_FILE:-}" ]]; then
   print_kv "XILINXD_LICENSE_FILE" "${XILINXD_LICENSE_FILE}"
-else
-  print_kv "XILINXD_LICENSE_FILE" "NOT_SET"
+  license_printed="true"
 fi
 if [[ -n "${LM_LICENSE_FILE:-}" ]]; then
   print_kv "LM_LICENSE_FILE" "${LM_LICENSE_FILE}"
-else
-  print_kv "LM_LICENSE_FILE" "NOT_SET"
+  license_printed="true"
+fi
+if [[ "${license_printed}" != "true" ]]; then
+  echo "No license env vars set (XILINXD_LICENSE_FILE / LM_LICENSE_FILE)."
 fi
 
 echo
