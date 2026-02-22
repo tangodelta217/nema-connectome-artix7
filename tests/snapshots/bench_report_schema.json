@@ -1,0 +1,126 @@
+{
+  "topLevelKeys": [
+    "artifacts",
+    "config",
+    "correctness",
+    "createdAt",
+    "gitCommit",
+    "hardware",
+    "irPath",
+    "irSha256",
+    "modelId",
+    "ok",
+    "performance",
+    "ticks",
+    "toolchainVersions",
+    "validation"
+  ],
+  "ok": "bool",
+  "modelId": "str",
+  "gitCommit": "null|str",
+  "createdAt": "str",
+  "ticks": "int",
+  "irPath": "str",
+  "irSha256": "str",
+  "toolchainVersions": {
+    "python": "null|str",
+    "g++": "null|str",
+    "vitis_hls": "null|str"
+  },
+  "config": {
+    "topKeys": [
+      "dt",
+      "graph",
+      "qformats",
+      "schedule"
+    ],
+    "qformatsKeys": [
+      "accum",
+      "activation",
+      "lutInput",
+      "lutOutput",
+      "voltage"
+    ],
+    "scheduleKeys": [
+      "evalOrder",
+      "policy",
+      "snapshotRule"
+    ],
+    "graphKeys": [
+      "edgeCount",
+      "nodeCount"
+    ],
+    "dt": "float|int|str"
+  },
+  "correctness": {
+    "topKeys": [
+      "cppReference",
+      "digestMatch",
+      "goldenSim"
+    ],
+    "goldenSimKeys": [
+      "digestPath",
+      "digests",
+      "error",
+      "ok",
+      "tracePath"
+    ],
+    "cppReferenceKeys": [
+      "binaryPath",
+      "digests",
+      "error",
+      "ok"
+    ],
+    "digestMatchKeys": [
+      "mismatchTick",
+      "ok"
+    ],
+    "goldenDigests": "list",
+    "cppDigests": "list"
+  },
+  "performance": {
+    "topKeys": [
+      "cpu",
+      "hardware"
+    ],
+    "cpuKeys": [
+      "cppRefElapsedSeconds",
+      "cppRefTicksPerSecond",
+      "goldenElapsedSeconds",
+      "goldenTicksPerSecond"
+    ],
+    "hardware": "null|object"
+  },
+  "hardware": {
+    "topKeys": [
+      "cosim",
+      "csim",
+      "project",
+      "reports",
+      "toolchain"
+    ],
+    "toolchainKeys": [
+      "available",
+      "binary",
+      "version"
+    ],
+    "available": "bool",
+    "binary": "null|str",
+    "version": "null|str",
+    "project": "null|str",
+    "csim": "null|object",
+    "cosim": "null|object",
+    "reports": "null|object"
+  },
+  "artifactsKeys": [
+    "benchReport",
+    "cppRefMain",
+    "hlsCpp",
+    "hlsHeader",
+    "modelRoot"
+  ],
+  "validationKeys": [
+    "invariantsChecked",
+    "ok"
+  ]
+}

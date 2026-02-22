@@ -107,11 +107,12 @@ def test_hwtest_emits_bench_report(tmp_path: Path) -> None:
     code = main(["hwtest", str(ir), "--outdir", str(outdir), "--ticks", "2"])
 
     assert code == 0
-    report_path = outdir / "bench_report.json"
-    assert report_path.exists()
-    report = json.loads(report_path.read_text(encoding="utf-8"))
+    reports = list(outdir.glob("*/bench_report.json"))
+    assert len(reports) == 1
+    report = json.loads(reports[0].read_text(encoding="utf-8"))
     assert report["ok"] is True
     assert report["ticks"] == 2
+    assert "correctness" in report
 
 
 def test_selftest_fixed_ok(capsys) -> None:

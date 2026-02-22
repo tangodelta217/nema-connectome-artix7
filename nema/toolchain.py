@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
 from pathlib import Path
 
 from .codegen.hls_gen import generate_hls_project
 from .fixed import run_selftest as run_fixed_selftest
+from .hwtest import run_hwtest_pipeline
 from .ir_validate import IRValidationError, load_ir, validate_ir
 from .lowering.csr import lower_ir_to_csr
 from .sim import simulate
@@ -109,66 +108,8 @@ def run_compile(ir_path: Path, outdir: Path) -> tuple[int, dict]:
     }
 
 
-def _detect_vitis_hls() -> dict:
-    binary = shutil.which("vitis_hls")
-    if not binary:
-        return {
-            "vitis_hls_found": False,
-            "binary": None,
-            "status": "unavailable",
-            "detail": "vitis_hls not found on PATH",
-        }
-
-    proc = subprocess.run([binary, "-version"], check=False, capture_output=True, text=True)
-    first_line = (proc.stdout or proc.stderr).splitlines()
-    version_line = first_line[0] if first_line else "unknown"
-    return {
-        "vitis_hls_found": True,
-        "binary": binary,
-        "status": "available_not_invoked",
-        "detail": "cosim flow scaffolded but not implemented yet",
-        "version_line": version_line,
-        "exit_code": proc.returncode,
-    }
-
-
 def run_hwtest(ir_path: Path, outdir: Path, ticks: int) -> tuple[int, dict]:
-    outdir.mkdir(parents=True, exist_ok=True)
-
-    sim_code, sim_report = run_sim(
-        ir_path,
-        ticks=ticks,
-        out_path=outdir / "trace.jsonl",
-        digest_path=outdir / "digest.json",
-        seed=0,
-    )
-    if sim_code != 0:
-        return sim_code, sim_report
-
-    compile_code, compile_report = run_compile(ir_path, outdir=outdir)
-    if compile_code != 0:
-        return compile_code, compile_report
-
-    cosim_report = _detect_vitis_hls()
-    bench_report = {
-        "ok": True,
-        "mode": "placeholder",
-        "ir_path": str(ir_path),
-        "ir_sha256": sim_report["ir_sha256"],
-        "ticks": ticks,
-        "sim": sim_report,
-        "compile": compile_report,
-        "cosim": cosim_report,
-        "result": "stub_complete",
-    }
-
-    bench_report_path = outdir / "bench_report.json"
-    write_json(bench_report_path, bench_report)
-    return 0, {
-        "ok": True,
-        "bench_report": str(bench_report_path),
-        "mode": "placeholder",
-    }
+    return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks)
 
 
 def selftest_fixed() -> tuple[int, dict]:
