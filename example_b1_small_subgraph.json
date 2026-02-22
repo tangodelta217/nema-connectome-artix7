@@ -1,0 +1,14 @@
+{
+  "name": "example_b1_small_subgraph",
+  "graph": {
+    "nodes": [],
+    "edges": []
+  },
+  "tanhLut": {
+    "policy": "nema.tanh_lut.v0.1",
+    "artifact": "artifacts/luts/tanh_q8_8.bin",
+    "inputType": "Q8.8",
+    "outputType": "Q8.8",
+    "checksumSha256": "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88"
+  }
+}
