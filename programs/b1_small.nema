@@ -8,6 +8,7 @@ graph {
 license {
   spdxId = Apache-2.0;
 };
+modelId = example_b1_small_subgraph;
 name = example_b1_small_subgraph;
 tanhLut {
   artifact = artifacts/luts/tanh_q8_8.bin;
