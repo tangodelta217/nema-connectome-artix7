@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Minimal auditor: bench reports + DSL compile/check + bench manifest verify."""
+"""Minimal auditor: bench reports + DSL-ready checks + bench manifest verify."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 DSL_PROGRAMS: dict[str, str] = {
-    "B1": "programs/b1_small.nema.toml",
-    "B3": "programs/b3_kernel_302_7500.nema.toml",
+    "B1": "programs/b1_small.nema",
+    "B3": "programs/b3_kernel_302.nema",
 }
 
 BENCH_MANIFESTS: dict[str, str] = {
@@ -88,8 +89,8 @@ def _discover_reports(root: Path, pattern: str) -> list[Path]:
     return sorted(path for path in root.glob(pattern) if path.is_file())
 
 
-def _run_cmd(cmd: list[str], *, cwd: Path) -> dict[str, Any]:
-    proc = subprocess.run(cmd, cwd=cwd, check=False, capture_output=True, text=True)
+def _run_cmd(cmd: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> dict[str, Any]:
+    proc = subprocess.run(cmd, cwd=cwd, check=False, capture_output=True, text=True, env=env)
     parsed_json: dict[str, Any] | None = None
     stdout_text = (proc.stdout or "").strip()
     if stdout_text:
@@ -112,7 +113,12 @@ def _run_cmd(cmd: list[str], *, cwd: Path) -> dict[str, Any]:
 
 def _check_dsl_programs(repo_root: Path, workdir: Path) -> dict[str, Any]:
     programs: dict[str, Any] = {}
-    compile_checks: dict[str, Any] = {}
+    check_runs: dict[str, Any] = {}
+    hwtest_runs: dict[str, Any] = {}
+
+    env = dict(os.environ)
+    env["NEMA_HWTEST_DISABLE_VITIS"] = "1"
+    env["NEMA_HWTEST_DISABLE_VIVADO"] = "1"
 
     for key, rel_path in DSL_PROGRAMS.items():
         abs_path = (repo_root / rel_path).resolve()
@@ -122,57 +128,68 @@ def _check_dsl_programs(repo_root: Path, workdir: Path) -> dict[str, Any]:
         }
 
         if not abs_path.exists():
-            compile_checks[key] = {
+            check_runs[key] = {
                 "dslPath": rel_path,
-                "compiledIr": None,
-                "compile": None,
-                "check": None,
+                "run": None,
+                "ok": False,
+            }
+            hwtest_runs[key] = {
+                "dslPath": rel_path,
+                "outdir": None,
+                "run": None,
                 "ok": False,
             }
             continue
 
-        # Compile at repo root so relative IR paths (e.g., connectomes/, artifacts/) remain valid for `nema check`.
-        out_ir = repo_root / f".audit_min_{key.lower()}.ir.json"
-        compile_cmd = [
+        check_cmd = [
             sys.executable,
             "-m",
             "nema",
             "dsl",
-            "compile",
+            "check",
             str(abs_path),
-            "--out",
-            str(out_ir),
         ]
-        compile_res = _run_cmd(compile_cmd, cwd=repo_root)
-
-        check_res: dict[str, Any] | None = None
-        if compile_res["ok"]:
-            check_cmd = [sys.executable, "-m", "nema", "check", str(out_ir)]
-            check_res = _run_cmd(check_cmd, cwd=repo_root)
-
-        compile_checks[key] = {
+        check_res = _run_cmd(check_cmd, cwd=repo_root, env=env)
+        check_runs[key] = {
             "dslPath": rel_path,
-            "compiledIr": str(out_ir),
-            "compile": compile_res,
-            "check": check_res,
-            "ok": bool(compile_res["ok"] and check_res is not None and check_res["ok"]),
+            "run": check_res,
+            "ok": bool(check_res["ok"]),
         }
 
-        try:
-            out_ir.unlink(missing_ok=True)
-        except OSError:
-            # Keep non-fatal cleanup issues as runtime behavior should remain deterministic.
-            pass
+        hwtest_outdir = workdir / "dsl_hwtest" / key.lower()
+        hwtest_outdir.mkdir(parents=True, exist_ok=True)
+        hwtest_cmd = [
+            sys.executable,
+            "-m",
+            "nema",
+            "dsl",
+            "hwtest",
+            str(abs_path),
+            "--ticks",
+            "2",
+            "--outdir",
+            str(hwtest_outdir),
+        ]
+        hwtest_res = _run_cmd(hwtest_cmd, cwd=repo_root, env=env)
+        hwtest_runs[key] = {
+            "dslPath": rel_path,
+            "outdir": str(hwtest_outdir),
+            "run": hwtest_res,
+            "ok": bool(hwtest_res["ok"]),
+        }
 
-    programs_present = all(item["exists"] for item in programs.values())
-    compile_and_check_ok = all(item["ok"] for item in compile_checks.values())
+    programs_present = all(item["exists"] for item in programs.values()) if programs else False
+    check_ok = all(item["ok"] for item in check_runs.values()) if check_runs else False
+    hwtest_ok = all(item["ok"] for item in hwtest_runs.values()) if hwtest_runs else False
 
     return {
         "programs": programs,
-        "compileChecks": compile_checks,
-        "programsPresent": programs_present,
-        "compileAndCheckOk": compile_and_check_ok,
-        "ok": programs_present and compile_and_check_ok,
+        "checkRuns": check_runs,
+        "hwtestRuns": hwtest_runs,
+        "programs_present": programs_present,
+        "check_ok": check_ok,
+        "hwtest_ok": hwtest_ok,
+        "ok": programs_present and check_ok and hwtest_ok,
     }
 
 
@@ -241,8 +258,9 @@ def _evaluate_go(
         "graphCountsNormalized": len(missing_normalized) == 0,
         "digestMatchAll": len(digest_failures) == 0,
         "b3Evidence302_7500": len(b3_evidence) > 0,
-        "dslProgramsPresent": bool(dsl_checks.get("programsPresent")),
-        "dslCompileAndCheckOk": bool(dsl_checks.get("compileAndCheckOk")),
+        "dslProgramsPresent": bool(dsl_checks.get("programs_present")),
+        "dslCheckOk": bool(dsl_checks.get("check_ok")),
+        "dslHwtestOk": bool(dsl_checks.get("hwtest_ok")),
         "benchManifestsPresent": bool(manifest_checks.get("manifestsPresent")),
         "benchVerifyOk": bool(manifest_checks.get("verifyOk")),
     }
@@ -254,7 +272,8 @@ def _evaluate_go(
         "digestMatchAll": "Digest match failed in one or more bench reports",
         "b3Evidence302_7500": "Missing B3 302/7500 evidence with digestMatch.ok=true",
         "dslProgramsPresent": "Missing required DSL programs under programs/",
-        "dslCompileAndCheckOk": "DSL compile/check failed for one or more programs",
+        "dslCheckOk": "DSL check failed for one or more programs",
+        "dslHwtestOk": "DSL hwtest failed for one or more programs",
         "benchManifestsPresent": "Missing required bench manifests under benches/",
         "benchVerifyOk": "Bench manifest verification failed for one or more manifests",
     }
@@ -316,8 +335,9 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     dsl_ready = {
-        "programsPresent": bool(dsl_checks.get("programsPresent")),
-        "dslCompileAndCheckOk": bool(dsl_checks.get("compileAndCheckOk")),
+        "programs_present": bool(dsl_checks.get("programs_present")),
+        "check_ok": bool(dsl_checks.get("check_ok")),
+        "hwtest_ok": bool(dsl_checks.get("hwtest_ok")),
         "benchManifestsPresent": bool(manifest_checks.get("manifestsPresent")),
         "benchVerifyOk": bool(manifest_checks.get("verifyOk")),
     }
@@ -330,6 +350,7 @@ def main(argv: list[str] | None = None) -> int:
         "loadErrors": load_errors,
         "reasons": reasons,
         "criteria": criteria,
+        "dsl": dsl_ready,
         "dslReady": dsl_ready,
         "reports": summaries,
         "dslChecks": dsl_checks,
