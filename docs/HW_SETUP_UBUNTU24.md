@@ -1,0 +1,39 @@
+# NEMA HW Setup on Ubuntu 24.04
+
+## Scope
+This runbook is a practical baseline to prepare an Ubuntu 24.04 workstation for NEMA HW flows using Vivado/Vitis HLS.
+
+## Recommended Toolchain
+- Use the AMD Unified Installer release `2025.2`.
+- This is recommended for NEMA HW lab setup because it includes Vivado and Vitis HLS in one installer flow.
+
+## Capacity Planning (practical baseline)
+- Disk:
+  plan for about `200 GB` free for a full installation plus project outputs.
+- RAM:
+  use a high-memory workstation for synthesis and implementation workflows.
+  (AMD documentation such as UG1742-style guidance generally recommends ample RAM for stable tool operation.)
+
+## Manual Install Steps
+1. Download the AMD Unified Installer package for the target release (2025.2).
+2. Extract installer files.
+3. Run the installer:
+   - `./xsetup`
+4. In component selection:
+   - select only what is required for NEMA:
+     - Vivado
+     - Vitis HLS
+5. Complete installation into your standard AMD tools path.
+
+## Post-Install Checks
+1. Source settings script:
+   - `source <install_root>/settings64.sh`
+2. Verify binaries:
+   - `vivado -version`
+   - `vitis_hls -version`
+3. Run NEMA preflight:
+   - `bash tools/hw/preflight_ubuntu24.sh`
+
+## Notes
+- `tools/hw/preflight_ubuntu24.sh` is check-only and does not install or modify system packages.
+- On Ubuntu 24.04, `libtinfo.so.5` may be missing by default; the preflight script prints suggested remediation commands without executing them.
