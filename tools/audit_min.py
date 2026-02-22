@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -61,8 +62,31 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(external_verified, bool):
         external_verified = None
 
+    hardware = report.get("hardware")
+    hardware_toolchain_available = None
+    csim_ok = None
+    cosim_ok = None
+    hardware_has_reports = False
+    if isinstance(hardware, dict):
+        toolchain = hardware.get("toolchain")
+        if isinstance(toolchain, dict) and isinstance(toolchain.get("available"), bool):
+            hardware_toolchain_available = toolchain.get("available")
+        csim = hardware.get("csim")
+        if isinstance(csim, dict) and isinstance(csim.get("ok"), bool):
+            csim_ok = csim.get("ok")
+        cosim = hardware.get("cosim")
+        if isinstance(cosim, dict) and isinstance(cosim.get("ok"), bool):
+            cosim_ok = cosim.get("ok")
+        for key, value in hardware.items():
+            if key in {"toolchain", "csim", "cosim"}:
+                continue
+            if value is not None:
+                hardware_has_reports = True
+                break
+
     return {
         "path": str(path),
+        "resolvedPath": str(path.resolve()),
         "modelId": report.get("modelId"),
         "targetId": target_id,
         "ok": bool(report.get("ok") is True),
@@ -73,6 +97,10 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         "edgeCountTotal": edge_count_total,
         "syntheticUsed": synthetic_used,
         "externalVerified": external_verified,
+        "hardwareToolchainAvailable": hardware_toolchain_available,
+        "csimOk": csim_ok,
+        "cosimOk": cosim_ok,
+        "hardwareHasReports": hardware_has_reports,
     }
 
 
@@ -85,8 +113,32 @@ def _is_b3_302_7500(summary: dict[str, Any]) -> bool:
     return bool(count_match or target_match)
 
 
+def _is_b1(summary: dict[str, Any]) -> bool:
+    model_id = summary.get("modelId")
+    target_id = summary.get("targetId")
+    path = summary.get("path")
+    blob = " ".join(
+        part
+        for part in (
+            model_id if isinstance(model_id, str) else "",
+            target_id if isinstance(target_id, str) else "",
+            path if isinstance(path, str) else "",
+        )
+    ).lower()
+    return "b1" in blob or "example_b1" in blob
+
+
 def _discover_reports(root: Path, pattern: str) -> list[Path]:
     return sorted(path for path in root.glob(pattern) if path.is_file())
+
+
+def _discover_hw_reports(root: Path) -> list[Path]:
+    if not root.exists():
+        return []
+    reports: list[Path] = []
+    reports.extend(path for path in root.glob("**/*.rpt") if path.is_file())
+    reports.extend(path for path in root.glob("**/*.xml") if path.is_file())
+    return sorted(set(reports))
 
 
 def _run_cmd(cmd: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> dict[str, Any]:
@@ -148,6 +200,9 @@ def _check_dsl_programs(repo_root: Path, workdir: Path) -> dict[str, Any]:
             "dsl",
             "check",
             str(abs_path),
+            "--format",
+            "json",
+            "--no-color",
         ]
         check_res = _run_cmd(check_cmd, cwd=repo_root, env=env)
         check_runs[key] = {
@@ -169,13 +224,22 @@ def _check_dsl_programs(repo_root: Path, workdir: Path) -> dict[str, Any]:
             "2",
             "--outdir",
             str(hwtest_outdir),
+            "--format",
+            "json",
+            "--no-color",
         ]
         hwtest_res = _run_cmd(hwtest_cmd, cwd=repo_root, env=env)
+        bench_report_path: str | None = None
+        if isinstance(hwtest_res.get("json"), dict):
+            raw = hwtest_res["json"].get("benchReportPath", hwtest_res["json"].get("benchReport"))
+            if isinstance(raw, str) and raw:
+                bench_report_path = raw
         hwtest_runs[key] = {
             "dslPath": rel_path,
             "outdir": str(hwtest_outdir),
             "run": hwtest_res,
             "ok": bool(hwtest_res["ok"]),
+            "benchReportPath": bench_report_path,
         }
 
     programs_present = all(item["exists"] for item in programs.values()) if programs else False
@@ -235,58 +299,216 @@ def _check_bench_manifests(repo_root: Path, workdir: Path) -> dict[str, Any]:
     }
 
 
-def _evaluate_go(
+def _normalize_path(path: str | Path, *, repo_root: Path) -> Path:
+    raw = Path(path)
+    if raw.is_absolute():
+        return raw.resolve()
+    return (repo_root / raw).resolve()
+
+
+def _relevant_report_paths(
+    repo_root: Path,
     summaries: list[dict[str, Any]],
+    dsl_checks: dict[str, Any],
+    manifest_checks: dict[str, Any],
+) -> tuple[set[Path], list[str]]:
+    relevant: set[Path] = set()
+    warnings: list[str] = []
+
+    checks = manifest_checks.get("checks")
+    if isinstance(checks, dict):
+        for key, item in checks.items():
+            if not isinstance(item, dict):
+                continue
+            verify = item.get("verify")
+            verify_json = verify.get("json") if isinstance(verify, dict) else None
+            bench_path = verify_json.get("benchReport") if isinstance(verify_json, dict) else None
+            if isinstance(bench_path, str) and bench_path:
+                candidate = _normalize_path(bench_path, repo_root=repo_root)
+                if candidate.exists():
+                    relevant.add(candidate)
+                else:
+                    warnings.append(f"manifest {key}: benchReport path not found: {bench_path}")
+
+    hw_runs = dsl_checks.get("hwtestRuns")
+    if isinstance(hw_runs, dict):
+        for key, item in hw_runs.items():
+            if not isinstance(item, dict):
+                continue
+            bench_path = item.get("benchReportPath")
+            if isinstance(bench_path, str) and bench_path:
+                candidate = _normalize_path(bench_path, repo_root=repo_root)
+                if candidate.exists():
+                    relevant.add(candidate)
+                    continue
+                warnings.append(f"dsl hwtest {key}: benchReportPath not found: {bench_path}")
+
+            outdir = item.get("outdir")
+            if isinstance(outdir, str) and outdir:
+                outdir_path = _normalize_path(outdir, repo_root=repo_root)
+                if outdir_path.exists():
+                    discovered = sorted(path for path in outdir_path.glob("**/bench_report.json") if path.is_file())
+                    if len(discovered) == 1:
+                        relevant.add(discovered[0].resolve())
+                    elif len(discovered) > 1:
+                        warnings.append(
+                            f"dsl hwtest {key}: multiple bench_report.json under outdir, using all ({len(discovered)})"
+                        )
+                        relevant.update(path.resolve() for path in discovered)
+                    else:
+                        warnings.append(f"dsl hwtest {key}: no bench_report.json under outdir {outdir}")
+
+    scanned_b1_b3 = [
+        _normalize_path(item["path"], repo_root=repo_root)
+        for item in summaries
+        if _is_b1(item) or _is_b3_302_7500(item)
+    ]
+    relevant.update(scanned_b1_b3)
+    if not relevant:
+        warnings.append("No relevant B1/B3 bench reports resolved from audit runs or scan")
+
+    return relevant, warnings
+
+
+def _evaluate_modes(
+    *,
+    mode: str,
+    summaries: list[dict[str, Any]],
+    relevant_summaries: list[dict[str, Any]],
+    ignored_reports: list[str],
     load_errors: list[str],
     dsl_checks: dict[str, Any],
     manifest_checks: dict[str, Any],
-) -> tuple[str, list[str], dict[str, bool]]:
+    hw_reports: list[Path],
+    toolchain_hw_available: bool,
+    warnings: list[str],
+) -> tuple[str, list[str], dict[str, bool], bool, bool, bool]:
     missing_normalized = [
         item
-        for item in summaries
+        for item in relevant_summaries
         if item["nodeCount"] is None
         or item["chemicalEdgeCount"] is None
         or item["gapEdgeCount"] is None
         or item["edgeCountTotal"] is None
     ]
-    digest_failures = [item for item in summaries if not item["digestMatchOk"]]
-    b3_evidence = [item for item in summaries if _is_b3_302_7500(item) and item["digestMatchOk"]]
+    digest_failures = [item for item in relevant_summaries if not item["digestMatchOk"]]
+    b3_evidence = [item for item in relevant_summaries if _is_b3_302_7500(item) and item["digestMatchOk"]]
+
+    dsl_ready = (
+        bool(dsl_checks.get("programs_present"))
+        and bool(dsl_checks.get("check_ok"))
+        and bool(dsl_checks.get("hwtest_ok"))
+    )
+    bench_verify_ok = bool(manifest_checks.get("verifyOk"))
+
+    hardware_g0b = any(
+        item.get("hardwareToolchainAvailable") is True
+        and (item.get("csimOk") is True or item.get("cosimOk") is True)
+        for item in summaries
+    )
+    hardware_g2 = bool(hw_reports) or any(item.get("hardwareHasReports") is True for item in summaries)
 
     criteria: dict[str, bool] = {
         "benchReportsFound": len(summaries) > 0,
         "benchReportsLoadable": len(load_errors) == 0,
-        "graphCountsNormalized": len(missing_normalized) == 0,
-        "digestMatchAll": len(digest_failures) == 0,
+        "relevantReportsFound": len(relevant_summaries) > 0,
+        "graphCountsNormalized": len(relevant_summaries) > 0 and len(missing_normalized) == 0,
+        "digestMatchAll": len(relevant_summaries) > 0 and len(digest_failures) == 0,
         "b3Evidence302_7500": len(b3_evidence) > 0,
         "dslProgramsPresent": bool(dsl_checks.get("programs_present")),
         "dslCheckOk": bool(dsl_checks.get("check_ok")),
         "dslHwtestOk": bool(dsl_checks.get("hwtest_ok")),
+        "dslReady": dsl_ready,
         "benchManifestsPresent": bool(manifest_checks.get("manifestsPresent")),
-        "benchVerifyOk": bool(manifest_checks.get("verifyOk")),
+        "benchVerifyOk": bench_verify_ok,
+        "hardwareToolchainAvailable": toolchain_hw_available,
+        "hardwareEvidenceG0b": hardware_g0b,
+        "hardwareEvidenceG2": hardware_g2,
     }
+
+    software_ok = all(
+        criteria[key]
+        for key in (
+            "dslReady",
+            "digestMatchAll",
+            "b3Evidence302_7500",
+            "benchVerifyOk",
+            "graphCountsNormalized",
+        )
+    )
+    hardware_ok = all(
+        criteria[key]
+        for key in (
+            "hardwareToolchainAvailable",
+            "hardwareEvidenceG0b",
+            "hardwareEvidenceG2",
+        )
+    )
+    all_ok = software_ok and hardware_ok
 
     reason_map = {
-        "benchReportsFound": "No bench_report.json files found",
-        "benchReportsLoadable": "One or more bench_report.json files failed to load",
-        "graphCountsNormalized": "Missing normalized graph counts in one or more bench reports",
-        "digestMatchAll": "Digest match failed in one or more bench reports",
-        "b3Evidence302_7500": "Missing B3 302/7500 evidence with digestMatch.ok=true",
-        "dslProgramsPresent": "Missing required DSL programs under programs/",
-        "dslCheckOk": "DSL check failed for one or more programs",
-        "dslHwtestOk": "DSL hwtest failed for one or more programs",
-        "benchManifestsPresent": "Missing required bench manifests under benches/",
+        "dslReady": "DSL-ready failed (programs/check/hwtest)",
+        "digestMatchAll": "Digest match failed in relevant B1/B3 bench reports",
+        "b3Evidence302_7500": "Missing B3 302/7500 evidence with digestMatch.ok=true in relevant bench reports",
         "benchVerifyOk": "Bench manifest verification failed for one or more manifests",
+        "graphCountsNormalized": "Missing normalized graph counts in relevant B1/B3 bench reports",
+        "hardwareToolchainAvailable": "HW toolchain unavailable (vitis_hls/vivado not found)",
+        "hardwareEvidenceG0b": "No hardware evidence for G0b (toolchain available + csim/cosim ok)",
+        "hardwareEvidenceG2": "No hardware evidence for G2 (.rpt/.xml reports or non-null hardware report fields)",
     }
 
-    reasons = [reason_map[key] for key, ok in criteria.items() if not ok]
-    decision = "GO" if all(criteria.values()) else "NO-GO"
-    return decision, reasons, criteria
+    mode_criteria = {
+        "software": (
+            "dslReady",
+            "digestMatchAll",
+            "b3Evidence302_7500",
+            "benchVerifyOk",
+            "graphCountsNormalized",
+        ),
+        "hardware": (
+            "hardwareToolchainAvailable",
+            "hardwareEvidenceG0b",
+            "hardwareEvidenceG2",
+        ),
+        "all": (
+            "dslReady",
+            "digestMatchAll",
+            "b3Evidence302_7500",
+            "benchVerifyOk",
+            "graphCountsNormalized",
+            "hardwareToolchainAvailable",
+            "hardwareEvidenceG0b",
+            "hardwareEvidenceG2",
+        ),
+    }
+
+    keys = mode_criteria[mode]
+    reasons = [reason_map[key] for key in keys if not criteria.get(key, False)]
+    if load_errors:
+        warnings.append(f"{len(load_errors)} bench_report load errors observed outside required mode criteria")
+    if ignored_reports:
+        warnings.append(f"Ignored {len(ignored_reports)} non-relevant bench reports")
+
+    if mode == "software":
+        decision_ok = software_ok
+    elif mode == "hardware":
+        decision_ok = hardware_ok
+    else:
+        decision_ok = all_ok
+    decision = "GO" if decision_ok else "NO-GO"
+    return decision, reasons, criteria, software_ok, hardware_ok, all_ok
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="audit_min.py",
         description="Bench-report auditor with DSL + manifest verification",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("software", "hardware", "all"),
+        default="software",
+        help="Gate mode to evaluate (default: software)",
     )
     parser.add_argument("--path", type=Path, default=Path("build"), help="Root directory to scan")
     parser.add_argument(
@@ -326,33 +548,89 @@ def main(argv: list[str] | None = None) -> int:
 
     dsl_checks = _check_dsl_programs(repo_root, workdir)
     manifest_checks = _check_bench_manifests(repo_root, workdir)
+    hw_reports = _discover_hw_reports(args.path)
 
-    decision, reasons, criteria = _evaluate_go(
+    relevant_paths, relevance_warnings = _relevant_report_paths(
+        repo_root,
         summaries,
-        load_errors,
         dsl_checks,
         manifest_checks,
+    )
+    summary_by_path: dict[Path, dict[str, Any]] = {
+        _normalize_path(item["path"], repo_root=repo_root): item for item in summaries
+    }
+    relevant_summaries: list[dict[str, Any]] = []
+    for path in sorted(relevant_paths):
+        summary = summary_by_path.get(path)
+        if summary is not None:
+            relevant_summaries.append(summary)
+            continue
+        try:
+            report = _load_report(path)
+            relevant_summaries.append(_report_summary(path, report))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            warnings_msg = f"failed to load relevant bench report {path}: {exc}"
+            relevance_warnings.append(warnings_msg)
+
+    ignored_reports = sorted(
+        item["path"] for item in summaries if _normalize_path(item["path"], repo_root=repo_root) not in relevant_paths
+    )
+    warnings: list[str] = list(relevance_warnings)
+    for item in summaries:
+        path_obj = _normalize_path(item["path"], repo_root=repo_root)
+        if path_obj in relevant_paths:
+            continue
+        if (
+            item.get("nodeCount") is None
+            or item.get("chemicalEdgeCount") is None
+            or item.get("gapEdgeCount") is None
+            or item.get("edgeCountTotal") is None
+        ):
+            warnings.append(f"ignored report missing normalized counts: {item['path']}")
+
+    toolchain_hw_available = bool(shutil.which("vitis_hls") or shutil.which("vivado"))
+
+    decision, reasons, criteria, software_ok, hardware_ok, all_ok = _evaluate_modes(
+        mode=args.mode,
+        summaries=summaries,
+        relevant_summaries=relevant_summaries,
+        ignored_reports=ignored_reports,
+        load_errors=load_errors,
+        dsl_checks=dsl_checks,
+        manifest_checks=manifest_checks,
+        hw_reports=hw_reports,
+        toolchain_hw_available=toolchain_hw_available,
+        warnings=warnings,
     )
 
     dsl_ready = {
         "programs_present": bool(dsl_checks.get("programs_present")),
         "check_ok": bool(dsl_checks.get("check_ok")),
         "hwtest_ok": bool(dsl_checks.get("hwtest_ok")),
-        "benchManifestsPresent": bool(manifest_checks.get("manifestsPresent")),
-        "benchVerifyOk": bool(manifest_checks.get("verifyOk")),
     }
     dsl_ready["ok"] = all(dsl_ready.values())
 
     payload = {
         "ok": decision == "GO",
         "decision": decision,
+        "mode": args.mode,
+        "software_ok": software_ok,
+        "hardware_ok": hardware_ok,
+        "all_ok": all_ok,
         "benchReportsScanned": len(summaries),
+        "relevantReportsScanned": len(relevant_summaries),
         "loadErrors": load_errors,
+        "warnings": warnings,
+        "ignoredReports": ignored_reports,
         "reasons": reasons,
         "criteria": criteria,
         "dsl": dsl_ready,
         "dslReady": dsl_ready,
+        "toolchainHwAvailable": toolchain_hw_available,
+        "hwReportFiles": [str(path) for path in hw_reports],
         "reports": summaries,
+        "relevantReports": relevant_summaries,
+        "relevantReportPaths": [str(path) for path in sorted(relevant_paths)],
         "dslChecks": dsl_checks,
         "benchManifestChecks": manifest_checks,
     }

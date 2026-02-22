@@ -67,7 +67,7 @@ def test_audit_min_go_with_dsl_ready_checks(tmp_path: Path) -> None:
 
     repo_root = Path(__file__).resolve().parents[1]
     proc = subprocess.run(
-        [sys.executable, "tools/audit_min.py", "--path", str(root)],
+        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "software"],
         cwd=repo_root,
         check=False,
         capture_output=True,
@@ -77,6 +77,8 @@ def test_audit_min_go_with_dsl_ready_checks(tmp_path: Path) -> None:
     payload = json.loads(proc.stdout)
     assert payload["decision"] == "GO"
     assert payload["benchReportsScanned"] == 2
+    assert payload["mode"] == "software"
+    assert payload["software_ok"] is True
     assert payload["dsl"]["ok"] is True
     assert payload["dsl"]["programs_present"] is True
     assert payload["dsl"]["check_ok"] is True
@@ -88,7 +90,7 @@ def test_audit_min_go_with_dsl_ready_checks(tmp_path: Path) -> None:
     assert payload["reasons"] == []
 
 
-def test_audit_min_no_go_without_b3(tmp_path: Path) -> None:
+def test_audit_min_hardware_mode_no_go_without_toolchain(tmp_path: Path) -> None:
     if shutil.which("g++") is None:
         pytest.skip("g++ not available")
 
@@ -106,7 +108,7 @@ def test_audit_min_no_go_without_b3(tmp_path: Path) -> None:
 
     repo_root = Path(__file__).resolve().parents[1]
     proc = subprocess.run(
-        [sys.executable, "tools/audit_min.py", "--path", str(root)],
+        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "hardware"],
         cwd=repo_root,
         check=False,
         capture_output=True,
@@ -115,5 +117,39 @@ def test_audit_min_no_go_without_b3(tmp_path: Path) -> None:
     assert proc.returncode == 1
     payload = json.loads(proc.stdout)
     assert payload["decision"] == "NO-GO"
-    assert any("B3 302/7500" in reason for reason in payload["reasons"])
-    assert payload["criteria"]["b3Evidence302_7500"] is False
+    assert payload["mode"] == "hardware"
+    assert payload["hardware_ok"] is False
+    assert payload["criteria"]["hardwareToolchainAvailable"] is False
+    assert any("HW toolchain unavailable" in reason for reason in payload["reasons"])
+
+
+def test_audit_min_ignores_legacy_non_relevant_reports(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
+    root = tmp_path / "build"
+    legacy_payload = {
+        "modelId": "legacy_302",
+        "ok": True,
+        "correctness": {"digestMatch": {"ok": True}},
+        "config": {"graph": {"nodeCount": 3}},
+    }
+    legacy_path = root / "legacy" / "bench_report.json"
+    legacy_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_path.write_text(json.dumps(legacy_payload, indent=2), encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    proc = subprocess.run(
+        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "software"],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0
+    payload = json.loads(proc.stdout)
+    assert payload["decision"] == "GO"
+    assert payload["mode"] == "software"
+    ignored = payload.get("ignoredReports", [])
+    assert any("legacy/bench_report.json" in path for path in ignored)
+    assert payload["criteria"]["graphCountsNormalized"] is True
