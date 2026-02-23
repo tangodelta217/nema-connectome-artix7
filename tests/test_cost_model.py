@@ -53,6 +53,8 @@ def test_cost_estimate_cli(tmp_path: Path, capsys) -> None:
     assert payload["estimate"]["inputs"]["gapEdgeCount"] == 0
     assert payload["estimate"]["opsPerTick"]["total"] == 12
     assert payload["estimate"]["bytesPerTick"]["total"] == 18
+    assert payload["estimate"]["bytesPerTick"]["statesTotal"] == 12
+    assert payload["estimate"]["bytesPerTick"]["csrTotal"] == 6
     assert payload["estimate"]["cyclesPerTick"]["perTick"] == 35
 
 
@@ -73,6 +75,10 @@ def test_cost_compare_cli_fixture(capsys) -> None:
     assert payload["comparison"]["actual"]["latencyCycles"] == 30
     assert payload["comparison"]["relativeError"]["ii"] == pytest.approx(26.0 / 12.0)
     assert payload["comparison"]["relativeError"]["latencyCycles"] == pytest.approx(8.0 / 30.0)
+    assert payload["comparison"]["ratioToActual"]["ii"] == pytest.approx(38.0 / 12.0)
+    assert payload["comparison"]["ratioToActual"]["latencyCycles"] == pytest.approx(38.0 / 30.0)
+    assert payload["comparison"]["hasActualQor"] is True
+    assert payload["comparison"]["maxRatio"] == pytest.approx(38.0 / 12.0)
     assert payload["g2Evidence"]["reportsFilesNonEmpty"] is True
     assert payload["g2Evidence"]["qorUtilizationNonNull"] is True
     assert payload["g2Evidence"]["meetsG2"] is True

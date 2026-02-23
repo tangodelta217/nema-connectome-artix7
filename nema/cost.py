@@ -66,14 +66,24 @@ def _estimate_from_counts(*, node_count: int, chemical_edges: int, gap_edges: in
     ops["total"] = sum(int(v) for v in ops.values())
 
     # bytes/tick is intentionally simple and architecture-agnostic in v0.
+    state_snapshot_read = node_count * 2
+    state_write_back = node_count * 2
+    lut_read = node_count * 2
+    chemical_edge_stream = chemical_edges * 6
+    gap_edge_stream = gap_edges * 8
+
+    states_total = state_snapshot_read + state_write_back + lut_read
+    csr_total = chemical_edge_stream + gap_edge_stream
     bytes_tick = {
-        "stateSnapshotRead": node_count * 2,
-        "stateWriteBack": node_count * 2,
-        "lutRead": node_count * 2,
-        "chemicalEdgeStream": chemical_edges * 6,
-        "gapEdgeStream": gap_edges * 8,
+        "stateSnapshotRead": state_snapshot_read,
+        "stateWriteBack": state_write_back,
+        "lutRead": lut_read,
+        "statesTotal": states_total,
+        "chemicalEdgeStream": chemical_edge_stream,
+        "gapEdgeStream": gap_edge_stream,
+        "csrTotal": csr_total,
+        "total": states_total + csr_total,
     }
-    bytes_tick["total"] = sum(int(v) for v in bytes_tick.values())
 
     synapse_work_items = chemical_edges + gap_edges
     cycles = {
@@ -106,6 +116,15 @@ def _relative_error(*, predicted: int | None, actual: int | None) -> float | Non
     if actual == 0:
         return 0.0 if predicted == 0 else None
     return abs(float(predicted - actual)) / abs(float(actual))
+
+
+def _ratio_to_actual(*, predicted: int | None, actual: int | None) -> float | None:
+    if predicted is None or actual is None:
+        return None
+    if predicted <= 0 or actual <= 0:
+        return None
+    upper = max(float(predicted) / float(actual), float(actual) / float(predicted))
+    return upper
 
 
 def _actual_qor(bench_report: dict[str, Any]) -> dict[str, Any]:
@@ -243,13 +262,27 @@ def run_cost_compare(bench_report_path: Path) -> tuple[int, dict[str, Any]]:
 
     predicted_cycles = estimate["cyclesPerTick"]["perTick"]
     actual = _actual_qor(bench_report)
+    ratio_ii = _ratio_to_actual(predicted=predicted_cycles, actual=actual["ii"])
+    ratio_latency = _ratio_to_actual(predicted=predicted_cycles, actual=actual["latencyCycles"])
+    rel_err_ii = _relative_error(predicted=predicted_cycles, actual=actual["ii"])
+    rel_err_latency = _relative_error(predicted=predicted_cycles, actual=actual["latencyCycles"])
+
+    ratio_values = [value for value in (ratio_ii, ratio_latency) if isinstance(value, float)]
+    rel_err_values = [value for value in (rel_err_ii, rel_err_latency) if isinstance(value, float)]
     compare = {
         "predictedCyclesPerTick": predicted_cycles,
         "actual": actual,
         "relativeError": {
-            "ii": _relative_error(predicted=predicted_cycles, actual=actual["ii"]),
-            "latencyCycles": _relative_error(predicted=predicted_cycles, actual=actual["latencyCycles"]),
+            "ii": rel_err_ii,
+            "latencyCycles": rel_err_latency,
         },
+        "ratioToActual": {
+            "ii": ratio_ii,
+            "latencyCycles": ratio_latency,
+        },
+        "hasActualQor": len(ratio_values) > 0,
+        "maxRatio": max(ratio_values) if ratio_values else None,
+        "maxRelativeError": max(rel_err_values) if rel_err_values else None,
     }
 
     reports = bench_report.get("hardware", {}).get("reports", {}).get("files", [])
@@ -273,4 +306,3 @@ def run_cost_compare(bench_report_path: Path) -> tuple[int, dict[str, Any]]:
             "meetsG2": bool((isinstance(reports, list) and len(reports) > 0) or util_non_null),
         },
     }
-

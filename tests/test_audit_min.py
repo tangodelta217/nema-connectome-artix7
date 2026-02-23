@@ -186,9 +186,9 @@ def test_audit_min_hardware_g2_true_with_qor_or_report_listed(tmp_path: Path) ->
             "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
             "qor": {
                 "utilization": {"lut": 10, "ff": None, "bram": None, "dsp": None},
-                "ii": None,
-                "latencyCycles": None,
-                "timingOrLatency": {"ii": None, "latencyCycles": None},
+                "ii": 3000,
+                "latencyCycles": 2800,
+                "timingOrLatency": {"ii": 3000, "latencyCycles": 2800},
                 "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
             },
         },
@@ -196,15 +196,99 @@ def test_audit_min_hardware_g2_true_with_qor_or_report_listed(tmp_path: Path) ->
     report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     repo_root = Path(__file__).resolve().parents[1]
+    isolated_repo = tmp_path / "repo_root_empty"
+    isolated_repo.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "hardware"],
+        [
+            sys.executable,
+            "tools/audit_min.py",
+            "--path",
+            str(root),
+            "--mode",
+            "hardware",
+            "--repo-root",
+            str(isolated_repo),
+            "--workdir",
+            str(tmp_path / "audit_work"),
+        ],
         cwd=repo_root,
         check=False,
         capture_output=True,
         text=True,
     )
     parsed = json.loads(proc.stdout)
+    assert parsed["criteria"]["hardwareEvidenceG2Reports"] is True
+    assert parsed["criteria"]["hardwareCostCompareWithinThreshold"] is True
     assert parsed["criteria"]["hardwareEvidenceG2"] is True
+    assert parsed["costModel"]["ok"] is True
+
+
+def test_audit_min_hardware_g2_fails_when_cost_ratio_exceeds_threshold(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
+    root = tmp_path / "build"
+    report_path = root / "B3" / "bench_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "modelId": "B3_kernel_302_7500",
+        "bench": {"targetId": "B3/CE/302-7500"},
+        "ok": True,
+        "correctness": {"digestMatch": {"ok": True}},
+        "config": {
+            "graph": {
+                "nodeCount": 302,
+                "chemicalEdgeCount": 7500,
+                "gapEdgeCount": 0,
+                "edgeCountTotal": 7500,
+            }
+        },
+        "provenance": {"syntheticUsed": False, "externalVerified": True},
+        "hardware": {
+            "toolchain": {"available": True},
+            "csim": {"ok": True},
+            "csynth": {"ok": True},
+            "cosim": {"attempted": False, "ok": None},
+            "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
+            "qor": {
+                "utilization": {"lut": 10, "ff": None, "bram": None, "dsp": None},
+                "ii": 12000,
+                "latencyCycles": 12000,
+                "timingOrLatency": {"ii": 12000, "latencyCycles": 12000},
+                "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
+            },
+        },
+    }
+    report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    isolated_repo = tmp_path / "repo_root_empty"
+    isolated_repo.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "tools/audit_min.py",
+            "--path",
+            str(root),
+            "--mode",
+            "hardware",
+            "--repo-root",
+            str(isolated_repo),
+            "--workdir",
+            str(tmp_path / "audit_work"),
+            "--cost-max-ratio",
+            "3.0",
+        ],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    parsed = json.loads(proc.stdout)
+    assert parsed["criteria"]["hardwareEvidenceG2Reports"] is True
+    assert parsed["criteria"]["hardwareCostCompareWithinThreshold"] is False
+    assert parsed["criteria"]["hardwareEvidenceG2"] is False
+    assert parsed["costModel"]["ok"] is False
 
 
 def test_audit_min_hardware_g0b_requires_csim(tmp_path: Path) -> None:

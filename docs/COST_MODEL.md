@@ -38,3 +38,16 @@ For audit usage, G2 hardware evidence is considered present when at least one is
 - `hardware.qor.utilization` contains at least one non-null resource value (`lut`, `ff`, `bram`, `dsp`)
 
 `cost compare` exposes this as `g2Evidence`.
+
+## audit_min Hardware Gate
+`tools/audit_min.py --mode hardware` applies a quantitative sanity check using
+`cost compare` over relevant bench reports.
+
+G2 passes only if both are true:
+- hardware reports/QoR evidence exists
+- estimated cycles and measured QoR are within a ratio threshold
+
+Threshold:
+- `--cost-max-ratio <float>` (default `3.0`)
+- check is based on `comparison.maxRatio` from `nema cost compare`
+- condition: `maxRatio < cost-max-ratio`

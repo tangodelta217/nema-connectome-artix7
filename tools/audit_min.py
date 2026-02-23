@@ -12,6 +12,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_IMPORT_ROOT = SCRIPT_DIR.parent
+if str(REPO_IMPORT_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_IMPORT_ROOT))
+
+from nema.cost import run_cost_compare
+
 DSL_PROGRAMS: dict[str, str] = {
     "B1": "programs/b1_small.nema",
     "B3": "programs/b3_kernel_302.nema",
@@ -421,6 +428,69 @@ def _relevant_report_paths(
     return relevant, warnings
 
 
+def _has_g2_reports_or_qor(summary: dict[str, Any]) -> bool:
+    if int(summary.get("listedReportCount", 0) or 0) > 0:
+        return True
+    if summary.get("qorUtilizationPartial") is True:
+        return True
+    return isinstance(summary.get("qorIi"), int) or isinstance(summary.get("qorLatencyCycles"), int)
+
+
+def _cost_compare_sanity(
+    summaries: list[dict[str, Any]],
+    *,
+    cost_max_ratio: float,
+) -> dict[str, Any]:
+    checks: list[dict[str, Any]] = []
+    for summary in summaries:
+        if not _has_g2_reports_or_qor(summary):
+            continue
+
+        path_raw = summary.get("resolvedPath", summary.get("path"))
+        report_path = Path(str(path_raw)).resolve()
+        code, payload = run_cost_compare(report_path)
+        compare_ok = bool(code == 0 and isinstance(payload, dict) and payload.get("ok") is True)
+
+        comparison = payload.get("comparison") if compare_ok else {}
+        if not isinstance(comparison, dict):
+            comparison = {}
+        has_actual = bool(comparison.get("hasActualQor") is True)
+        max_ratio = comparison.get("maxRatio")
+        if not isinstance(max_ratio, (int, float)):
+            max_ratio = None
+        within_threshold = bool(has_actual and max_ratio is not None and float(max_ratio) < float(cost_max_ratio))
+
+        checks.append(
+            {
+                "path": str(report_path),
+                "modelId": summary.get("modelId"),
+                "targetId": summary.get("targetId"),
+                "costCompareOk": compare_ok,
+                "hasActualQor": has_actual,
+                "maxRatio": max_ratio,
+                "maxRelativeError": comparison.get("maxRelativeError") if isinstance(comparison, dict) else None,
+                "withinThreshold": within_threshold,
+                "thresholdRatio": cost_max_ratio,
+            }
+        )
+
+    g2_reports_present = any(_has_g2_reports_or_qor(item) for item in summaries)
+    comparable_entries = [item for item in checks if item.get("hasActualQor") is True]
+    comparable_present = len(comparable_entries) > 0
+    all_compare_ok = len(checks) > 0 and all(item.get("costCompareOk") is True for item in checks)
+    within_threshold = comparable_present and all(item.get("withinThreshold") is True for item in comparable_entries)
+
+    return {
+        "thresholdRatio": cost_max_ratio,
+        "checks": checks,
+        "g2ReportsOrQorPresent": g2_reports_present,
+        "comparablePresent": comparable_present,
+        "allCostCompareOk": all_compare_ok,
+        "withinThreshold": within_threshold,
+        "ok": bool(g2_reports_present and all_compare_ok and comparable_present and within_threshold),
+    }
+
+
 def _evaluate_modes(
     *,
     mode: str,
@@ -432,7 +502,8 @@ def _evaluate_modes(
     manifest_checks: dict[str, Any],
     toolchain_hw_available: bool,
     warnings: list[str],
-) -> tuple[str, list[str], dict[str, bool], bool, bool, bool]:
+    cost_max_ratio: float,
+) -> tuple[str, list[str], dict[str, bool], bool, bool, bool, dict[str, Any]]:
     missing_normalized = [
         item
         for item in relevant_summaries
@@ -452,6 +523,7 @@ def _evaluate_modes(
     bench_verify_ok = bool(manifest_checks.get("verifyOk"))
 
     hardware_scope = relevant_summaries if relevant_summaries else summaries
+    cost_sanity = _cost_compare_sanity(hardware_scope, cost_max_ratio=cost_max_ratio)
     hardware_g0b = any(
         item.get("hardwareToolchainAvailable") is True
         and item.get("csimOk") is True
@@ -461,11 +533,9 @@ def _evaluate_modes(
         )
         for item in hardware_scope
     )
-    hardware_g2 = any(
-        (item.get("listedReportCount", 0) > 0)
-        or (item.get("qorUtilizationPartial") is True)
-        for item in hardware_scope
-    )
+    hardware_g2_reports = bool(cost_sanity.get("g2ReportsOrQorPresent") is True)
+    hardware_g2_cost_ok = bool(cost_sanity.get("ok") is True)
+    hardware_g2 = bool(hardware_g2_reports and hardware_g2_cost_ok)
 
     criteria: dict[str, bool] = {
         "benchReportsFound": len(summaries) > 0,
@@ -482,6 +552,8 @@ def _evaluate_modes(
         "benchVerifyOk": bench_verify_ok,
         "hardwareToolchainAvailable": toolchain_hw_available,
         "hardwareEvidenceG0b": hardware_g0b,
+        "hardwareEvidenceG2Reports": hardware_g2_reports,
+        "hardwareCostCompareWithinThreshold": hardware_g2_cost_ok,
         "hardwareEvidenceG2": hardware_g2,
     }
 
@@ -500,7 +572,8 @@ def _evaluate_modes(
         for key in (
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
-            "hardwareEvidenceG2",
+            "hardwareEvidenceG2Reports",
+            "hardwareCostCompareWithinThreshold",
         )
     )
     all_ok = software_ok and hardware_ok
@@ -513,7 +586,9 @@ def _evaluate_modes(
         "graphCountsNormalized": "Missing normalized graph counts in relevant B1/B3 bench reports",
         "hardwareToolchainAvailable": "HW toolchain unavailable (vitis_hls/vivado not found)",
         "hardwareEvidenceG0b": "No hardware evidence for G0b (toolchain.available + csim.ok and cosim.ok if attempted)",
-        "hardwareEvidenceG2": "No hardware evidence for G2 (reports.files or qor.utilization)",
+        "hardwareEvidenceG2Reports": "No hardware evidence for G2 (reports.files or qor.utilization)",
+        "hardwareCostCompareWithinThreshold": f"Cost compare sanity failed (max ratio must be < {cost_max_ratio}x)",
+        "hardwareEvidenceG2": f"G2 failed: reports/QoR evidence + cost compare < {cost_max_ratio}x required",
     }
 
     mode_criteria = {
@@ -527,7 +602,8 @@ def _evaluate_modes(
         "hardware": (
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
-            "hardwareEvidenceG2",
+            "hardwareEvidenceG2Reports",
+            "hardwareCostCompareWithinThreshold",
         ),
         "all": (
             "dslReady",
@@ -537,7 +613,8 @@ def _evaluate_modes(
             "graphCountsNormalized",
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
-            "hardwareEvidenceG2",
+            "hardwareEvidenceG2Reports",
+            "hardwareCostCompareWithinThreshold",
         ),
     }
 
@@ -555,7 +632,7 @@ def _evaluate_modes(
     else:
         decision_ok = all_ok
     decision = "GO" if decision_ok else "NO-GO"
-    return decision, reasons, criteria, software_ok, hardware_ok, all_ok
+    return decision, reasons, criteria, software_ok, hardware_ok, all_ok, cost_sanity
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -594,8 +671,16 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("build/audit_min"),
         help="Working directory for generated audit command artifacts",
     )
+    parser.add_argument(
+        "--cost-max-ratio",
+        type=float,
+        default=3.0,
+        help="Maximum allowed ratio between estimated and measured cycles for G2 cost sanity (default: 3.0)",
+    )
     parser.add_argument("--out", type=Path, default=None, help="Optional output JSON path")
     args = parser.parse_args(argv)
+    if args.cost_max_ratio <= 1.0:
+        parser.error("--cost-max-ratio must be > 1.0")
 
     repo_root = args.repo_root.resolve()
     workdir = args.workdir if args.workdir.is_absolute() else (repo_root / args.workdir)
@@ -670,7 +755,7 @@ def main(argv: list[str] | None = None) -> int:
 
     toolchain_hw_available = bool(shutil.which("vitis_hls") or shutil.which("vivado"))
 
-    decision, reasons, criteria, software_ok, hardware_ok, all_ok = _evaluate_modes(
+    decision, reasons, criteria, software_ok, hardware_ok, all_ok, cost_sanity = _evaluate_modes(
         mode=args.mode,
         summaries=summaries,
         relevant_summaries=relevant_summaries,
@@ -680,6 +765,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest_checks=manifest_checks,
         toolchain_hw_available=toolchain_hw_available,
         warnings=warnings,
+        cost_max_ratio=float(args.cost_max_ratio),
     )
 
     dsl_ready = {
@@ -708,6 +794,7 @@ def main(argv: list[str] | None = None) -> int:
         "dslReady": dsl_ready,
         "toolchainHwAvailable": toolchain_hw_available,
         "hwReportFiles": [str(path) for path in hw_reports],
+        "costModel": cost_sanity,
         "reports": summaries,
         "relevantReports": relevant_summaries,
         "relevantReportPaths": [str(path) for path in sorted(relevant_paths)],
