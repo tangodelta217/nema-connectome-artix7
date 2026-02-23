@@ -20,6 +20,7 @@ from .toolchain import (
     run_sim,
     selftest_fixed,
 )
+from .sweep import parse_lane_list, run_lanes_sweep
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,6 +83,24 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="optional isolated output directory (default: temp dir under build/)",
+    )
+
+    sweep_cmd = subparsers.add_parser("sweep", help="parameter sweep utilities")
+    sweep_subparsers = sweep_cmd.add_subparsers(dest="sweep_command", required=True)
+    sweep_lanes_cmd = sweep_subparsers.add_parser(
+        "lanes",
+        help="sweep compile.schedule synapseLanes/neuronLanes and aggregate QoR",
+    )
+    sweep_lanes_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
+    sweep_lanes_cmd.add_argument("--synapse", required=True, help="comma-separated synapse lanes (e.g. 1,2,4,8)")
+    sweep_lanes_cmd.add_argument("--neuron", required=True, help="comma-separated neuron lanes (e.g. 1,2,4)")
+    sweep_lanes_cmd.add_argument("--ticks", type=int, default=2, help="number of ticks per hwtest run")
+    sweep_lanes_cmd.add_argument("--outdir", type=Path, default=Path("sweep_out"), help="sweep output directory")
+    sweep_lanes_cmd.add_argument(
+        "--hw",
+        choices=("auto", "require", "off"),
+        default="require",
+        help="hardware toolchain policy for hwtest runs (default: require)",
     )
 
     hw_cmd = subparsers.add_parser("hw", help="hardware toolchain utilities")
@@ -156,6 +175,26 @@ def main(argv: list[str] | None = None) -> int:
             _emit(report)
             return code
         parser.error(f"unknown bench command: {args.bench_command}")
+
+    if args.command == "sweep":
+        if args.sweep_command == "lanes":
+            try:
+                synapse_lanes = parse_lane_list(args.synapse)
+                neuron_lanes = parse_lane_list(args.neuron)
+            except ValueError as exc:
+                _emit({"ok": False, "error": str(exc)})
+                return 1
+            code, report = run_lanes_sweep(
+                args.ir_json,
+                synapse_lanes=synapse_lanes,
+                neuron_lanes=neuron_lanes,
+                ticks=args.ticks,
+                outdir=args.outdir,
+                hw_mode=args.hw,
+            )
+            _emit(report)
+            return code
+        parser.error(f"unknown sweep command: {args.sweep_command}")
 
     if args.command == "hw":
         if args.hw_command == "doctor":
