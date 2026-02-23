@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2502",
+      "col": 1,
+      "hint": "move include statements before any non-comment statement",
+      "line": 2,
+      "message": "include directives must appear at top of file",
+      "note": null,
+      "path": "tests/fixtures/diag/2502_include_not_top.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

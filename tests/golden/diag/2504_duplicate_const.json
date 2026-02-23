@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2504",
+      "col": 7,
+      "hint": "keep a single const NAME definition",
+      "line": 2,
+      "message": "duplicate const definition",
+      "note": "name: SCALE",
+      "path": "tests/fixtures/diag/2504_duplicate_const.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

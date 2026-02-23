@@ -1,0 +1,15 @@
+{
+  "diagnostics": [
+    {
+      "code": "NEMA-DSL2503",
+      "col": 11,
+      "hint": "define const NAME before use",
+      "line": 1,
+      "message": "undefined const reference",
+      "note": "name: MISSING_CONST",
+      "path": "tests/fixtures/diag/2503_undefined_const.nema",
+      "severity": "ERROR"
+    }
+  ],
+  "ok": false
+}

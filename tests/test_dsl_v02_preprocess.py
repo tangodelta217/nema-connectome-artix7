@@ -91,3 +91,17 @@ def test_source_map_remaps_parser_error_to_included_file(tmp_path: Path) -> None
     assert mapped.path == str(bad.resolve())
     assert mapped.line == 1
     assert mapped.col == 7
+
+
+def test_undefined_const_reports_precise_location(tmp_path: Path) -> None:
+    main = tmp_path / "main.nema"
+    main.write_text("modelId = ${UNDEF};\n", encoding="utf-8")
+
+    with pytest.raises(DslError) as exc_info:
+        preprocess_file(main)
+
+    diag = exc_info.value.diagnostic
+    assert diag.code == "NEMA-DSL2503"
+    assert diag.path == str(main.resolve())
+    assert diag.line == 1
+    assert diag.col == 11

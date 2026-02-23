@@ -118,3 +118,17 @@ Rules:
 - Primary target: NEMA-IR JSON (deterministic shape and ordering as defined by pipeline conventions).
 - Secondary target: protobuf flow remains via existing repository pipeline where applicable.
 - Semantic objective: compile 1:1 to existing NEMA-IR contract without changing numeric semantics.
+
+## v0.2 Preprocessor Additions (Non-semantic)
+
+- `include "path/file.nema";`
+  - include directives are only valid at the top of each file (ignoring blank/comment lines).
+  - include loops are rejected with diagnostic `NEMA-DSL2501`.
+- `const NAME = <Value>;`
+  - const values are resolved deterministically in definition order.
+  - duplicate const definitions are rejected (`NEMA-DSL2504`).
+- `${NAME}` placeholders:
+  - supported in scalars and inside string literals.
+  - undefined placeholders are rejected (`NEMA-DSL2503`).
+
+These additions do not change IR semantics; they are a textual frontend layer before parse/lower.
