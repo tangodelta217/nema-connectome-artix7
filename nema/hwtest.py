@@ -18,6 +18,7 @@ from xml.etree import ElementTree
 
 from .codegen.hls_gen import generate_hls_project
 from .hw_reports.parse_vitis import parse_vitis_qor
+from .hw_reports.parse_vivado import parse_vivado_qor
 from .ir_resolve import resolve_ir_for_execution
 from .ir_validate import IRValidationError, validate_ir
 from .sim import simulate
@@ -612,6 +613,115 @@ def _copy_hw_reports(*, report_files: list[str], project_dir: Path, model_root: 
     }
 
 
+def _empty_vivado_result(reason: str) -> dict[str, Any]:
+    return {
+        "attempted": False,
+        "ok": None,
+        "skipped": True,
+        "reason": reason,
+        "returncode": None,
+        "elapsedSeconds": None,
+        "projectDir": None,
+        "runLog": None,
+        "utilizationReport": None,
+        "timingReport": None,
+        "rtlSourceCount": 0,
+    }
+
+
+def _collect_exported_rtl_files(solution_dir: Path) -> list[Path]:
+    candidates = [
+        solution_dir / "syn" / "verilog",
+        solution_dir / "impl" / "verilog",
+    ]
+    rtl_files: list[Path] = []
+    for root in candidates:
+        if not root.exists():
+            continue
+        rtl_files.extend(path.resolve() for path in root.rglob("*") if path.is_file() and path.suffix.lower() in {".v", ".sv"})
+    return sorted(set(rtl_files))
+
+
+def _run_vivado_batch(
+    *,
+    vivado_info: dict[str, Any],
+    project_dir: Path,
+    solution_dir: Path,
+    part: str,
+    top_name: str = "nema_kernel",
+) -> dict[str, Any]:
+    if not bool(vivado_info.get("available")):
+        return _empty_vivado_result("vivado unavailable")
+
+    vivado_binary = vivado_info.get("binary")
+    if not isinstance(vivado_binary, str) or not vivado_binary:
+        return _empty_vivado_result("vivado binary missing")
+
+    rtl_files = _collect_exported_rtl_files(solution_dir)
+    vivado_dir = (project_dir / "vivado_batch").resolve()
+    vivado_dir.mkdir(parents=True, exist_ok=True)
+    tcl_path = vivado_dir / "run_vivado.tcl"
+    util_report = vivado_dir / "vivado_utilization.rpt"
+    timing_report = vivado_dir / "vivado_timing_summary.rpt"
+    run_log = vivado_dir / "run_vivado.log"
+
+    if not rtl_files:
+        return {
+            "attempted": False,
+            "ok": None,
+            "skipped": True,
+            "reason": "no exported RTL files found under HLS solution",
+            "returncode": None,
+            "elapsedSeconds": None,
+            "projectDir": str(vivado_dir),
+            "runLog": str(run_log),
+            "utilizationReport": None,
+            "timingReport": None,
+            "rtlSourceCount": 0,
+        }
+
+    tcl_lines = [
+        f"set_part {{{part}}}",
+    ]
+    for rtl in rtl_files:
+        tcl_lines.append(f"read_verilog {{{rtl}}}")
+    tcl_lines.extend(
+        [
+            f"synth_design -top {top_name} -part {{{part}}}",
+            f"report_utilization -file {{{util_report}}}",
+            f"report_timing_summary -file {{{timing_report}}} -delay_type max -max_paths 10",
+            "exit",
+        ]
+    )
+    tcl_path.write_text("\n".join(tcl_lines) + "\n", encoding="utf-8")
+
+    proc = _cmd([vivado_binary, "-mode", "batch", "-source", str(tcl_path)], cwd=vivado_dir)
+    run_log.write_text((proc.stdout or "") + ("\n" if proc.stdout else "") + (proc.stderr or ""), encoding="utf-8")
+    util_exists = util_report.exists()
+    timing_exists = timing_report.exists()
+    ok = bool(proc.ok and util_exists and timing_exists)
+    reason: str | None = None
+    if not proc.ok:
+        reason = "vivado batch failed"
+    elif not util_exists or not timing_exists:
+        reason = "vivado reports missing"
+
+    return {
+        "attempted": True,
+        "ok": ok,
+        "skipped": False,
+        "reason": reason,
+        "returncode": proc.returncode,
+        "elapsedSeconds": proc.elapsed_s,
+        "logTail": (proc.stdout + "\n" + proc.stderr)[-4000:],
+        "projectDir": str(vivado_dir),
+        "runLog": str(run_log),
+        "utilizationReport": str(util_report) if util_exists else None,
+        "timingReport": str(timing_report) if timing_exists else None,
+        "rtlSourceCount": len(rtl_files),
+    }
+
+
 def _run_vitis_hls(
     *,
     vitis_binary: str,
@@ -621,21 +731,36 @@ def _run_vitis_hls(
     model_root: Path,
     run_cosim: bool,
 ) -> dict[str, Any]:
-    project_dir = model_root / "hls_proj"
+    # Use absolute paths because local wrappers may change cwd before invoking Vitis.
+    project_dir = (model_root / "hls_proj").resolve()
     project_dir.mkdir(parents=True, exist_ok=True)
-    tcl_path = project_dir / "run_hls.tcl"
+    tcl_path = (project_dir / "run_hls.tcl").resolve()
+    project_name = (project_dir / "nema_hwtest").resolve()
+    hls_cpp_abs = hls_cpp.resolve()
+    cpp_ref_main_abs = cpp_ref_main.resolve()
     part = os.environ.get("NEMA_VITIS_PART", "xc7z020clg400-1")
     clock_ns = os.environ.get("NEMA_VITIS_CLOCK_NS", "5.0")
     tcl_lines = [
-        "open_project -reset nema_hwtest",
+        f"open_project -reset {{{project_name}}}",
         "set_top nema_kernel",
-        f"add_files {{{hls_cpp}}}",
-        f"add_files -tb {{{cpp_ref_main}}}",
+        f"add_files {{{hls_cpp_abs}}}",
+        f"add_files -tb {{{cpp_ref_main_abs}}}",
         "open_solution -reset sol1",
-        f"set_part {{{part}}}",
+        f"set requested_part {{{part}}}",
+        "set available_parts [list_part]",
+        "if {[lsearch -exact $available_parts $requested_part] >= 0} {",
+        "  set selected_part $requested_part",
+        "} elseif {[llength $available_parts] > 0} {",
+        "  set selected_part [lindex $available_parts 0]",
+        "  puts \"NEMA_HLS_INFO: requested_part_unavailable requested=$requested_part selected=$selected_part\"",
+        "} else {",
+        "  error \"NEMA_HLS_ERROR: no installed parts available in Vitis HLS\"",
+        "}",
+        "set_part $selected_part",
         f"create_clock -period {clock_ns}",
         "csim_design",
         "csynth_design",
+        "export_design -rtl verilog",
     ]
     if run_cosim:
         tcl_lines.append("cosim_design -rtl verilog")
@@ -646,6 +771,13 @@ def _run_vitis_hls(
     run_log_path = project_dir / "run_hls.log"
     run_log_path.write_text((proc.stdout or "") + ("\n" if proc.stdout else "") + (proc.stderr or ""), encoding="utf-8")
     solution_dir = project_dir / "nema_hwtest" / "sol1"
+    vivado = _run_vivado_batch(
+        vivado_info=vivado_info,
+        project_dir=project_dir,
+        solution_dir=solution_dir,
+        part=part,
+        top_name="nema_kernel",
+    )
     reports_raw = _collect_hls_reports(project_dir, solution_dir)
     report_files = reports_raw["reportFiles"] if isinstance(reports_raw, dict) else []
     copied_reports = _copy_hw_reports(report_files=report_files, project_dir=project_dir, model_root=model_root)
@@ -708,6 +840,7 @@ def _run_vitis_hls(
             "logTail": (proc.stdout + "\n" + proc.stderr)[-4000:],
         },
         "cosim": cosim_result,
+        "vivado": vivado,
         "reports": reports,
     }
 
@@ -835,6 +968,7 @@ def run_hwtest_pipeline(
             "csim": None,
             "csynth": None,
             "cosim": None,
+            "vivado": _empty_vivado_result("vitis_hls unavailable"),
             "reports": None,
         }
 
@@ -848,6 +982,12 @@ def run_hwtest_pipeline(
         reports_dir_rel = "hw_reports"
     reports_dir_abs = model_root / reports_dir_rel
     hardware["qor"] = parse_vitis_qor(reports_dir_abs, source_prefix=reports_dir_rel)
+    vivado_qor = parse_vivado_qor(reports_dir_abs, source_prefix=reports_dir_rel)
+    if not isinstance(hardware.get("vivado"), dict):
+        hardware["vivado"] = _empty_vivado_result("no vivado run metadata")
+    hardware["vivado"]["utilization"] = vivado_qor["utilization"]
+    hardware["vivado"]["timing"] = vivado_qor["timing"]
+    hardware["vivado"]["sourceReports"] = vivado_qor["sourceReports"]
 
     tool_versions = _tool_versions(
         vitis_binary=str(vitis_info["binary"]) if vitis_info["available"] else None,

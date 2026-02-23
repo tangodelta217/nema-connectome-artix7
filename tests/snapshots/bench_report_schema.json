@@ -142,9 +142,53 @@
       "project",
       "qor",
       "reports",
-      "toolchain"
+      "toolchain",
+      "vivado"
     ],
     "version": "null|str",
+    "vivado": {
+      "attempted": "bool",
+      "elapsedSeconds": "float|int|null",
+      "ok": "bool|null",
+      "projectDir": "null|str",
+      "reason": "null|str",
+      "returncode": "int|null",
+      "rtlSourceCount": "int",
+      "runLog": "null|str",
+      "skipped": "bool",
+      "sourceReports": "list",
+      "timingKeys": [
+        "failingEndpoints",
+        "ths",
+        "tns",
+        "whs",
+        "wns"
+      ],
+      "timingReport": "null|str",
+      "topKeys": [
+        "attempted",
+        "elapsedSeconds",
+        "ok",
+        "projectDir",
+        "reason",
+        "returncode",
+        "rtlSourceCount",
+        "runLog",
+        "skipped",
+        "sourceReports",
+        "timing",
+        "timingReport",
+        "utilization",
+        "utilizationReport"
+      ],
+      "utilizationKeys": [
+        "bram",
+        "dsp",
+        "ff",
+        "lut"
+      ],
+      "utilizationReport": "null|str"
+    },
     "vivadoAvailable": "bool",
     "vivadoBinary": "null|str",
     "vivadoVersion": "null|str"

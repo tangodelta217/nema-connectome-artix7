@@ -339,6 +339,7 @@
         "csim",
         "csynth",
         "cosim",
+        "vivado",
         "reports",
         "qor"
       ],
@@ -409,6 +410,173 @@
             "object",
             "null"
           ]
+        },
+        "vivado": {
+          "type": "object",
+          "required": [
+            "attempted",
+            "ok",
+            "skipped",
+            "reason",
+            "returncode",
+            "elapsedSeconds",
+            "projectDir",
+            "runLog",
+            "utilizationReport",
+            "timingReport",
+            "rtlSourceCount",
+            "utilization",
+            "timing",
+            "sourceReports"
+          ],
+          "properties": {
+            "attempted": {
+              "type": "boolean"
+            },
+            "ok": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "skipped": {
+              "type": "boolean"
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "returncode": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "elapsedSeconds": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "projectDir": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "runLog": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "utilizationReport": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "timingReport": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rtlSourceCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "utilization": {
+              "type": "object",
+              "required": [
+                "lut",
+                "ff",
+                "bram",
+                "dsp"
+              ],
+              "properties": {
+                "lut": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                },
+                "ff": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                },
+                "bram": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                },
+                "dsp": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "timing": {
+              "type": "object",
+              "required": [
+                "wns",
+                "tns",
+                "whs",
+                "ths",
+                "failingEndpoints"
+              ],
+              "properties": {
+                "wns": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "tns": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "whs": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ths": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "failingEndpoints": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "sourceReports": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         },
         "reports": {
           "type": [

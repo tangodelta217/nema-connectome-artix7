@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -415,3 +416,99 @@ def test_audit_min_hardware_g0b_requires_cosim_ok_when_attempted(tmp_path: Path)
     )
     parsed = json.loads(proc.stdout)
     assert parsed["criteria"]["hardwareEvidenceG0b"] is False
+
+
+def test_audit_min_vivado_mode_go_with_vivado_evidence(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
+    root = tmp_path / "build"
+    report_path = root / "B3" / "bench_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "modelId": "B3_kernel_302_7500",
+        "bench": {"targetId": "B3/CE/302-7500"},
+        "ok": True,
+        "correctness": {"digestMatch": {"ok": True}},
+        "config": {
+            "graph": {
+                "nodeCount": 302,
+                "chemicalEdgeCount": 7500,
+                "gapEdgeCount": 0,
+                "edgeCountTotal": 7500,
+            }
+        },
+        "provenance": {"syntheticUsed": False, "externalVerified": True},
+        "hardware": {
+            "toolchain": {"available": True},
+            "csim": {"ok": True},
+            "csynth": {"ok": True},
+            "cosim": {"attempted": False, "ok": None},
+            "reports": {"files": ["hw_reports/vivado_batch/vivado_utilization.rpt"]},
+            "qor": {
+                "utilization": {"lut": 100, "ff": 200, "bram": 3, "dsp": 4},
+                "ii": 3000,
+                "latencyCycles": 2800,
+                "timingOrLatency": {"ii": 3000, "latencyCycles": 2800},
+                "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
+            },
+            "vivado": {
+                "attempted": True,
+                "ok": True,
+                "skipped": False,
+                "reason": None,
+                "returncode": 0,
+                "elapsedSeconds": 1.0,
+                "projectDir": "build/B3/hls_proj/vivado_batch",
+                "runLog": "build/B3/hls_proj/vivado_batch/run_vivado.log",
+                "utilizationReport": "build/B3/hls_proj/vivado_batch/vivado_utilization.rpt",
+                "timingReport": "build/B3/hls_proj/vivado_batch/vivado_timing_summary.rpt",
+                "rtlSourceCount": 1,
+                "utilization": {"lut": 1000, "ff": 2000, "bram": 10.5, "dsp": 30},
+                "timing": {"wns": -0.1, "tns": -1.0, "whs": 0.0, "ths": 0.0, "failingEndpoints": 2},
+                "sourceReports": [
+                    "hw_reports/vivado_batch/vivado_utilization.rpt",
+                    "hw_reports/vivado_batch/vivado_timing_summary.rpt",
+                ],
+            },
+        },
+    }
+    report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir(parents=True, exist_ok=True)
+    for tool in ("vitis_hls", "vivado"):
+        script = fake_bin / tool
+        script.write_text("#!/usr/bin/env bash\necho fake-tool 0.0\n", encoding="utf-8")
+        script.chmod(0o755)
+
+    repo_root = Path(__file__).resolve().parents[1]
+    isolated_repo = tmp_path / "repo_root_empty"
+    isolated_repo.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ)
+    env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "tools/audit_min.py",
+            "--path",
+            str(root),
+            "--mode",
+            "vivado",
+            "--repo-root",
+            str(isolated_repo),
+            "--workdir",
+            str(tmp_path / "audit_work"),
+        ],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert proc.returncode == 0
+    parsed = json.loads(proc.stdout)
+    assert parsed["mode"] == "vivado"
+    assert parsed["decision"] == "GO"
+    assert parsed["criteria"]["hardwareEvidenceG3Vivado"] is True
+    assert parsed["vivado_ok"] is True

@@ -79,6 +79,10 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
     qor_utilization_partial = False
     qor_ii = None
     qor_latency_cycles = None
+    vivado_attempted = None
+    vivado_ok = None
+    vivado_utilization_partial = False
+    vivado_timing_present = False
     hardware_has_reports = False
     if isinstance(hardware, dict):
         toolchain = hardware.get("toolchain")
@@ -125,7 +129,28 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
             if isinstance(src_reports, list) and any(isinstance(item, str) and item for item in src_reports):
                 hardware_has_reports = True
 
+        vivado = hardware.get("vivado")
+        if isinstance(vivado, dict):
+            if isinstance(vivado.get("attempted"), bool):
+                vivado_attempted = vivado.get("attempted")
+            if isinstance(vivado.get("ok"), bool):
+                vivado_ok = vivado.get("ok")
+            vivado_util = vivado.get("utilization")
+            if isinstance(vivado_util, dict):
+                vivado_utilization_partial = any(isinstance(vivado_util.get(key), (int, float)) for key in ("lut", "ff", "bram", "dsp"))
+            vivado_timing = vivado.get("timing")
+            if isinstance(vivado_timing, dict):
+                vivado_timing_present = any(
+                    isinstance(vivado_timing.get(key), (int, float))
+                    for key in ("wns", "tns", "whs", "ths", "failingEndpoints")
+                )
+            vivado_source = vivado.get("sourceReports")
+            if isinstance(vivado_source, list) and any(isinstance(item, str) and item for item in vivado_source):
+                hardware_has_reports = True
+
         if qor_utilization_partial:
+            hardware_has_reports = True
+        if vivado_utilization_partial or vivado_timing_present:
             hardware_has_reports = True
 
         # Backward-compatible catch-all for legacy report payloads.
@@ -159,6 +184,10 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         "qorUtilizationPartial": qor_utilization_partial,
         "qorIi": qor_ii,
         "qorLatencyCycles": qor_latency_cycles,
+        "vivadoAttempted": vivado_attempted,
+        "vivadoOk": vivado_ok,
+        "vivadoUtilizationPartial": vivado_utilization_partial,
+        "vivadoTimingPresent": vivado_timing_present,
     }
 
 
@@ -503,7 +532,7 @@ def _evaluate_modes(
     toolchain_hw_available: bool,
     warnings: list[str],
     cost_max_ratio: float,
-) -> tuple[str, list[str], dict[str, bool], bool, bool, bool, dict[str, Any]]:
+) -> tuple[str, list[str], dict[str, bool], bool, bool, bool, bool, dict[str, Any]]:
     missing_normalized = [
         item
         for item in relevant_summaries
@@ -536,6 +565,15 @@ def _evaluate_modes(
     hardware_g2_reports = bool(cost_sanity.get("g2ReportsOrQorPresent") is True)
     hardware_g2_cost_ok = bool(cost_sanity.get("ok") is True)
     hardware_g2 = bool(hardware_g2_reports and hardware_g2_cost_ok)
+    hardware_g3_vivado = any(
+        item.get("hardwareToolchainAvailable") is True
+        and item.get("vivadoOk") is True
+        and (
+            item.get("vivadoUtilizationPartial") is True
+            or item.get("vivadoTimingPresent") is True
+        )
+        for item in hardware_scope
+    )
 
     criteria: dict[str, bool] = {
         "benchReportsFound": len(summaries) > 0,
@@ -555,6 +593,7 @@ def _evaluate_modes(
         "hardwareEvidenceG2Reports": hardware_g2_reports,
         "hardwareCostCompareWithinThreshold": hardware_g2_cost_ok,
         "hardwareEvidenceG2": hardware_g2,
+        "hardwareEvidenceG3Vivado": hardware_g3_vivado,
     }
 
     software_ok = all(
@@ -576,6 +615,14 @@ def _evaluate_modes(
             "hardwareCostCompareWithinThreshold",
         )
     )
+    vivado_ok = all(
+        criteria[key]
+        for key in (
+            "hardwareToolchainAvailable",
+            "hardwareEvidenceG0b",
+            "hardwareEvidenceG3Vivado",
+        )
+    )
     all_ok = software_ok and hardware_ok
 
     reason_map = {
@@ -589,6 +636,7 @@ def _evaluate_modes(
         "hardwareEvidenceG2Reports": "No hardware evidence for G2 (reports.files or qor.utilization)",
         "hardwareCostCompareWithinThreshold": f"Cost compare sanity failed (max ratio must be < {cost_max_ratio}x)",
         "hardwareEvidenceG2": f"G2 failed: reports/QoR evidence + cost compare < {cost_max_ratio}x required",
+        "hardwareEvidenceG3Vivado": "No Vivado batch QoR evidence (require hardware.vivado.ok=true with utilization or timing metrics)",
     }
 
     mode_criteria = {
@@ -616,6 +664,11 @@ def _evaluate_modes(
             "hardwareEvidenceG2Reports",
             "hardwareCostCompareWithinThreshold",
         ),
+        "vivado": (
+            "hardwareToolchainAvailable",
+            "hardwareEvidenceG0b",
+            "hardwareEvidenceG3Vivado",
+        ),
     }
 
     keys = mode_criteria[mode]
@@ -629,10 +682,12 @@ def _evaluate_modes(
         decision_ok = software_ok
     elif mode == "hardware":
         decision_ok = hardware_ok
+    elif mode == "vivado":
+        decision_ok = vivado_ok
     else:
         decision_ok = all_ok
     decision = "GO" if decision_ok else "NO-GO"
-    return decision, reasons, criteria, software_ok, hardware_ok, all_ok, cost_sanity
+    return decision, reasons, criteria, software_ok, hardware_ok, all_ok, vivado_ok, cost_sanity
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -642,7 +697,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--mode",
-        choices=("software", "hardware", "all"),
+        choices=("software", "hardware", "vivado", "all"),
         default="software",
         help="Gate mode to evaluate (default: software)",
     )
@@ -755,7 +810,7 @@ def main(argv: list[str] | None = None) -> int:
 
     toolchain_hw_available = bool(shutil.which("vitis_hls") or shutil.which("vivado"))
 
-    decision, reasons, criteria, software_ok, hardware_ok, all_ok, cost_sanity = _evaluate_modes(
+    decision, reasons, criteria, software_ok, hardware_ok, all_ok, vivado_ok, cost_sanity = _evaluate_modes(
         mode=args.mode,
         summaries=summaries,
         relevant_summaries=relevant_summaries,
@@ -781,6 +836,7 @@ def main(argv: list[str] | None = None) -> int:
         "mode": args.mode,
         "software_ok": software_ok,
         "hardware_ok": hardware_ok,
+        "vivado_ok": vivado_ok,
         "all_ok": all_ok,
         "benchReportsScanned": len(summaries),
         "scanRoots": [str(path) for path in scan_roots],

@@ -38,6 +38,8 @@ def _bench_report_schema_projection(report: dict) -> dict:
     assert isinstance(hardware, dict)
     toolchain = hardware["toolchain"]
     assert isinstance(toolchain, dict)
+    vivado = hardware["vivado"]
+    assert isinstance(vivado, dict)
     correctness = report["correctness"]
     performance = report["performance"]
     config = report["config"]
@@ -116,6 +118,23 @@ def _bench_report_schema_projection(report: dict) -> dict:
             "csim": _expect_type(hardware["csim"], {"object", "null"}),
             "csynth": _expect_type(hardware["csynth"], {"object", "null"}),
             "cosim": _expect_type(hardware["cosim"], {"object", "null"}),
+            "vivado": {
+                "topKeys": sorted(vivado.keys()),
+                "attempted": _expect_type(vivado["attempted"], {"bool"}),
+                "ok": _expect_type(vivado["ok"], {"bool", "null"}),
+                "skipped": _expect_type(vivado["skipped"], {"bool"}),
+                "reason": _expect_type(vivado["reason"], {"str", "null"}),
+                "returncode": _expect_type(vivado["returncode"], {"int", "null"}),
+                "elapsedSeconds": _expect_type(vivado["elapsedSeconds"], {"float", "int", "null"}),
+                "projectDir": _expect_type(vivado["projectDir"], {"str", "null"}),
+                "runLog": _expect_type(vivado["runLog"], {"str", "null"}),
+                "utilizationReport": _expect_type(vivado["utilizationReport"], {"str", "null"}),
+                "timingReport": _expect_type(vivado["timingReport"], {"str", "null"}),
+                "rtlSourceCount": _expect_type(vivado["rtlSourceCount"], {"int"}),
+                "utilizationKeys": sorted(vivado["utilization"].keys()),
+                "timingKeys": sorted(vivado["timing"].keys()),
+                "sourceReports": _expect_type(vivado["sourceReports"], {"list"}),
+            },
             "reports": _expect_type(hardware["reports"], {"object", "null"}),
             "qor": {
                 "topKeys": sorted(hardware["qor"].keys()),
