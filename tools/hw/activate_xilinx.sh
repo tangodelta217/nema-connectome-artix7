@@ -28,6 +28,13 @@ _warn() {
   echo "activate_xilinx.sh: WARNING: $1" >&2
 }
 
+_ensure_local_bin_in_path() {
+  local local_bin="${HOME}/.local/bin"
+  if [[ -d "${local_bin}" && ":${PATH}:" != *":${local_bin}:"* ]]; then
+    export PATH="${local_bin}:${PATH}"
+  fi
+}
+
 _best_effort_version() {
   local tool="$1"
   if ! command -v "${tool}" >/dev/null 2>&1; then
@@ -88,10 +95,21 @@ _source_required() {
   if [[ ! -f "${file}" ]]; then
     _die "missing ${label} settings file: ${file}" || return 1
   fi
+  local had_u=0
+  if [[ $- == *u* ]]; then
+    had_u=1
+    set +u
+  fi
   # shellcheck disable=SC1090
   source "${file}" || {
+    if [[ ${had_u} -eq 1 ]]; then
+      set -u
+    fi
     _die "failed to source ${label} settings: ${file}" || return 1
   }
+  if [[ ${had_u} -eq 1 ]]; then
+    set -u
+  fi
   echo "sourced ${label}: ${file}"
 }
 
@@ -99,10 +117,21 @@ _source_optional() {
   local file="$1"
   local label="$2"
   if [[ -f "${file}" ]]; then
+    local had_u=0
+    if [[ $- == *u* ]]; then
+      had_u=1
+      set +u
+    fi
     # shellcheck disable=SC1090
     source "${file}" || {
+      if [[ ${had_u} -eq 1 ]]; then
+        set -u
+      fi
       _die "failed to source ${label} settings: ${file}" || return 1
     }
+    if [[ ${had_u} -eq 1 ]]; then
+      set -u
+    fi
     echo "sourced ${label}: ${file}"
   else
     _warn "${label} settings64.sh not found at ${file}"
@@ -119,6 +148,7 @@ _activate_from_settings_override() {
   fi
 
   echo "Activated Xilinx environment using explicit override:"
+  _ensure_local_bin_in_path
   _source_required "${settings}" "override"
   _print_post_activation
   return 0
@@ -318,6 +348,7 @@ _activate_main() {
   export XILINX_VERSION="${sel_version}"
 
   echo "Activated Xilinx environment (autodetect):"
+  _ensure_local_bin_in_path
   echo "  root: ${XILINX_ROOT}"
   echo "  version: ${XILINX_VERSION}"
   echo "  layout: ${sel_layout}"

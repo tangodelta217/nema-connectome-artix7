@@ -43,6 +43,8 @@ def test_software_mode_passes_without_hw_toolchain() -> None:
 def test_hardware_mode_fails_without_hw_toolchain() -> None:
     if shutil.which("g++") is None:
         pytest.skip("g++ not available")
+    if shutil.which("vitis_hls") is not None or shutil.which("vivado") is not None:
+        pytest.skip("HW toolchain detected; this test validates no-toolchain behavior")
 
     proc = _run_audit_min("--mode", "hardware")
     assert proc.returncode == 1

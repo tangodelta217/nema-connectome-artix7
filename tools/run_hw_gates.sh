@@ -48,9 +48,9 @@ python -m nema hwtest example_b1_small_subgraph.json --ticks 2 --outdir build_hw
 python -m nema hwtest example_b3_kernel_302.json --ticks 2 --outdir build_hw/b3 --hw require > build_hw/b3/hwtest.json
 
 set +e
-python tools/audit_min.py --mode hardware > build_hw/audit_min_hardware.json
+python tools/audit_min.py --path build_hw --mode hardware > build_hw/audit_min_hardware.json
 hardware_rc=$?
-python tools/audit_min.py --mode software > build_hw/audit_min_software.json
+python tools/audit_min.py --path build_hw --mode software > build_hw/audit_min_software.json
 software_rc=$?
 set -e
 

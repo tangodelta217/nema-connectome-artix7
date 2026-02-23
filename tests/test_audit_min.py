@@ -93,6 +93,8 @@ def test_audit_min_go_with_dsl_ready_checks(tmp_path: Path) -> None:
 def test_audit_min_hardware_mode_no_go_without_toolchain(tmp_path: Path) -> None:
     if shutil.which("g++") is None:
         pytest.skip("g++ not available")
+    if shutil.which("vitis_hls") is not None or shutil.which("vivado") is not None:
+        pytest.skip("HW toolchain detected; this test validates no-toolchain behavior")
 
     root = tmp_path / "build"
     _write_report(
@@ -244,8 +246,21 @@ def test_audit_min_hardware_g0b_requires_csim(tmp_path: Path) -> None:
     report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     repo_root = Path(__file__).resolve().parents[1]
+    isolated_repo = tmp_path / "repo_root_empty"
+    isolated_repo.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "hardware"],
+        [
+            sys.executable,
+            "tools/audit_min.py",
+            "--path",
+            str(root),
+            "--mode",
+            "hardware",
+            "--repo-root",
+            str(isolated_repo),
+            "--workdir",
+            str(tmp_path / "audit_work"),
+        ],
         cwd=repo_root,
         check=False,
         capture_output=True,
@@ -294,8 +309,21 @@ def test_audit_min_hardware_g0b_requires_cosim_ok_when_attempted(tmp_path: Path)
     report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     repo_root = Path(__file__).resolve().parents[1]
+    isolated_repo = tmp_path / "repo_root_empty"
+    isolated_repo.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        [sys.executable, "tools/audit_min.py", "--path", str(root), "--mode", "hardware"],
+        [
+            sys.executable,
+            "tools/audit_min.py",
+            "--path",
+            str(root),
+            "--mode",
+            "hardware",
+            "--repo-root",
+            str(isolated_repo),
+            "--workdir",
+            str(tmp_path / "audit_work"),
+        ],
         cwd=repo_root,
         check=False,
         capture_output=True,

@@ -643,6 +643,8 @@ def _run_vitis_hls(
     tcl_path.write_text("\n".join(tcl_lines) + "\n", encoding="utf-8")
 
     proc = _cmd([vitis_binary, "-f", str(tcl_path)], cwd=project_dir)
+    run_log_path = project_dir / "run_hls.log"
+    run_log_path.write_text((proc.stdout or "") + ("\n" if proc.stdout else "") + (proc.stderr or ""), encoding="utf-8")
     solution_dir = project_dir / "nema_hwtest" / "sol1"
     reports_raw = _collect_hls_reports(project_dir, solution_dir)
     report_files = reports_raw["reportFiles"] if isinstance(reports_raw, dict) else []
