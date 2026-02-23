@@ -72,16 +72,23 @@ _best_effort_version() {
 }
 
 _print_post_activation() {
+  local vivado_path="NOT_FOUND"
+  local vitis_hls_path="NOT_FOUND"
+
   echo
-  if command -v vivado >/dev/null 2>&1; then
-    echo "which vivado: $(command -v vivado)"
+  vivado_path="$(command -v vivado 2>/dev/null || true)"
+  if [[ -n "${vivado_path}" ]]; then
+    echo "which vivado: ${vivado_path}"
   else
     echo "which vivado: NOT_FOUND"
   fi
-  if command -v vitis_hls >/dev/null 2>&1; then
-    echo "which vitis_hls: $(command -v vitis_hls)"
+
+  vitis_hls_path="$(command -v vitis_hls 2>/dev/null || true)"
+  if [[ -n "${vitis_hls_path}" ]]; then
+    echo "which vitis_hls: ${vitis_hls_path}"
   else
     echo "which vitis_hls: NOT_FOUND"
+    _warn "vitis_hls not found in PATH after activation. hint: bash tools/hw/install_wrappers.sh"
   fi
 
   echo

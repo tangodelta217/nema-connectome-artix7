@@ -7,13 +7,17 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 mkdir -p "${HOME}/.local/bin"
 
-TARGET="${HOME}/.local/bin/vitis_hls"
-SOURCE_WRAPPER="${REPO_ROOT}/tools/hw/vitis_hls_wrapper.sh"
+VITIS_TARGET="${HOME}/.local/bin/vitis_hls"
+VITIS_SOURCE_WRAPPER="${REPO_ROOT}/tools/hw/vitis_hls_wrapper.sh"
+VIVADO_TARGET="${HOME}/.local/bin/vivado"
+VIVADO_SOURCE_WRAPPER="${REPO_ROOT}/tools/hw/vivado_wrapper.sh"
 
-ln -sf "${SOURCE_WRAPPER}" "${TARGET}"
+ln -sf "${VITIS_SOURCE_WRAPPER}" "${VITIS_TARGET}"
+ln -sf "${VIVADO_SOURCE_WRAPPER}" "${VIVADO_TARGET}"
 
-echo "Installed wrapper symlink:"
-echo "  ${TARGET} -> ${SOURCE_WRAPPER}"
+echo "Installed wrapper symlinks:"
+echo "  ${VITIS_TARGET} -> ${VITIS_SOURCE_WRAPPER}"
+echo "  ${VIVADO_TARGET} -> ${VIVADO_SOURCE_WRAPPER}"
 
 case ":${PATH}:" in
   *":${HOME}/.local/bin:"*)

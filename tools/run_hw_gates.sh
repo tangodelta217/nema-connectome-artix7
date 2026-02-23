@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
+export PATH="${HOME}/.local/bin:${PATH}"
 
 mkdir -p build_hw
 
@@ -32,6 +33,25 @@ if ! source tools/hw/activate_xilinx.sh 2> build_hw/activate.stderr.log; then
   "toolchainHwAvailable": false
 }
 EOF
+  exit 1
+fi
+
+# Validate command availability from this script context.
+if ! command -v vitis_hls >/dev/null 2>&1; then
+  echo "run_hw_gates.sh: vitis_hls not found after activation. hint: bash tools/hw/install_wrappers.sh" >&2
+  exit 1
+fi
+if ! command -v vivado >/dev/null 2>&1; then
+  echo "run_hw_gates.sh: vivado not found after activation." >&2
+  exit 1
+fi
+
+if ! { vitis_hls -version 2>&1 | sed -n '1,6p'; } > build_hw/vitis_hls.version.txt; then
+  echo "run_hw_gates.sh: failed to execute 'vitis_hls -version'." >&2
+  exit 1
+fi
+if ! { vivado -version 2>&1 | sed -n '1,6p'; } > build_hw/vivado.version.txt; then
+  echo "run_hw_gates.sh: failed to execute 'vivado -version'." >&2
   exit 1
 fi
 
