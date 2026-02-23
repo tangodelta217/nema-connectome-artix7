@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from .cost import run_cost_compare, run_cost_estimate
 from .dsl.cli import add_dsl_subparser, emit as emit_dsl, run_dsl_command
 from .hw_doctor import render_hw_doctor_text
 from .toolchain import (
@@ -84,6 +85,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="optional isolated output directory (default: temp dir under build/)",
     )
+
+    cost_cmd = subparsers.add_parser("cost", help="cost model utilities")
+    cost_subparsers = cost_cmd.add_subparsers(dest="cost_command", required=True)
+    cost_estimate_cmd = cost_subparsers.add_parser("estimate", help="estimate v0 cost metrics for an IR")
+    cost_estimate_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
+    cost_compare_cmd = cost_subparsers.add_parser(
+        "compare",
+        help="compare v0 estimate against hardware QoR from bench_report.json",
+    )
+    cost_compare_cmd.add_argument("bench_report_json", type=Path, help="path to bench_report.json")
 
     sweep_cmd = subparsers.add_parser("sweep", help="parameter sweep utilities")
     sweep_subparsers = sweep_cmd.add_subparsers(dest="sweep_command", required=True)
@@ -175,6 +186,17 @@ def main(argv: list[str] | None = None) -> int:
             _emit(report)
             return code
         parser.error(f"unknown bench command: {args.bench_command}")
+
+    if args.command == "cost":
+        if args.cost_command == "estimate":
+            code, report = run_cost_estimate(args.ir_json)
+            _emit(report)
+            return code
+        if args.cost_command == "compare":
+            code, report = run_cost_compare(args.bench_report_json)
+            _emit(report)
+            return code
+        parser.error(f"unknown cost command: {args.cost_command}")
 
     if args.command == "sweep":
         if args.sweep_command == "lanes":

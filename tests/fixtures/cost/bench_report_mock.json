@@ -1,0 +1,36 @@
+{
+  "bench": {
+    "targetId": "MOCK/4-6"
+  },
+  "config": {
+    "graph": {
+      "chemicalEdgeCount": 6,
+      "edgeCountTotal": 8,
+      "gapEdgeCount": 2,
+      "nodeCount": 4
+    },
+    "schedule": {
+      "neuronLanes": 1,
+      "synapseLanes": 2
+    }
+  },
+  "hardware": {
+    "qor": {
+      "ii": 12,
+      "latencyCycles": 30,
+      "utilization": {
+        "bram": 1,
+        "dsp": 2,
+        "ff": 456,
+        "lut": 123
+      }
+    },
+    "reports": {
+      "files": [
+        "build/mock/hw_reports/csynth.rpt"
+      ]
+    }
+  },
+  "modelId": "mock_model",
+  "ok": true
+}
