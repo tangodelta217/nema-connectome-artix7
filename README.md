@@ -35,6 +35,8 @@ nema sim <ir.json> --ticks N --out trace.jsonl
 nema compile <ir.json> --outdir build/
 nema hwtest <ir.json> --outdir build/
 nema materialize-external <ir.json> --out connectomes/<bundle>.json
+python -m nema connectome bundle build --nodes nodes.csv --edges edges.csv --out connectome_bundle/
+python -m nema connectome bundle verify connectome_bundle/
 nema bench verify benches/<name>/manifest.json
 python -m nema dsl --help
 ```
@@ -62,6 +64,17 @@ nema hwtest example_b3_kernel_302.json --ticks 128 --outdir build/b3
 nema bench verify benches/B3_kernel_302_7500/manifest.json
 cat build/b3/bench_report.json
 ```
+
+### B4 (`example_b4_celegans_external_bundle.json`)
+
+```bash
+nema check example_b4_celegans_external_bundle.json
+nema hwtest example_b4_celegans_external_bundle.json --ticks 32 --outdir build/b4
+cat build/b4/B4_celegans_external_bundle/bench_report.json
+```
+
+External bundle format documentation:
+- `docs/CONNECTOME_BUNDLE.md`
 
 ## NEMA-DSL v0.1 (Scaffold)
 

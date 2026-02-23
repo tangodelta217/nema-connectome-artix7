@@ -49,7 +49,15 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def _cmd(cmd: list[str], *, cwd: Path) -> CmdResult:
     start = time.perf_counter()
-    proc = subprocess.run(cmd, cwd=cwd, check=False, capture_output=True, text=True)
+    proc = subprocess.run(
+        cmd,
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     elapsed = time.perf_counter() - start
     return CmdResult(
         cmd=cmd,
@@ -67,7 +75,14 @@ def _first_line(text: str) -> str | None:
 
 
 def _git_commit() -> str | None:
-    proc = subprocess.run(["git", "rev-parse", "HEAD"], check=False, capture_output=True, text=True)
+    proc = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     if proc.returncode != 0:
         return None
     commit = proc.stdout.strip()
@@ -83,13 +98,34 @@ def _tool_versions(vitis_binary: str | None, vivado_binary: str | None) -> dict[
     }
     gpp = shutil.which("g++")
     if gpp:
-        proc = subprocess.run([gpp, "--version"], check=False, capture_output=True, text=True)
+        proc = subprocess.run(
+            [gpp, "--version"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         versions["g++"] = _first_line(proc.stdout or proc.stderr)
     if vitis_binary:
-        proc = subprocess.run([vitis_binary, "-version"], check=False, capture_output=True, text=True)
+        proc = subprocess.run(
+            [vitis_binary, "-version"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         versions["vitis_hls"] = _first_line(proc.stdout or proc.stderr)
     if vivado_binary:
-        proc = subprocess.run([vivado_binary, "-version"], check=False, capture_output=True, text=True)
+        proc = subprocess.run(
+            [vivado_binary, "-version"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         versions["vivado"] = _first_line(proc.stdout or proc.stderr)
     return versions
 
@@ -272,7 +308,14 @@ def _detect_vitis_hls() -> dict[str, Any]:
             "binary": None,
             "version": None,
         }
-    proc = subprocess.run([binary, "-version"], check=False, capture_output=True, text=True)
+    proc = subprocess.run(
+        [binary, "-version"],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     return {
         "available": True,
         "binary": binary,
@@ -294,7 +337,14 @@ def _detect_vivado() -> dict[str, Any]:
             "binary": None,
             "version": None,
         }
-    proc = subprocess.run([binary, "-version"], check=False, capture_output=True, text=True)
+    proc = subprocess.run(
+        [binary, "-version"],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     return {
         "available": True,
         "binary": binary,

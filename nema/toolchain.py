@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 from .codegen.hls_gen import generate_hls_project
+from .connectome_bundle import build_bundle_directory, verify_bundle_directory
 from .fixed import run_selftest as run_fixed_selftest
 from .hw_doctor import run_hw_doctor as run_hw_doctor_command
 from .hwtest import run_hwtest_pipeline
@@ -155,6 +156,34 @@ def run_materialize_external(ir_path: Path, out_path: Path) -> tuple[int, dict]:
     except (IRValidationError, ValueError) as exc:
         return 1, {"ok": False, "error": str(exc)}
     return 0, report
+
+
+def run_connectome_bundle_build(
+    *,
+    nodes_csv: Path,
+    edges_csv: Path,
+    out_dir: Path,
+    source: str = "UNKNOWN",
+    license_id: str = "UNKNOWN",
+    subgraph_id: str = "default",
+) -> tuple[int, dict]:
+    try:
+        report = build_bundle_directory(
+            nodes_csv=nodes_csv,
+            edges_csv=edges_csv,
+            out_dir=out_dir,
+            source=source,
+            license_id=license_id,
+            subgraph_id=subgraph_id,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        return 1, {"ok": False, "error": str(exc)}
+    return 0, report
+
+
+def run_connectome_bundle_verify(bundle_dir: Path) -> tuple[int, dict]:
+    report = verify_bundle_directory(bundle_dir)
+    return (0 if report.get("ok") else 1), report
 
 
 def _resolve_ir_path(ir_path_raw: str, *, manifest_path: Path) -> Path:

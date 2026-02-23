@@ -11,6 +11,8 @@ from .cost import run_cost_compare, run_cost_estimate
 from .dsl.cli import add_dsl_subparser, emit as emit_dsl, run_dsl_command
 from .hw_doctor import render_hw_doctor_text
 from .toolchain import (
+    run_connectome_bundle_build,
+    run_connectome_bundle_verify,
     run_bench_verify,
     check_ir,
     dump_csr,
@@ -57,6 +59,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     materialize_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
     materialize_cmd.add_argument("--out", type=Path, required=True, help="output JSON bundle path")
+
+    connectome_cmd = subparsers.add_parser("connectome", help="connectome bundle utilities")
+    connectome_subparsers = connectome_cmd.add_subparsers(dest="connectome_command", required=True)
+    bundle_cmd = connectome_subparsers.add_parser("bundle", help="connectome bundle build/verify")
+    bundle_subparsers = bundle_cmd.add_subparsers(dest="bundle_command", required=True)
+    bundle_build_cmd = bundle_subparsers.add_parser("build", help="build connectome bundle directory")
+    bundle_build_cmd.add_argument("--nodes", type=Path, required=True, help="input nodes.csv path")
+    bundle_build_cmd.add_argument("--edges", type=Path, required=True, help="input edges.csv path")
+    bundle_build_cmd.add_argument("--out", type=Path, required=True, help="output bundle directory path")
+    bundle_build_cmd.add_argument("--source", default="UNKNOWN", help="source label for metadata.json")
+    bundle_build_cmd.add_argument("--license", default="UNKNOWN", dest="license_id", help="license label for metadata.json")
+    bundle_build_cmd.add_argument("--subgraph-id", default="default", help="subgraph id for metadata.json")
+    bundle_verify_cmd = bundle_subparsers.add_parser("verify", help="verify connectome bundle directory")
+    bundle_verify_cmd.add_argument("bundle_dir", type=Path, help="bundle directory path")
 
     hwtest_cmd = subparsers.add_parser(
         "hwtest",
@@ -167,6 +183,26 @@ def main(argv: list[str] | None = None) -> int:
         code, report = run_materialize_external(args.ir_json, out_path=args.out)
         _emit(report)
         return code
+
+    if args.command == "connectome":
+        if args.connectome_command == "bundle":
+            if args.bundle_command == "build":
+                code, report = run_connectome_bundle_build(
+                    nodes_csv=args.nodes,
+                    edges_csv=args.edges,
+                    out_dir=args.out,
+                    source=args.source,
+                    license_id=args.license_id,
+                    subgraph_id=args.subgraph_id,
+                )
+                _emit(report)
+                return code
+            if args.bundle_command == "verify":
+                code, report = run_connectome_bundle_verify(args.bundle_dir)
+                _emit(report)
+                return code
+            parser.error(f"unknown connectome bundle command: {args.bundle_command}")
+        parser.error(f"unknown connectome command: {args.connectome_command}")
 
     if args.command == "hwtest":
         code, report = run_hwtest(args.ir_json, outdir=args.outdir, ticks=args.ticks, hw_mode=args.hw)

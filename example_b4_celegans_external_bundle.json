@@ -1,0 +1,57 @@
+{
+  "name": "example_b4_celegans_external_bundle",
+  "modelId": "B4_celegans_external_bundle",
+  "kernelId": 404,
+  "constraints": {
+    "allowedSpdx": [
+      "Apache-2.0",
+      "MIT"
+    ]
+  },
+  "license": {
+    "spdxId": "MIT"
+  },
+  "graph": {
+    "stats": {
+      "nodeCount": 8,
+      "chemicalEdgeCount": 12,
+      "gapEdgeCount": 0
+    },
+    "external": {
+      "uri": "connectomes/celegans_subset_bundle",
+      "path": "connectomes/celegans_subset_bundle",
+      "subgraphId": "celegans_subset_v0",
+      "formatId": "nema.connectome.bundle.v0.1",
+      "sha256": "sha256:c381285efbc88573301834e19ca8a821b2117f7a79e3255a1ea2de0cd72ef723"
+    },
+    "nodes": [
+      {
+        "id": "placeholder0",
+        "index": 0,
+        "canonicalOrderId": 0
+      },
+      {
+        "id": "placeholder1",
+        "index": 1,
+        "canonicalOrderId": 1
+      }
+    ],
+    "edges": [
+      {
+        "id": "placeholder_e0",
+        "kind": "CHEMICAL",
+        "source": "placeholder0",
+        "target": "placeholder1",
+        "directed": true,
+        "conductance": 0.125
+      }
+    ]
+  },
+  "tanhLut": {
+    "policy": "nema.tanh_lut.v0.1",
+    "artifact": "artifacts/luts/tanh_q8_8.bin",
+    "inputType": "Q8.8",
+    "outputType": "Q8.8",
+    "checksumSha256": "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88"
+  }
+}

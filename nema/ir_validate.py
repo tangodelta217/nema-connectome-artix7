@@ -10,6 +10,14 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from .connectome_bundle import (
+    ConnectomeBundleError,
+    external_artifact_sha256,
+    is_placeholder_sha256,
+    is_valid_sha256_hex,
+    normalize_sha256_token,
+)
+
 
 class IRValidationError(ValueError):
     """Raised when an IR file fails invariant checks."""
@@ -92,13 +100,6 @@ def _extract_conductance(edge: dict[str, Any], edge_id: str) -> Decimal:
     return value
 
 
-def _normalize_sha256(value: str) -> str:
-    token = value.strip().lower()
-    if token.startswith("sha256:"):
-        token = token[len("sha256:") :]
-    return token
-
-
 def _extract_kind(edge: dict[str, Any], edge_id: str) -> str:
     raw_kind = edge.get("kind", edge.get("type"))
     if not isinstance(raw_kind, str) or not raw_kind:
@@ -114,18 +115,6 @@ def _extract_directed(edge: dict[str, Any], edge_id: str) -> bool:
     if not isinstance(directed, bool):
         raise IRValidationError(f"edge '{edge_id}' directed flag must be boolean")
     return directed
-
-
-def _is_placeholder_sha256(value: str) -> bool:
-    normalized = _normalize_sha256(value)
-    if not normalized:
-        return True
-    return (
-        "placeholder" in normalized
-        or "replace" in normalized
-        or normalized in {"todo", "tbd", "none", "unknown", "na", "n/a"}
-        or normalized == "0" * 64
-    )
 
 
 def _validate_external(
@@ -157,14 +146,21 @@ def _validate_external(
             continue
         if not isinstance(sha, str):
             raise IRValidationError(f"graph.external[{idx}].sha256 must be a string")
-        if _is_placeholder_sha256(sha):
+        if is_placeholder_sha256(sha):
             continue
-        expected = _normalize_sha256(sha)
-        if len(expected) != 64 or any(ch not in "0123456789abcdef" for ch in expected):
+        expected = normalize_sha256_token(sha)
+        if not is_valid_sha256_hex(expected):
             if allow_missing_for_smoke:
                 continue
             raise IRValidationError(f"graph.external[{idx}] sha256 is not a valid hex digest")
-        actual = _sha256_file(resolved)
+        try:
+            actual = external_artifact_sha256(resolved)
+        except ConnectomeBundleError as exc:
+            if allow_missing_for_smoke:
+                continue
+            raise IRValidationError(
+                f"graph.external[{idx}] invalid external artifact: {exc}"
+            ) from exc
         if actual != expected:
             if allow_missing_for_smoke:
                 continue

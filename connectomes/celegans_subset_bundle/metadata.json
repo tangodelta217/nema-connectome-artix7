@@ -1,0 +1,22 @@
+{
+  "counts": {
+    "chemicalEdgeCount": 12,
+    "edgeCountTotal": 12,
+    "gapDirectedCount": 0,
+    "gapEdgeCount": 0,
+    "nodeCount": 8
+  },
+  "files": {
+    "edges": "edges.csv",
+    "nodes": "nodes.csv"
+  },
+  "formatId": "nema.connectome.bundle.v0.1",
+  "license": "MIT",
+  "sha256": {
+    "bundle": "c381285efbc88573301834e19ca8a821b2117f7a79e3255a1ea2de0cd72ef723",
+    "edgesCsv": "a07d0ad790630b866cfe3dd1e3e20d90976cf0cf366399c5ae308894dcc10c96",
+    "nodesCsv": "e4e816a23444fa6269a4dadf7297d4f2c1a9c9bcd11fa0fec44616e6a3d42699"
+  },
+  "source": "synthetic subset for B4",
+  "subgraphId": "celegans_subset_v0"
+}

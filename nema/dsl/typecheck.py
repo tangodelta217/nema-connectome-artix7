@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import shutil
 from pathlib import Path
 from typing import Any
 
+from ..connectome_bundle import ConnectomeBundleError, external_artifact_sha256, is_valid_sha256_hex, normalize_sha256_token
 from .catalog import make_diag
 from .diagnostics import Diagnostic, Severity
 from .parser import LocationMap
@@ -76,10 +76,7 @@ def _is_placeholder_sha(raw: str) -> bool:
 
 
 def _normalize_sha(raw: str) -> str:
-    token = raw.strip().lower()
-    if token.startswith("sha256:"):
-        token = token[len("sha256:") :]
-    return token
+    return normalize_sha256_token(raw)
 
 
 def _severity_for_external(mode: str) -> Severity:
@@ -245,7 +242,7 @@ def typecheck(ir_like_dict: dict[str, Any], locs: LocationMap, path: str) -> lis
                         field_path="graph.external.sha256",
                         detail=f"artifact not found: {uri or '<missing uri/path>'}",
                     )
-                elif len(expected) != 64 or any(ch not in "0123456789abcdef" for ch in expected):
+                elif not is_valid_sha256_hex(expected):
                     _diag(
                         diagnostics,
                         code="NEMA-DSL2202",
@@ -256,8 +253,9 @@ def typecheck(ir_like_dict: dict[str, Any], locs: LocationMap, path: str) -> lis
                         detail="sha256 is not a valid 64-hex digest",
                     )
                 else:
-                    actual = hashlib.sha256(artifact.read_bytes()).hexdigest()
-                    if actual != expected:
+                    try:
+                        actual = external_artifact_sha256(artifact)
+                    except ConnectomeBundleError as exc:
                         _diag(
                             diagnostics,
                             code="NEMA-DSL2202",
@@ -265,8 +263,19 @@ def typecheck(ir_like_dict: dict[str, Any], locs: LocationMap, path: str) -> lis
                             path=path,
                             locs=locs,
                             field_path="graph.external.sha256",
-                            detail=f"sha mismatch for {uri}: expected {expected}, got {actual}",
+                            detail=str(exc),
                         )
+                    else:
+                        if actual != expected:
+                            _diag(
+                                diagnostics,
+                                code="NEMA-DSL2202",
+                                severity=ext_severity,
+                                path=path,
+                                locs=locs,
+                                field_path="graph.external.sha256",
+                                detail=f"sha mismatch for {uri}: expected {expected}, got {actual}",
+                            )
 
         for cond_path, raw_value in _iter_conductance_paths(graph):
             if isinstance(raw_value, bool):
