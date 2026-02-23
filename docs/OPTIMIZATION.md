@@ -11,17 +11,16 @@ python -m nema sweep lanes example_b3_kernel_302.json \
   --synapse 1,2,4,8 \
   --neuron 1,2,4 \
   --ticks 2 \
-  --outdir sweep_out \
+  --outdir build/sweep_lanes \
   --hw require
 ```
 
 Outputs:
 
-- `sweep_out/sweep_results.json`
-- `sweep_out/sweep_results.csv`
+- `build/sweep_lanes/sweep_results.json`
+- `build/sweep_lanes/sweep_results.csv`
 
 Resume behavior:
 
-- If `sweep_out/<combo>/<modelId>/bench_report.json` exists and `ok=true`,
+- If `build/sweep_lanes/<combo>/<modelId>/bench_report.json` exists and `ok=true`,
   that combination is skipped and reused.
-

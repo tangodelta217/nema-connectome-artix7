@@ -158,3 +158,58 @@ def test_run_lanes_sweep_resume_skips_existing_ok_bench_report(tmp_path: Path, m
     assert second["comboId"] == "syn1_neu2"
     assert second["resumeSkipped"] is False
 
+
+def test_run_lanes_sweep_temp_ir_changes_only_schedule_lanes(tmp_path: Path, monkeypatch) -> None:
+    ir_path = tmp_path / "ir.json"
+    payload = {
+        "modelId": "shape_model",
+        "name": "shape_model",
+        "graph": {
+            "nodes": [{"id": "n0", "index": 0, "canonicalOrderId": 0}],
+            "edges": [],
+            "dt": 1.0,
+        },
+        "compile": {
+            "schedule": {
+                "synapseLanes": 1,
+                "neuronLanes": 1,
+                "snapshotRule": True,
+            }
+        },
+        "tanhLut": {"artifact": "artifacts/luts/tanh_q8_8.bin"},
+    }
+    ir_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    outdir = tmp_path / "sweep_out"
+
+    seen_payloads: list[dict] = []
+
+    def fake_run_hwtest(ir_path: Path, outdir: Path, ticks: int, *, hw_mode: str = "auto"):
+        ir_payload = json.loads(ir_path.read_text(encoding="utf-8"))
+        seen_payloads.append(ir_payload)
+        model_id = str(ir_payload["modelId"])
+        bench_path = outdir / model_id / "bench_report.json"
+        _write_bench_report(bench_path, lut=10, ff=20, bram=1, dsp=1, ii=2, latency=3)
+        return 0, {"ok": True, "bench_report": str(bench_path)}
+
+    monkeypatch.setattr("nema.sweep.run_hwtest", fake_run_hwtest)
+
+    code, report = run_lanes_sweep(
+        ir_path,
+        synapse_lanes=[4],
+        neuron_lanes=[2],
+        ticks=2,
+        outdir=outdir,
+        hw_mode="require",
+    )
+
+    assert code == 0
+    assert report["ok"] is True
+    assert len(seen_payloads) == 1
+
+    generated = seen_payloads[0]
+    assert generated["modelId"] == payload["modelId"]
+    assert generated["name"] == payload["name"]
+    assert generated["graph"] == payload["graph"]
+    assert generated["compile"]["schedule"]["snapshotRule"] is True
+    assert generated["compile"]["schedule"]["synapseLanes"] == 4
+    assert generated["compile"]["schedule"]["neuronLanes"] == 2
