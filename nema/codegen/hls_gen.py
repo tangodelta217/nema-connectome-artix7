@@ -54,6 +54,8 @@ class ModelSpec:
     nodes: list[NodeSpec]
     chemicals: list[ChemicalEdgeSpec]
     gaps: list[GapEdgeSpec]
+    synapse_lanes: int
+    neuron_lanes: int
 
 
 def _to_fraction(value: Any, *, field_name: str) -> Fraction:
@@ -75,6 +77,29 @@ def _extract_model_id(ir: dict[str, Any]) -> str:
     if "name" in ir and ir["name"] is not None:
         return _sanitize_model_id(str(ir["name"]))
     return "model"
+
+
+def _safe_positive_int(value: Any, default: int = 1) -> int:
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value if value > 0 else default
+    if isinstance(value, str):
+        text = value.strip()
+        if text and (text.isdigit() or (text.startswith("-") and text[1:].isdigit())):
+            parsed = int(text, 10)
+            return parsed if parsed > 0 else default
+    return default
+
+
+def _extract_schedule_lanes(ir: dict[str, Any]) -> tuple[int, int]:
+    compile_obj = ir.get("compile")
+    schedule_obj = compile_obj.get("schedule") if isinstance(compile_obj, dict) else None
+    if not isinstance(schedule_obj, dict):
+        return 1, 1
+    synapse = _safe_positive_int(schedule_obj.get("synapseLanes"), 1)
+    neuron = _safe_positive_int(schedule_obj.get("neuronLanes"), 1)
+    return synapse, neuron
 
 
 def _extract_endpoint(edge: dict[str, Any], keys: tuple[str, ...], edge_id: str, label: str) -> str:
@@ -238,6 +263,7 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
         raise ValueError("tanhLut.artifact must be non-empty string")
     lut_path = Path(artifact)
     lut_path = lut_path if lut_path.is_absolute() else (base_dir / lut_path)
+    synapse_lanes, neuron_lanes = _extract_schedule_lanes(ir)
 
     return ModelSpec(
         model_id=_extract_model_id(ir),
@@ -245,6 +271,8 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
         nodes=node_specs,
         chemicals=chemical_specs,
         gaps=gap_specs,
+        synapse_lanes=synapse_lanes,
+        neuron_lanes=neuron_lanes,
     )
 
 
@@ -292,6 +320,8 @@ static constexpr int CHEM_EDGE_STORAGE = CHEM_EDGE_COUNT > 0 ? CHEM_EDGE_COUNT :
 static constexpr int GAP_EDGE_COUNT = {gap_count};
 static constexpr int GAP_EDGE_STORAGE = GAP_EDGE_COUNT > 0 ? GAP_EDGE_COUNT : 1;
 static constexpr int LUT_SIZE = 65536;
+static constexpr int SYNAPSE_LANES = {spec.synapse_lanes};
+static constexpr int NEURON_LANES = {spec.neuron_lanes};
 static constexpr int32_t ACCUM_MIN = {ACCUM_MIN};
 static constexpr int32_t ACCUM_MAX = {ACCUM_MAX};
 
@@ -322,7 +352,7 @@ void nema_kernel(
     path.write_text(contents, encoding="utf-8")
 
 
-def _emit_kernel_cpp(path: Path) -> None:
+def _emit_kernel_cpp(spec: ModelSpec, path: Path) -> None:
     contents = """#include "nema_kernel.h"
 
 #include <cstdint>
@@ -407,13 +437,23 @@ void nema_kernel(
     for (int post = 0; post < nema_model::NODE_COUNT; ++post) {
         const int begin = static_cast<int>(nema_model::CHEM_ROW_PTR[post]);
         const int end = static_cast<int>(nema_model::CHEM_ROW_PTR[post + 1]);
-        for (int edge = begin; edge < end; ++edge) {
-            const int pre = static_cast<int>(nema_model::CHEM_PRE_IDX[edge]);
-            const int32_t msg = quantize_to_accum(
-                nema_model::CHEM_WEIGHT_NUM[edge],
-                nema_model::CHEM_WEIGHT_DEN[edge],
-                static_cast<int32_t>(a_snapshot[pre]));
-            i_chem[post] = sat_add_accum(i_chem[post], msg);
+        const int chem_edges = end - begin;
+        const int chem_tiles =
+            (chem_edges + nema_model::SYNAPSE_LANES - 1) / nema_model::SYNAPSE_LANES;
+        for (int tile = 0; tile < chem_tiles; ++tile) {
+            #pragma HLS UNROLL factor=__SYNAPSE_UNROLL__
+            for (int lane = 0; lane < nema_model::SYNAPSE_LANES; ++lane) {
+                const int edge = begin + tile * nema_model::SYNAPSE_LANES + lane;
+                if (edge >= end) {
+                    continue;
+                }
+                const int pre = static_cast<int>(nema_model::CHEM_PRE_IDX[edge]);
+                const int32_t msg = quantize_to_accum(
+                    nema_model::CHEM_WEIGHT_NUM[edge],
+                    nema_model::CHEM_WEIGHT_DEN[edge],
+                    static_cast<int32_t>(a_snapshot[pre]));
+                i_chem[post] = sat_add_accum(i_chem[post], msg);
+            }
         }
     }
 
@@ -429,16 +469,27 @@ void nema_kernel(
         i_gap[b] = sat_add_accum(i_gap[b], -msg);
     }
 
-    for (int i = 0; i < nema_model::NODE_COUNT; ++i) {
-        const int32_t total_i = sat_add_accum(i_chem[i], i_gap[i]);
-        const int16_t delta_v = quantize_to_v(
-            nema_model::INV_TAU_NUM[i],
-            nema_model::INV_TAU_DEN[i],
-            total_i);
-        v_out[i] = sat_i16_i64(static_cast<int64_t>(v_snapshot[i]) + static_cast<int64_t>(delta_v));
+    const int neuron_tiles =
+        (nema_model::NODE_COUNT + nema_model::NEURON_LANES - 1) / nema_model::NEURON_LANES;
+    for (int tile = 0; tile < neuron_tiles; ++tile) {
+        #pragma HLS UNROLL factor=__NEURON_UNROLL__
+        for (int lane = 0; lane < nema_model::NEURON_LANES; ++lane) {
+            const int i = tile * nema_model::NEURON_LANES + lane;
+            if (i >= nema_model::NODE_COUNT) {
+                continue;
+            }
+            const int32_t total_i = sat_add_accum(i_chem[i], i_gap[i]);
+            const int16_t delta_v = quantize_to_v(
+                nema_model::INV_TAU_NUM[i],
+                nema_model::INV_TAU_DEN[i],
+                total_i);
+            v_out[i] = sat_i16_i64(static_cast<int64_t>(v_snapshot[i]) + static_cast<int64_t>(delta_v));
+        }
     }
 }
 """
+    contents = contents.replace("__SYNAPSE_UNROLL__", str(spec.synapse_lanes))
+    contents = contents.replace("__NEURON_UNROLL__", str(spec.neuron_lanes))
     path.write_text(contents, encoding="utf-8")
 
 
@@ -664,7 +715,7 @@ def generate_hls_project(
     cpp_path = hls_dir / "nema_kernel.cpp"
     main_path = cpp_ref_dir / "main.cpp"
     _emit_kernel_header(spec, h_path)
-    _emit_kernel_cpp(cpp_path)
+    _emit_kernel_cpp(spec, cpp_path)
     _emit_cpp_ref_main(spec, main_path)
 
     return {

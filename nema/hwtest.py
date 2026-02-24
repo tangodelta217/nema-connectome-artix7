@@ -151,6 +151,19 @@ def _dt_nanoseconds(dt: Any) -> int | None:
     return _round_fraction_rne(frac * 1_000_000_000)
 
 
+def _positive_int(value: Any, default: int = 1) -> int:
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value if value > 0 else default
+    if isinstance(value, str):
+        text = value.strip()
+        if text and (text.isdigit() or (text.startswith("-") and text[1:].isdigit())):
+            parsed = int(text, 10)
+            return parsed if parsed > 0 else default
+    return default
+
+
 def _resolved_graph_counts(ir: dict[str, Any], graph_resolved: dict[str, Any] | None) -> dict[str, int]:
     if graph_resolved is not None:
         edge_counts = graph_resolved.get("edgeCounts", {})
@@ -184,7 +197,17 @@ def _resolved_graph_counts(ir: dict[str, Any], graph_resolved: dict[str, Any] | 
 def _config_summary(ir: dict[str, Any], *, graph_resolved: dict[str, Any] | None = None) -> dict[str, Any]:
     graph = ir.get("graph", {})
     tanh_lut = ir.get("tanhLut", {})
+    compile_obj = ir.get("compile")
+    compile_schedule = compile_obj.get("schedule") if isinstance(compile_obj, dict) else None
     dt = graph.get("dt", 1.0)
+    synapse_lanes = _positive_int(
+        compile_schedule.get("synapseLanes") if isinstance(compile_schedule, dict) else None,
+        1,
+    )
+    neuron_lanes = _positive_int(
+        compile_schedule.get("neuronLanes") if isinstance(compile_schedule, dict) else None,
+        1,
+    )
     graph_counts = _resolved_graph_counts(ir, graph_resolved)
     return {
         "qformats": {
@@ -200,6 +223,8 @@ def _config_summary(ir: dict[str, Any], *, graph_resolved: dict[str, Any] | None
             "policy": "nema.tick.v0.1",
             "snapshotRule": True,
             "evalOrder": "index",
+            "synapseLanes": synapse_lanes,
+            "neuronLanes": neuron_lanes,
         },
         "graph": graph_counts,
     }
@@ -525,6 +550,18 @@ def _as_int(text: str | None) -> int | None:
     return int(token)
 
 
+def _as_float(text: str | None) -> float | None:
+    if text is None:
+        return None
+    token = text.strip()
+    if not token:
+        return None
+    try:
+        return float(token)
+    except ValueError:
+        return None
+
+
 def _parse_csynth_xml(report_path: Path) -> dict[str, Any] | None:
     try:
         root = ElementTree.parse(report_path).getroot()
@@ -667,6 +704,7 @@ def _empty_vivado_result(reason: str) -> dict[str, Any]:
     return {
         "attempted": False,
         "ok": None,
+        "implOk": None,
         "skipped": True,
         "reason": reason,
         "returncode": None,
@@ -676,6 +714,17 @@ def _empty_vivado_result(reason: str) -> dict[str, Any]:
         "utilizationReport": None,
         "timingReport": None,
         "rtlSourceCount": 0,
+        "part": None,
+        "clk_ns": None,
+        "wns": None,
+        "tns": None,
+        "util": {
+            "lut": None,
+            "ff": None,
+            "bram": None,
+            "dsp": None,
+        },
+        "reportFiles": [],
     }
 
 
@@ -698,6 +747,7 @@ def _run_vivado_batch(
     project_dir: Path,
     solution_dir: Path,
     part: str,
+    clock_ns: str,
     top_name: str = "nema_kernel",
 ) -> dict[str, Any]:
     if not bool(vivado_info.get("available")):
@@ -713,12 +763,15 @@ def _run_vivado_batch(
     tcl_path = vivado_dir / "run_vivado.tcl"
     util_report = vivado_dir / "vivado_utilization.rpt"
     timing_report = vivado_dir / "vivado_timing_summary.rpt"
+    part_report = vivado_dir / "vivado_selected_part.txt"
     run_log = vivado_dir / "run_vivado.log"
+    clk_value = _as_float(clock_ns)
 
     if not rtl_files:
         return {
             "attempted": False,
             "ok": None,
+            "implOk": None,
             "skipped": True,
             "reason": "no exported RTL files found under HLS solution",
             "returncode": None,
@@ -728,16 +781,46 @@ def _run_vivado_batch(
             "utilizationReport": None,
             "timingReport": None,
             "rtlSourceCount": 0,
+            "part": None,
+            "clk_ns": clk_value,
+            "wns": None,
+            "tns": None,
+            "util": {
+                "lut": None,
+                "ff": None,
+                "bram": None,
+                "dsp": None,
+            },
+            "reportFiles": [],
         }
 
     tcl_lines = [
-        f"set_part {{{part}}}",
+        f"set requested_part {{{part}}}",
+        "set available_parts [get_parts]",
+        "if {[lsearch -exact $available_parts $requested_part] >= 0} {",
+        "  set selected_part $requested_part",
+        "} elseif {[llength $available_parts] > 0} {",
+        "  set selected_part [lindex $available_parts 0]",
+        "  puts \"NEMA_VIVADO_INFO: requested_part_unavailable requested=$requested_part selected=$selected_part\"",
+        "} else {",
+        "  error \"NEMA_VIVADO_ERROR: no available parts in this Vivado install\"",
+        "}",
+        "set_part $selected_part",
+        f"set fp [open {{{part_report}}} w]",
+        "puts $fp $selected_part",
+        "close $fp",
     ]
     for rtl in rtl_files:
         tcl_lines.append(f"read_verilog {{{rtl}}}")
     tcl_lines.extend(
         [
-            f"synth_design -top {top_name} -part {{{part}}}",
+            f"synth_design -top {top_name} -part $selected_part",
+            "if {[llength [get_ports -quiet ap_clk]] > 0} {",
+            f"  create_clock -name ap_clk -period {clock_ns} [get_ports ap_clk]",
+            "}",
+            "opt_design",
+            "place_design",
+            "route_design",
             f"report_utilization -file {{{util_report}}}",
             f"report_timing_summary -file {{{timing_report}}} -delay_type max -max_paths 10",
             "exit",
@@ -750,15 +833,23 @@ def _run_vivado_batch(
     util_exists = util_report.exists()
     timing_exists = timing_report.exists()
     ok = bool(proc.ok and util_exists and timing_exists)
+    selected_part = None
+    if part_report.exists():
+        try:
+            selected_part = part_report.read_text(encoding="utf-8").strip() or None
+        except OSError:
+            selected_part = None
     reason: str | None = None
     if not proc.ok:
-        reason = "vivado batch failed"
+        reason = "vivado impl failed"
     elif not util_exists or not timing_exists:
-        reason = "vivado reports missing"
+        reason = "vivado impl reports missing"
+    report_files = [str(path) for path in (util_report, timing_report, run_log, part_report) if path.exists()]
 
     return {
         "attempted": True,
         "ok": ok,
+        "implOk": ok,
         "skipped": False,
         "reason": reason,
         "returncode": proc.returncode,
@@ -769,6 +860,17 @@ def _run_vivado_batch(
         "utilizationReport": str(util_report) if util_exists else None,
         "timingReport": str(timing_report) if timing_exists else None,
         "rtlSourceCount": len(rtl_files),
+        "part": selected_part or part,
+        "clk_ns": clk_value,
+        "wns": None,
+        "tns": None,
+        "util": {
+            "lut": None,
+            "ff": None,
+            "bram": None,
+            "dsp": None,
+        },
+        "reportFiles": report_files,
     }
 
 
@@ -789,6 +891,7 @@ def _run_vitis_hls(
     hls_cpp_abs = hls_cpp.resolve()
     cpp_ref_main_abs = cpp_ref_main.resolve()
     part = os.environ.get("NEMA_VITIS_PART", "xc7z020clg400-1")
+    vivado_part = os.environ.get("NEMA_VIVADO_PART", part)
     clock_ns = os.environ.get("NEMA_VITIS_CLOCK_NS", "5.0")
     tcl_lines = [
         f"open_project -reset {{{project_name}}}",
@@ -825,11 +928,15 @@ def _run_vitis_hls(
         vivado_info=vivado_info,
         project_dir=project_dir,
         solution_dir=solution_dir,
-        part=part,
+        part=vivado_part,
+        clock_ns=clock_ns,
         top_name="nema_kernel",
     )
     reports_raw = _collect_hls_reports(project_dir, solution_dir)
     report_files = reports_raw["reportFiles"] if isinstance(reports_raw, dict) else []
+    vivado_report_files = vivado.get("reportFiles") if isinstance(vivado, dict) else None
+    if isinstance(vivado_report_files, list):
+        report_files = sorted(set([*report_files, *[str(item) for item in vivado_report_files if isinstance(item, str)]]))
     copied_reports = _copy_hw_reports(report_files=report_files, project_dir=project_dir, model_root=model_root)
     parsed_metrics = _parse_hls_metrics(reports_raw)
     source_to_file = copied_reports.get("sourceToFile", {})
@@ -848,6 +955,22 @@ def _run_vitis_hls(
         "timingReport": _copied_path(reports_raw.get("timingReport")) if isinstance(reports_raw, dict) else None,
         "parsed": parsed_metrics,
     }
+    if isinstance(vivado, dict):
+        for key in ("runLog", "utilizationReport", "timingReport"):
+            raw_value = vivado.get(key)
+            if isinstance(raw_value, str) and raw_value:
+                mapped = _copied_path(raw_value)
+                if isinstance(mapped, str):
+                    vivado[key] = mapped
+        raw_files = vivado.get("reportFiles")
+        if isinstance(raw_files, list):
+            vivado["reportFiles"] = sorted(
+                set(
+                    _copied_path(item) if isinstance(item, str) and _copied_path(item) is not None else item
+                    for item in raw_files
+                    if isinstance(item, str)
+                )
+            )
 
     csim_ok = proc.ok
     csynth_ok = proc.ok
@@ -895,18 +1018,36 @@ def _run_vitis_hls(
     }
 
 
+def _resolve_run_cosim(cosim_mode: str) -> bool:
+    if cosim_mode == "on":
+        return True
+    if cosim_mode == "off":
+        return False
+
+    # Backward-compatible escape hatch for local experimentation.
+    env_value = os.environ.get("NEMA_HWTEST_RUN_COSIM", "").strip().lower()
+    if env_value in {"1", "true", "yes", "on"}:
+        return True
+    if env_value in {"0", "false", "no", "off"}:
+        return False
+    return False
+
+
 def run_hwtest_pipeline(
     ir_path: Path,
     outdir: Path,
     ticks: int,
     *,
     hw_mode: str = "auto",
+    cosim_mode: str = "auto",
 ) -> tuple[int, dict[str, Any]]:
     """Run golden sim + C++ reference (+ optional Vitis HLS) and emit bench_report.json."""
     if ticks < 0:
         return 1, {"ok": False, "error": "--ticks must be >= 0"}
     if hw_mode not in {"auto", "require", "off"}:
         return 1, {"ok": False, "error": f"invalid --hw mode '{hw_mode}' (expected auto|require|off)"}
+    if cosim_mode not in {"auto", "on", "off"}:
+        return 1, {"ok": False, "error": f"invalid --cosim mode '{cosim_mode}' (expected auto|on|off)"}
 
     try:
         ir_validation = validate_ir(ir_path, allow_external_smoke=True)
@@ -1001,7 +1142,7 @@ def run_hwtest_pipeline(
             "ok": False,
             "error": "hardware mode 'require' requested but vitis_hls is not available on PATH",
         }
-    run_cosim = os.environ.get("NEMA_HWTEST_RUN_COSIM", "").lower() in {"1", "true", "yes"}
+    run_cosim = _resolve_run_cosim(cosim_mode)
     if vitis_info["available"]:
         hardware = _run_vitis_hls(
             vitis_binary=str(vitis_info["binary"]),
@@ -1035,9 +1176,26 @@ def run_hwtest_pipeline(
     vivado_qor = parse_vivado_qor(reports_dir_abs, source_prefix=reports_dir_rel)
     if not isinstance(hardware.get("vivado"), dict):
         hardware["vivado"] = _empty_vivado_result("no vivado run metadata")
-    hardware["vivado"]["utilization"] = vivado_qor["utilization"]
-    hardware["vivado"]["timing"] = vivado_qor["timing"]
+    vivado_util = vivado_qor["utilization"]
+    vivado_timing = vivado_qor["timing"]
+    hardware["vivado"]["utilization"] = vivado_util
+    hardware["vivado"]["timing"] = vivado_timing
     hardware["vivado"]["sourceReports"] = vivado_qor["sourceReports"]
+    hardware["vivado"]["util"] = {
+        "lut": vivado_util.get("lut"),
+        "ff": vivado_util.get("ff"),
+        "bram": vivado_util.get("bram"),
+        "dsp": vivado_util.get("dsp"),
+    }
+    hardware["vivado"]["wns"] = vivado_timing.get("wns")
+    hardware["vivado"]["tns"] = vivado_timing.get("tns")
+    vivado_attempted = bool(hardware["vivado"].get("attempted") is True)
+    vivado_ok = bool(hardware["vivado"].get("ok") is True)
+    vivado_has_timing = isinstance(hardware["vivado"].get("wns"), (int, float))
+    if vivado_attempted:
+        hardware["vivado"]["implOk"] = bool(vivado_ok and vivado_has_timing)
+    else:
+        hardware["vivado"]["implOk"] = None
 
     tool_versions = _tool_versions(
         vitis_binary=str(vitis_info["binary"]) if vitis_info["available"] else None,

@@ -34,9 +34,13 @@
     ],
     "scheduleKeys": [
       "evalOrder",
+      "neuronLanes",
       "policy",
-      "snapshotRule"
+      "snapshotRule",
+      "synapseLanes"
     ],
+    "synapseLanes": "int",
+    "neuronLanes": "int",
     "snapshotRule": "bool",
     "topKeys": [
       "dt",
@@ -148,8 +152,11 @@
     "version": "null|str",
     "vivado": {
       "attempted": "bool",
+      "clk_ns": "float|int|null",
       "elapsedSeconds": "float|int|null",
+      "implOk": "bool|null",
       "ok": "bool|null",
+      "part": "null|str",
       "projectDir": "null|str",
       "reason": "null|str",
       "returncode": "int|null",
@@ -165,12 +172,17 @@
         "wns"
       ],
       "timingReport": "null|str",
+      "tns": "float|int|null",
       "topKeys": [
         "attempted",
+        "clk_ns",
         "elapsedSeconds",
+        "implOk",
         "ok",
+        "part",
         "projectDir",
         "reason",
+        "reportFiles",
         "returncode",
         "rtlSourceCount",
         "runLog",
@@ -178,16 +190,30 @@
         "sourceReports",
         "timing",
         "timingReport",
+        "tns",
+        "util",
         "utilization",
-        "utilizationReport"
+        "utilizationReport",
+        "wns"
       ],
+      "utilBram": "float|int|null",
+      "utilDsp": "float|int|null",
+      "utilFf": "float|int|null",
+      "utilKeys": [
+        "bram",
+        "dsp",
+        "ff",
+        "lut"
+      ],
+      "utilLut": "float|int|null",
       "utilizationKeys": [
         "bram",
         "dsp",
         "ff",
         "lut"
       ],
-      "utilizationReport": "null|str"
+      "utilizationReport": "null|str",
+      "wns": "float|int|null"
     },
     "vivadoAvailable": "bool",
     "vivadoBinary": "null|str",

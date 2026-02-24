@@ -116,7 +116,9 @@
           "required": [
             "policy",
             "snapshotRule",
-            "evalOrder"
+            "evalOrder",
+            "synapseLanes",
+            "neuronLanes"
           ],
           "properties": {
             "policy": {
@@ -127,6 +129,14 @@
             },
             "evalOrder": {
               "type": "string"
+            },
+            "synapseLanes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "neuronLanes": {
+              "type": "integer",
+              "minimum": 1
             }
           }
         },
@@ -409,13 +419,33 @@
           "type": [
             "object",
             "null"
-          ]
+          ],
+          "required": [
+            "attempted",
+            "ok",
+            "skipped"
+          ],
+          "properties": {
+            "attempted": {
+              "type": "boolean"
+            },
+            "ok": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "skipped": {
+              "type": "boolean"
+            }
+          }
         },
         "vivado": {
           "type": "object",
           "required": [
             "attempted",
             "ok",
+            "implOk",
             "skipped",
             "reason",
             "returncode",
@@ -425,6 +455,11 @@
             "utilizationReport",
             "timingReport",
             "rtlSourceCount",
+            "part",
+            "clk_ns",
+            "wns",
+            "tns",
+            "util",
             "utilization",
             "timing",
             "sourceReports"
@@ -434,6 +469,12 @@
               "type": "boolean"
             },
             "ok": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "implOk": {
               "type": [
                 "boolean",
                 "null"
@@ -487,6 +528,69 @@
             "rtlSourceCount": {
               "type": "integer",
               "minimum": 0
+            },
+            "part": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "clk_ns": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "wns": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "tns": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "util": {
+              "type": "object",
+              "required": [
+                "lut",
+                "ff",
+                "bram",
+                "dsp"
+              ],
+              "properties": {
+                "lut": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                },
+                "ff": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                },
+                "bram": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                },
+                "dsp": {
+                  "type": [
+                    "integer",
+                    "number",
+                    "null"
+                  ]
+                }
+              }
             },
             "utilization": {
               "type": "object",
