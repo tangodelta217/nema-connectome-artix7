@@ -9,6 +9,7 @@ def test_toolchain_scripts_exist_and_executable() -> None:
     scripts = [
         Path("tools/hw/activate_xilinx.sh"),
         Path("tools/run_hw_gates.sh"),
+        Path("tools/run_hw_gates_two_parts.sh"),
         Path("tools/hw/smoke_toolchain.sh"),
     ]
     for script in scripts:

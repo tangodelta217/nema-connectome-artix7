@@ -7,7 +7,8 @@ import tempfile
 from pathlib import Path
 
 from .codegen.hls_gen import generate_hls_project
-from .connectome_bundle import build_bundle_directory, verify_bundle_directory
+from .connectome_bundle import build_bundle_directory
+from .connectome_ingest import ingest_connectome_bundle_json, verify_connectome_artifact
 from .fixed import run_selftest as run_fixed_selftest
 from .hw_doctor import run_hw_doctor as run_hw_doctor_command
 from .hwtest import run_hwtest_pipeline
@@ -112,8 +113,23 @@ def run_compile(ir_path: Path, outdir: Path) -> tuple[int, dict]:
     }
 
 
-def run_hwtest(ir_path: Path, outdir: Path, ticks: int, *, hw_mode: str = "auto") -> tuple[int, dict]:
-    return run_hwtest_pipeline(ir_path=ir_path, outdir=outdir, ticks=ticks, hw_mode=hw_mode)
+def run_hwtest(
+    ir_path: Path,
+    outdir: Path,
+    ticks: int,
+    *,
+    hw_mode: str = "auto",
+    cosim_mode: str = "auto",
+    vivado_part: str | None = None,
+) -> tuple[int, dict]:
+    return run_hwtest_pipeline(
+        ir_path=ir_path,
+        outdir=outdir,
+        ticks=ticks,
+        hw_mode=hw_mode,
+        cosim_mode=cosim_mode,
+        vivado_part=vivado_part,
+    )
 
 
 def run_hw_doctor() -> tuple[int, dict]:
@@ -182,7 +198,41 @@ def run_connectome_bundle_build(
 
 
 def run_connectome_bundle_verify(bundle_dir: Path) -> tuple[int, dict]:
-    report = verify_bundle_directory(bundle_dir)
+    report = verify_connectome_artifact(bundle_dir)
+    return (0 if report.get("ok") else 1), report
+
+
+def run_connectome_ingest(
+    *,
+    nodes_csv: Path,
+    edges_csv: Path,
+    out_path: Path,
+    subgraph_id: str = "default",
+    license_spdx: str = "MIT",
+    source_urls: list[str] | None = None,
+    source_sha256: str | None = None,
+    retrieved_at: str = "1970-01-01T00:00:00Z",
+    schema_version: str = "0.1",
+) -> tuple[int, dict]:
+    try:
+        report = ingest_connectome_bundle_json(
+            nodes_csv=nodes_csv,
+            edges_csv=edges_csv,
+            out_path=out_path,
+            subgraph_id=subgraph_id,
+            license_spdx=license_spdx,
+            source_urls=source_urls,
+            source_sha256=source_sha256,
+            retrieved_at=retrieved_at,
+            schema_version=schema_version,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        return 1, {"ok": False, "error": str(exc)}
+    return 0, report
+
+
+def run_connectome_verify(path: Path) -> tuple[int, dict]:
+    report = verify_connectome_artifact(path)
     return (0 if report.get("ok") else 1), report
 
 

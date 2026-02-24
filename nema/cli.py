@@ -11,6 +11,8 @@ from .cost import run_cost_compare, run_cost_estimate
 from .dsl.cli import add_dsl_subparser, emit as emit_dsl, run_dsl_command
 from .hw_doctor import render_hw_doctor_text
 from .toolchain import (
+    run_connectome_ingest,
+    run_connectome_verify,
     run_connectome_bundle_build,
     run_connectome_bundle_verify,
     run_bench_verify,
@@ -62,6 +64,44 @@ def build_parser() -> argparse.ArgumentParser:
 
     connectome_cmd = subparsers.add_parser("connectome", help="connectome bundle utilities")
     connectome_subparsers = connectome_cmd.add_subparsers(dest="connectome_command", required=True)
+
+    connectome_ingest_cmd = connectome_subparsers.add_parser(
+        "ingest",
+        help="ingest nodes/edges CSV and emit deterministic JSON connectome bundle",
+    )
+    connectome_ingest_cmd.add_argument("--nodes", type=Path, required=True, help="input nodes.csv path")
+    connectome_ingest_cmd.add_argument("--edges", type=Path, required=True, help="input edges.csv path")
+    connectome_ingest_cmd.add_argument("--out", type=Path, required=True, help="output bundle JSON path")
+    connectome_ingest_cmd.add_argument("--subgraph-id", default="default", help="subgraph id")
+    connectome_ingest_cmd.add_argument("--license-spdx", default="MIT", help="license SPDX id")
+    connectome_ingest_cmd.add_argument(
+        "--source-url",
+        action="append",
+        default=[],
+        help="source URL (repeatable)",
+    )
+    connectome_ingest_cmd.add_argument(
+        "--source-sha256",
+        default=None,
+        help="optional source artifact sha256 token",
+    )
+    connectome_ingest_cmd.add_argument(
+        "--retrieved-at",
+        default="1970-01-01T00:00:00Z",
+        help="retrieval timestamp string (deterministic default)",
+    )
+    connectome_ingest_cmd.add_argument(
+        "--schema-version",
+        default="0.1",
+        help="bundle schema version (default: 0.1)",
+    )
+
+    connectome_verify_cmd = connectome_subparsers.add_parser(
+        "verify",
+        help="verify connectome bundle artifact (JSON file or directory bundle)",
+    )
+    connectome_verify_cmd.add_argument("path", type=Path, help="bundle path")
+
     bundle_cmd = connectome_subparsers.add_parser("bundle", help="connectome bundle build/verify")
     bundle_subparsers = bundle_cmd.add_subparsers(dest="bundle_command", required=True)
     bundle_build_cmd = bundle_subparsers.add_parser("build", help="build connectome bundle directory")
@@ -86,6 +126,17 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("auto", "require", "off"),
         default="auto",
         help="hardware toolchain policy (default: auto)",
+    )
+    hwtest_cmd.add_argument(
+        "--cosim",
+        choices=("auto", "on", "off"),
+        default="auto",
+        help="C/RTL cosim policy (default: auto; run with --cosim on to force)",
+    )
+    hwtest_cmd.add_argument(
+        "--vivado-part",
+        default=None,
+        help="override Vivado target part for implementation reports (e.g. xc7a35tcsg324-1)",
     )
 
     selftest_cmd = subparsers.add_parser("selftest", help="run built-in deterministic self tests")
@@ -185,6 +236,24 @@ def main(argv: list[str] | None = None) -> int:
         return code
 
     if args.command == "connectome":
+        if args.connectome_command == "ingest":
+            code, report = run_connectome_ingest(
+                nodes_csv=args.nodes,
+                edges_csv=args.edges,
+                out_path=args.out,
+                subgraph_id=args.subgraph_id,
+                license_spdx=args.license_spdx,
+                source_urls=args.source_url,
+                source_sha256=args.source_sha256,
+                retrieved_at=args.retrieved_at,
+                schema_version=args.schema_version,
+            )
+            _emit(report)
+            return code
+        if args.connectome_command == "verify":
+            code, report = run_connectome_verify(args.path)
+            _emit(report)
+            return code
         if args.connectome_command == "bundle":
             if args.bundle_command == "build":
                 code, report = run_connectome_bundle_build(
@@ -205,7 +274,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"unknown connectome command: {args.connectome_command}")
 
     if args.command == "hwtest":
-        code, report = run_hwtest(args.ir_json, outdir=args.outdir, ticks=args.ticks, hw_mode=args.hw)
+        code, report = run_hwtest(
+            args.ir_json,
+            outdir=args.outdir,
+            ticks=args.ticks,
+            hw_mode=args.hw,
+            cosim_mode=args.cosim,
+            vivado_part=args.vivado_part,
+        )
         _emit(report)
         return code
 

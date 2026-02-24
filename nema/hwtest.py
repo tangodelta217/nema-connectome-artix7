@@ -700,7 +700,7 @@ def _copy_hw_reports(*, report_files: list[str], project_dir: Path, model_root: 
     }
 
 
-def _empty_vivado_result(reason: str) -> dict[str, Any]:
+def _empty_vivado_result(reason: str, *, requested_part: str | None = None) -> dict[str, Any]:
     return {
         "attempted": False,
         "ok": None,
@@ -714,7 +714,7 @@ def _empty_vivado_result(reason: str) -> dict[str, Any]:
         "utilizationReport": None,
         "timingReport": None,
         "rtlSourceCount": 0,
-        "part": None,
+        "part": requested_part,
         "clk_ns": None,
         "wns": None,
         "tns": None,
@@ -751,11 +751,11 @@ def _run_vivado_batch(
     top_name: str = "nema_kernel",
 ) -> dict[str, Any]:
     if not bool(vivado_info.get("available")):
-        return _empty_vivado_result("vivado unavailable")
+        return _empty_vivado_result("vivado unavailable", requested_part=part)
 
     vivado_binary = vivado_info.get("binary")
     if not isinstance(vivado_binary, str) or not vivado_binary:
-        return _empty_vivado_result("vivado binary missing")
+        return _empty_vivado_result("vivado binary missing", requested_part=part)
 
     rtl_files = _collect_exported_rtl_files(solution_dir)
     vivado_dir = (project_dir / "vivado_batch").resolve()
@@ -781,7 +781,7 @@ def _run_vivado_batch(
             "utilizationReport": None,
             "timingReport": None,
             "rtlSourceCount": 0,
-            "part": None,
+            "part": part,
             "clk_ns": clk_value,
             "wns": None,
             "tns": None,
@@ -806,6 +806,7 @@ def _run_vivado_batch(
         "  error \"NEMA_VIVADO_ERROR: no available parts in this Vivado install\"",
         "}",
         "set_part $selected_part",
+        "set_property part $selected_part [current_project]",
         f"set fp [open {{{part_report}}} w]",
         "puts $fp $selected_part",
         "close $fp",
@@ -882,6 +883,7 @@ def _run_vitis_hls(
     cpp_ref_main: Path,
     model_root: Path,
     run_cosim: bool,
+    vivado_part_override: str | None = None,
 ) -> dict[str, Any]:
     # Use absolute paths because local wrappers may change cwd before invoking Vitis.
     project_dir = (model_root / "hls_proj").resolve()
@@ -891,7 +893,7 @@ def _run_vitis_hls(
     hls_cpp_abs = hls_cpp.resolve()
     cpp_ref_main_abs = cpp_ref_main.resolve()
     part = os.environ.get("NEMA_VITIS_PART", "xc7z020clg400-1")
-    vivado_part = os.environ.get("NEMA_VIVADO_PART", part)
+    vivado_part = vivado_part_override or os.environ.get("NEMA_VIVADO_PART", part)
     clock_ns = os.environ.get("NEMA_VITIS_CLOCK_NS", "5.0")
     tcl_lines = [
         f"open_project -reset {{{project_name}}}",
@@ -1040,6 +1042,7 @@ def run_hwtest_pipeline(
     *,
     hw_mode: str = "auto",
     cosim_mode: str = "auto",
+    vivado_part: str | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Run golden sim + C++ reference (+ optional Vitis HLS) and emit bench_report.json."""
     if ticks < 0:
@@ -1048,6 +1051,7 @@ def run_hwtest_pipeline(
         return 1, {"ok": False, "error": f"invalid --hw mode '{hw_mode}' (expected auto|require|off)"}
     if cosim_mode not in {"auto", "on", "off"}:
         return 1, {"ok": False, "error": f"invalid --cosim mode '{cosim_mode}' (expected auto|on|off)"}
+    requested_vivado_part = (vivado_part.strip() if isinstance(vivado_part, str) else "") or None
 
     try:
         ir_validation = validate_ir(ir_path, allow_external_smoke=True)
@@ -1151,6 +1155,7 @@ def run_hwtest_pipeline(
             cpp_ref_main=cpp_ref_main,
             model_root=model_root,
             run_cosim=run_cosim,
+            vivado_part_override=requested_vivado_part,
         )
     else:
         hardware = {
@@ -1159,7 +1164,7 @@ def run_hwtest_pipeline(
             "csim": None,
             "csynth": None,
             "cosim": None,
-            "vivado": _empty_vivado_result("vitis_hls unavailable"),
+            "vivado": _empty_vivado_result("vitis_hls unavailable", requested_part=requested_vivado_part),
             "reports": None,
         }
 
@@ -1175,7 +1180,7 @@ def run_hwtest_pipeline(
     hardware["qor"] = parse_vitis_qor(reports_dir_abs, source_prefix=reports_dir_rel)
     vivado_qor = parse_vivado_qor(reports_dir_abs, source_prefix=reports_dir_rel)
     if not isinstance(hardware.get("vivado"), dict):
-        hardware["vivado"] = _empty_vivado_result("no vivado run metadata")
+        hardware["vivado"] = _empty_vivado_result("no vivado run metadata", requested_part=requested_vivado_part)
     vivado_util = vivado_qor["utilization"]
     vivado_timing = vivado_qor["timing"]
     hardware["vivado"]["utilization"] = vivado_util
