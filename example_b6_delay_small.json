@@ -1,0 +1,73 @@
+{
+  "name": "example_b6_delay_small",
+  "modelId": "B6_delay_small",
+  "constraints": {
+    "allowedSpdx": [
+      "Apache-2.0",
+      "MIT"
+    ]
+  },
+  "license": {
+    "spdxId": "MIT"
+  },
+  "compile": {
+    "schedule": {
+      "synapseLanes": 1,
+      "neuronLanes": 1,
+      "delayMax": 2
+    }
+  },
+  "graph": {
+    "dt": 1.0,
+    "nodes": [
+      {
+        "id": "n0",
+        "index": 0,
+        "canonicalOrderId": 0,
+        "vInitRaw": 256,
+        "tauM": 1.0
+      },
+      {
+        "id": "n1",
+        "index": 1,
+        "canonicalOrderId": 1,
+        "vInitRaw": 0,
+        "tauM": 1.0
+      },
+      {
+        "id": "n2",
+        "index": 2,
+        "canonicalOrderId": 2,
+        "vInitRaw": 0,
+        "tauM": 1.0
+      }
+    ],
+    "edges": [
+      {
+        "id": "e_chem_01",
+        "kind": "CHEMICAL",
+        "source": "n0",
+        "target": "n1",
+        "directed": true,
+        "conductance": 1.0,
+        "delayTicks": 0
+      },
+      {
+        "id": "e_chem_12_delay2",
+        "kind": "CHEMICAL",
+        "source": "n1",
+        "target": "n2",
+        "directed": true,
+        "conductance": 1.0,
+        "delayTicks": 2
+      }
+    ]
+  },
+  "tanhLut": {
+    "policy": "nema.tanh_lut.v0.1",
+    "artifact": "artifacts/luts/tanh_q8_8.bin",
+    "inputType": "Q8.8",
+    "outputType": "Q8.8",
+    "checksumSha256": "7d21f56cc692fadb62283328037b0319745d1a08b4369d4fbffe8dc6cb260d88"
+  }
+}

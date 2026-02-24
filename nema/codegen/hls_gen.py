@@ -16,6 +16,7 @@ ACCUM_MIN = -(1 << 19)
 ACCUM_MAX = (1 << 19) - 1
 V_MIN = -(1 << 15)
 V_MAX = (1 << 15) - 1
+MAX_DELAY_TICKS = 4096
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class ChemicalEdgeSpec:
     weight_num: int
     weight_den: int
     model_id: int
+    delay_ticks: int
 
 
 @dataclass(frozen=True)
@@ -45,6 +47,7 @@ class GapEdgeSpec:
     conductance_num: int
     conductance_den: int
     model_id: int
+    delay_ticks: int
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,7 @@ class ModelSpec:
     gaps: list[GapEdgeSpec]
     synapse_lanes: int
     neuron_lanes: int
+    delay_max: int
 
 
 def _to_fraction(value: Any, *, field_name: str) -> Fraction:
@@ -92,14 +96,36 @@ def _safe_positive_int(value: Any, default: int = 1) -> int:
     return default
 
 
-def _extract_schedule_lanes(ir: dict[str, Any]) -> tuple[int, int]:
+def _extract_schedule_lanes(ir: dict[str, Any]) -> tuple[int, int, int]:
     compile_obj = ir.get("compile")
     schedule_obj = compile_obj.get("schedule") if isinstance(compile_obj, dict) else None
     if not isinstance(schedule_obj, dict):
-        return 1, 1
+        return 1, 1, 0
     synapse = _safe_positive_int(schedule_obj.get("synapseLanes"), 1)
     neuron = _safe_positive_int(schedule_obj.get("neuronLanes"), 1)
-    return synapse, neuron
+    delay_max_raw = schedule_obj.get("delayMax", 0)
+    if isinstance(delay_max_raw, bool) or not isinstance(delay_max_raw, int):
+        raise ValueError("compile.schedule.delayMax must be an integer")
+    if delay_max_raw < 0:
+        raise ValueError("compile.schedule.delayMax must be >= 0")
+    if delay_max_raw > MAX_DELAY_TICKS:
+        raise ValueError(f"compile.schedule.delayMax must be <= {MAX_DELAY_TICKS}")
+    return synapse, neuron, delay_max_raw
+
+
+def _edge_delay_ticks(edge: dict[str, Any], *, edge_id: str, delay_max: int) -> int:
+    if "delayTicks" not in edge:
+        return 0
+    raw = edge["delayTicks"]
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise ValueError(f"edge '{edge_id}' delayTicks must be an integer")
+    if raw < 0:
+        raise ValueError(f"edge '{edge_id}' delayTicks must be >= 0")
+    if raw > delay_max:
+        raise ValueError(
+            f"edge '{edge_id}' delayTicks ({raw}) exceeds compile.schedule.delayMax ({delay_max})"
+        )
+    return raw
 
 
 def _extract_endpoint(edge: dict[str, Any], keys: tuple[str, ...], edge_id: str, label: str) -> str:
@@ -207,8 +233,10 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
         node_specs.append(node)
         node_idx_by_id[node.node_id] = idx
 
+    synapse_lanes, neuron_lanes, delay_max = _extract_schedule_lanes(ir)
+
     chemical_specs: list[ChemicalEdgeSpec] = []
-    gap_specs_by_key: dict[tuple[int, int, int, int, int], GapEdgeSpec] = {}
+    gap_specs_by_key: dict[tuple[int, int, int, int, int, int], GapEdgeSpec] = {}
     for pos, raw in enumerate(edge_raw):
         if not isinstance(raw, dict):
             raise ValueError(f"graph.edges[{pos}] must be object")
@@ -218,6 +246,7 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
         dst = _extract_endpoint(raw, ("target", "dst", "targetNodeId", "to"), edge_id, "target")
         if src not in node_idx_by_id or dst not in node_idx_by_id:
             raise ValueError(f"edge '{edge_id}' references unknown node")
+        delay_ticks = _edge_delay_ticks(raw, edge_id=edge_id, delay_max=delay_max)
 
         if kind == "CHEMICAL":
             w = _to_fraction(raw.get("weight", raw.get("conductance", 0.0)), field_name=f"edge[{edge_id}].weight")
@@ -229,13 +258,14 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
                     weight_num=w.numerator,
                     weight_den=w.denominator,
                     model_id=_parse_chemical_model_id(raw.get("modelId")),
+                    delay_ticks=delay_ticks,
                 )
             )
         elif kind == "GAP":
             g = _to_fraction(raw.get("conductance", 0.0), field_name=f"edge[{edge_id}].conductance")
             a_idx, b_idx = sorted((node_idx_by_id[src], node_idx_by_id[dst]))
             model_id = _parse_gap_model_id(raw.get("modelId"))
-            key = (a_idx, b_idx, g.numerator, g.denominator, model_id)
+            key = (a_idx, b_idx, g.numerator, g.denominator, model_id, delay_ticks)
             if key not in gap_specs_by_key or edge_id < gap_specs_by_key[key].edge_id:
                 gap_specs_by_key[key] = GapEdgeSpec(
                     edge_id=edge_id,
@@ -244,15 +274,16 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
                     conductance_num=g.numerator,
                     conductance_den=g.denominator,
                     model_id=model_id,
+                    delay_ticks=delay_ticks,
                 )
 
     # Deterministic postsynaptic ordering for CSR traversal.
     chemical_specs.sort(
-        key=lambda e: (e.post_idx, e.pre_idx, e.model_id, e.weight_num, e.weight_den, e.edge_id),
+        key=lambda e: (e.post_idx, e.pre_idx, e.model_id, e.weight_num, e.weight_den, e.delay_ticks, e.edge_id),
     )
     gap_specs = sorted(
         gap_specs_by_key.values(),
-        key=lambda e: (e.a_idx, e.b_idx, e.model_id, e.conductance_num, e.conductance_den, e.edge_id),
+        key=lambda e: (e.a_idx, e.b_idx, e.model_id, e.conductance_num, e.conductance_den, e.delay_ticks, e.edge_id),
     )
 
     tanh_lut = ir.get("tanhLut")
@@ -263,8 +294,6 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
         raise ValueError("tanhLut.artifact must be non-empty string")
     lut_path = Path(artifact)
     lut_path = lut_path if lut_path.is_absolute() else (base_dir / lut_path)
-    synapse_lanes, neuron_lanes = _extract_schedule_lanes(ir)
-
     return ModelSpec(
         model_id=_extract_model_id(ir),
         lut_path=lut_path.resolve(),
@@ -273,6 +302,7 @@ def _parse_spec(ir: dict[str, Any], *, base_dir: Path) -> ModelSpec:
         gaps=gap_specs,
         synapse_lanes=synapse_lanes,
         neuron_lanes=neuron_lanes,
+        delay_max=delay_max,
     )
 
 
@@ -303,11 +333,13 @@ def _emit_kernel_header(spec: ModelSpec, path: Path) -> None:
     chem_weight_num = [e.weight_num for e in spec.chemicals]
     chem_weight_den = [e.weight_den for e in spec.chemicals]
     chem_model = [e.model_id for e in spec.chemicals]
+    chem_delay_ticks = [e.delay_ticks for e in spec.chemicals]
     gap_a = [e.a_idx for e in spec.gaps]
     gap_b = [e.b_idx for e in spec.gaps]
     gap_num = [e.conductance_num for e in spec.gaps]
     gap_den = [e.conductance_den for e in spec.gaps]
     gap_model = [e.model_id for e in spec.gaps]
+    gap_delay_ticks = [e.delay_ticks for e in spec.gaps]
 
     contents = f"""#pragma once
 #include <cstdint>
@@ -322,6 +354,9 @@ static constexpr int GAP_EDGE_STORAGE = GAP_EDGE_COUNT > 0 ? GAP_EDGE_COUNT : 1;
 static constexpr int LUT_SIZE = 65536;
 static constexpr int SYNAPSE_LANES = {spec.synapse_lanes};
 static constexpr int NEURON_LANES = {spec.neuron_lanes};
+static constexpr int DELAY_MAX = {spec.delay_max};
+static constexpr int DELAY_RING_SIZE = DELAY_MAX + 1;
+static constexpr bool HAS_DELAY = DELAY_MAX > 0;
 static constexpr int32_t ACCUM_MIN = {ACCUM_MIN};
 static constexpr int32_t ACCUM_MAX = {ACCUM_MAX};
 
@@ -334,6 +369,7 @@ static constexpr uint16_t CHEM_PRE_IDX[CHEM_EDGE_STORAGE] = {{{_format_c_array(c
 static constexpr int64_t CHEM_WEIGHT_NUM[CHEM_EDGE_STORAGE] = {{{_format_c_array(chem_weight_num)}}};
 static constexpr int64_t CHEM_WEIGHT_DEN[CHEM_EDGE_STORAGE] = {{{_format_c_array(chem_weight_den, default_value=1)}}};
 static constexpr uint8_t CHEM_MODEL_ID[CHEM_EDGE_STORAGE] = {{{_format_c_array(chem_model)}}};
+static constexpr uint16_t CHEM_DELAY_TICKS[CHEM_EDGE_STORAGE] = {{{_format_c_array(chem_delay_ticks)}}};
 static constexpr uint8_t CHEM_PADDING[CHEM_EDGE_STORAGE] = {{0}};
 
 static constexpr uint16_t GAP_A_IDX[GAP_EDGE_STORAGE] = {{{_format_c_array(gap_a)}}};
@@ -341,6 +377,7 @@ static constexpr uint16_t GAP_B_IDX[GAP_EDGE_STORAGE] = {{{_format_c_array(gap_b
 static constexpr int64_t GAP_CONDUCTANCE_NUM[GAP_EDGE_STORAGE] = {{{_format_c_array(gap_num)}}};
 static constexpr int64_t GAP_CONDUCTANCE_DEN[GAP_EDGE_STORAGE] = {{{_format_c_array(gap_den, default_value=1)}}};
 static constexpr uint8_t GAP_MODEL_ID[GAP_EDGE_STORAGE] = {{{_format_c_array(gap_model)}}};
+static constexpr uint16_t GAP_DELAY_TICKS[GAP_EDGE_STORAGE] = {{{_format_c_array(gap_delay_ticks)}}};
 static constexpr uint8_t GAP_PADDING[GAP_EDGE_STORAGE] = {{0}};
 }}  // namespace nema_model
 
@@ -637,6 +674,154 @@ bool load_lut(std::array<int16_t, nema_model::LUT_SIZE>& lut) {{
     }}
     return true;
 }}
+
+inline uint64_t uabs64(int64_t value) {{
+    return value < 0 ? static_cast<uint64_t>(-(value + 1)) + 1ULL : static_cast<uint64_t>(value);
+}}
+
+inline int64_t round_div_rne_i64(int64_t numerator, int64_t denominator) {{
+    if (denominator <= 0) {{
+        return 0;
+    }}
+    const bool negative = numerator < 0;
+    const uint64_t den = static_cast<uint64_t>(denominator);
+    const uint64_t mag = uabs64(numerator);
+    uint64_t q = mag / den;
+    const uint64_t r = mag % den;
+    const uint64_t twice_r = r * 2ULL;
+    if (twice_r > den || (twice_r == den && (q & 1ULL))) {{
+        ++q;
+    }}
+    return negative ? -static_cast<int64_t>(q) : static_cast<int64_t>(q);
+}}
+
+inline int32_t sat_accum_i64(int64_t value) {{
+    if (value > nema_model::ACCUM_MAX) {{
+        return nema_model::ACCUM_MAX;
+    }}
+    if (value < nema_model::ACCUM_MIN) {{
+        return nema_model::ACCUM_MIN;
+    }}
+    return static_cast<int32_t>(value);
+}}
+
+inline int16_t sat_i16_i64(int64_t value) {{
+    if (value > 32767) {{
+        return 32767;
+    }}
+    if (value < -32768) {{
+        return -32768;
+    }}
+    return static_cast<int16_t>(value);
+}}
+
+inline int32_t sat_add_accum(int32_t a, int32_t b) {{
+    return sat_accum_i64(static_cast<int64_t>(a) + static_cast<int64_t>(b));
+}}
+
+inline int32_t quantize_to_accum(int64_t coeff_num, int64_t coeff_den, int32_t input_raw_q8_8) {{
+    const int64_t prod = coeff_num * static_cast<int64_t>(input_raw_q8_8);
+    return sat_accum_i64(round_div_rne_i64(prod, coeff_den));
+}}
+
+inline int16_t quantize_to_v(int64_t coeff_num, int64_t coeff_den, int32_t input_raw_q8_8) {{
+    const int64_t prod = coeff_num * static_cast<int64_t>(input_raw_q8_8);
+    return sat_i16_i64(round_div_rne_i64(prod, coeff_den));
+}}
+
+inline int16_t tanh_lookup(const std::array<int16_t, nema_model::LUT_SIZE>& lut, int16_t v_raw) {{
+    const uint16_t lut_idx =
+        static_cast<uint16_t>(static_cast<int32_t>(v_raw) - static_cast<int32_t>(-32768));
+    return lut[static_cast<std::size_t>(lut_idx)];
+}}
+
+void delayed_tick(
+    const std::array<int16_t, nema_model::NODE_STORAGE>& v_in,
+    std::array<int16_t, nema_model::NODE_STORAGE>& v_out,
+    const std::array<int16_t, nema_model::LUT_SIZE>& lut,
+    std::array<int16_t, nema_model::NODE_STORAGE * nema_model::DELAY_RING_SIZE>& v_ring,
+    std::array<int16_t, nema_model::NODE_STORAGE * nema_model::DELAY_RING_SIZE>& a_ring,
+    int& ring_cursor) {{
+    std::array<int16_t, nema_model::NODE_STORAGE> v_snapshot{{}};
+    std::array<int16_t, nema_model::NODE_STORAGE> a_snapshot{{}};
+    std::array<int32_t, nema_model::NODE_STORAGE> i_chem{{}};
+    std::array<int32_t, nema_model::NODE_STORAGE> i_gap{{}};
+
+    for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
+        v_snapshot[static_cast<std::size_t>(i)] = v_in[static_cast<std::size_t>(i)];
+        a_snapshot[static_cast<std::size_t>(i)] = tanh_lookup(lut, v_snapshot[static_cast<std::size_t>(i)]);
+        i_chem[static_cast<std::size_t>(i)] = 0;
+        i_gap[static_cast<std::size_t>(i)] = 0;
+    }}
+
+    for (int post = 0; post < nema_model::NODE_COUNT; ++post) {{
+        const int begin = static_cast<int>(nema_model::CHEM_ROW_PTR[post]);
+        const int end = static_cast<int>(nema_model::CHEM_ROW_PTR[post + 1]);
+        for (int edge = begin; edge < end; ++edge) {{
+            const int pre = static_cast<int>(nema_model::CHEM_PRE_IDX[edge]);
+            const int delay = static_cast<int>(nema_model::CHEM_DELAY_TICKS[edge]);
+            int32_t pre_out = static_cast<int32_t>(a_snapshot[static_cast<std::size_t>(pre)]);
+            if (delay > 0) {{
+                const int slot =
+                    (ring_cursor - delay + nema_model::DELAY_RING_SIZE) % nema_model::DELAY_RING_SIZE;
+                const std::size_t ring_index =
+                    static_cast<std::size_t>(slot * nema_model::NODE_STORAGE + pre);
+                pre_out = static_cast<int32_t>(a_ring[ring_index]);
+            }}
+            const int32_t msg = quantize_to_accum(
+                nema_model::CHEM_WEIGHT_NUM[edge],
+                nema_model::CHEM_WEIGHT_DEN[edge],
+                pre_out);
+            i_chem[static_cast<std::size_t>(post)] =
+                sat_add_accum(i_chem[static_cast<std::size_t>(post)], msg);
+        }}
+    }}
+
+    for (int edge = 0; edge < nema_model::GAP_EDGE_COUNT; ++edge) {{
+        const int a = static_cast<int>(nema_model::GAP_A_IDX[edge]);
+        const int b = static_cast<int>(nema_model::GAP_B_IDX[edge]);
+        const int delay = static_cast<int>(nema_model::GAP_DELAY_TICKS[edge]);
+        int32_t va = static_cast<int32_t>(v_snapshot[static_cast<std::size_t>(a)]);
+        int32_t vb = static_cast<int32_t>(v_snapshot[static_cast<std::size_t>(b)]);
+        if (delay > 0) {{
+            const int slot =
+                (ring_cursor - delay + nema_model::DELAY_RING_SIZE) % nema_model::DELAY_RING_SIZE;
+            const std::size_t a_ring_index =
+                static_cast<std::size_t>(slot * nema_model::NODE_STORAGE + a);
+            const std::size_t b_ring_index =
+                static_cast<std::size_t>(slot * nema_model::NODE_STORAGE + b);
+            va = static_cast<int32_t>(v_ring[a_ring_index]);
+            vb = static_cast<int32_t>(v_ring[b_ring_index]);
+        }}
+        const int32_t dv = vb - va;
+        const int32_t msg = quantize_to_accum(
+            nema_model::GAP_CONDUCTANCE_NUM[edge],
+            nema_model::GAP_CONDUCTANCE_DEN[edge],
+            dv);
+        i_gap[static_cast<std::size_t>(a)] = sat_add_accum(i_gap[static_cast<std::size_t>(a)], msg);
+        i_gap[static_cast<std::size_t>(b)] = sat_add_accum(i_gap[static_cast<std::size_t>(b)], -msg);
+    }}
+
+    for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
+        const int32_t total_i =
+            sat_add_accum(i_chem[static_cast<std::size_t>(i)], i_gap[static_cast<std::size_t>(i)]);
+        const int16_t delta_v = quantize_to_v(
+            nema_model::INV_TAU_NUM[i],
+            nema_model::INV_TAU_DEN[i],
+            total_i);
+        v_out[static_cast<std::size_t>(i)] = sat_i16_i64(
+            static_cast<int64_t>(v_snapshot[static_cast<std::size_t>(i)]) +
+            static_cast<int64_t>(delta_v));
+    }}
+
+    for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
+        const std::size_t ring_index =
+            static_cast<std::size_t>(ring_cursor * nema_model::NODE_STORAGE + i);
+        v_ring[ring_index] = v_snapshot[static_cast<std::size_t>(i)];
+        a_ring[ring_index] = a_snapshot[static_cast<std::size_t>(i)];
+    }}
+    ring_cursor = (ring_cursor + 1) % nema_model::DELAY_RING_SIZE;
+}}
 }}  // namespace
 
 int main(int argc, char** argv) {{
@@ -657,14 +842,32 @@ int main(int argc, char** argv) {{
 
     std::array<int16_t, nema_model::NODE_STORAGE> v_cur{{}};
     std::array<int16_t, nema_model::NODE_STORAGE> v_next{{}};
+    std::array<int16_t, nema_model::NODE_STORAGE * nema_model::DELAY_RING_SIZE> v_ring{{}};
+    std::array<int16_t, nema_model::NODE_STORAGE * nema_model::DELAY_RING_SIZE> a_ring{{}};
     for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
         v_cur[static_cast<std::size_t>(i)] = nema_model::V_INIT[static_cast<std::size_t>(i)];
     }}
+    if (nema_model::HAS_DELAY) {{
+        for (int slot = 0; slot < nema_model::DELAY_RING_SIZE; ++slot) {{
+            for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
+                const std::size_t ring_index =
+                    static_cast<std::size_t>(slot * nema_model::NODE_STORAGE + i);
+                const int16_t v0 = v_cur[static_cast<std::size_t>(i)];
+                v_ring[ring_index] = v0;
+                a_ring[ring_index] = tanh_lookup(lut, v0);
+            }}
+        }}
+    }}
+    int ring_cursor = 0;
 
     std::array<uint8_t, nema_model::NODE_STORAGE * 2> packed{{}};
     std::cout << "{{\\\"ticks\\\":" << ticks << ",\\\"tickDigestsSha256\\\":[";
     for (int tick = 0; tick < ticks; ++tick) {{
-        nema_kernel(v_cur.data(), lut.data(), v_next.data());
+        if (nema_model::HAS_DELAY) {{
+            delayed_tick(v_cur, v_next, lut, v_ring, a_ring, ring_cursor);
+        }} else {{
+            nema_kernel(v_cur.data(), lut.data(), v_next.data());
+        }}
         v_cur = v_next;
 
         for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{

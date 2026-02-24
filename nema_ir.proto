@@ -26,6 +26,7 @@ message NemaIR {
   License license = 11;
   Graph graph = 12;
   TanhLut tanh_lut = 13;
+  Compile compile = 14;
 }
 
 message Constraints {
@@ -97,6 +98,21 @@ message Edge {
 
   // Generic model id as encoded in JSON today.
   uint32 model_id = 8;
+
+  // Optional discrete delay in ticks; must satisfy delay_ticks <= compile.schedule.delay_max.
+  uint32 delay_ticks = 9;
+}
+
+message Compile {
+  Schedule schedule = 1;
+}
+
+message Schedule {
+  uint32 synapse_lanes = 1;
+  uint32 neuron_lanes = 2;
+
+  // Optional maximum delay used by discrete-delay ring buffers.
+  uint32 delay_max = 3;
 }
 
 message ExternalRef {

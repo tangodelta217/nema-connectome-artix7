@@ -77,3 +77,17 @@ def test_snapshot_rule_eval_order_independent() -> None:
 
     assert forward["tickDigestsSha256"] == reverse["tickDigestsSha256"]
     assert forward["finalVRawByIndex"] == reverse["finalVRawByIndex"]
+
+
+def test_discrete_delay_changes_dynamics_vs_no_delay() -> None:
+    ir_no_delay = build_ir()
+    ir_no_delay["compile"] = {"schedule": {"delayMax": 0}}
+
+    ir_with_delay = build_ir()
+    ir_with_delay["compile"] = {"schedule": {"delayMax": 2}}
+    ir_with_delay["graph"]["edges"][0]["delayTicks"] = 2
+
+    no_delay = simulate(ir_no_delay, ticks=12, seed=11, base_dir=Path("."))
+    with_delay = simulate(ir_with_delay, ticks=12, seed=11, base_dir=Path("."))
+
+    assert no_delay["tickDigestsSha256"] != with_delay["tickDigestsSha256"]

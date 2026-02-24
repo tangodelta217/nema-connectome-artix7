@@ -30,17 +30,22 @@ class Node:
 @dataclass(frozen=True)
 class ChemicalEdge:
     edge_id: str
-    source: str
-    target: str
+    source_idx: int
+    target_idx: int
     weight: Fraction
+    delay_ticks: int
 
 
 @dataclass(frozen=True)
 class GapPair:
-    pair_key: tuple[str, str, Fraction]
-    a: str
-    b: str
+    pair_key: tuple[int, int, Fraction, int]
+    a_idx: int
+    b_idx: int
     conductance: Fraction
+    delay_ticks: int
+
+
+MAX_DELAY_TICKS = 4096
 
 
 def _round_fraction_rne(value: Fraction) -> int:
@@ -160,7 +165,39 @@ def _graph_dt(graph: dict[str, Any]) -> Fraction:
     return dt
 
 
-def _parse_graph(ir: dict[str, Any]) -> tuple[list[Node], list[ChemicalEdge], list[GapPair], Fraction]:
+def _edge_delay_ticks(edge: dict[str, Any], *, edge_id: str, delay_max: int) -> int:
+    if "delayTicks" not in edge:
+        return 0
+    raw = edge["delayTicks"]
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise ValueError(f"edge[{edge_id}].delayTicks must be an integer")
+    if raw < 0:
+        raise ValueError(f"edge[{edge_id}].delayTicks must be >= 0")
+    if raw > delay_max:
+        raise ValueError(
+            f"edge[{edge_id}].delayTicks ({raw}) exceeds compile.schedule.delayMax ({delay_max})"
+        )
+    return raw
+
+
+def _delay_max(ir: dict[str, Any]) -> int:
+    compile_obj = ir.get("compile")
+    if not isinstance(compile_obj, dict):
+        return 0
+    schedule_obj = compile_obj.get("schedule")
+    if not isinstance(schedule_obj, dict) or "delayMax" not in schedule_obj:
+        return 0
+    raw = schedule_obj["delayMax"]
+    if isinstance(raw, bool) or not isinstance(raw, int):
+        raise ValueError("compile.schedule.delayMax must be an integer")
+    if raw < 0:
+        raise ValueError("compile.schedule.delayMax must be >= 0")
+    if raw > MAX_DELAY_TICKS:
+        raise ValueError(f"compile.schedule.delayMax must be <= {MAX_DELAY_TICKS}")
+    return raw
+
+
+def _parse_graph(ir: dict[str, Any]) -> tuple[list[Node], list[ChemicalEdge], list[GapPair], Fraction, int]:
     graph = ir.get("graph")
     if not isinstance(graph, dict):
         raise ValueError("IR missing graph object")
@@ -173,6 +210,7 @@ def _parse_graph(ir: dict[str, Any]) -> tuple[list[Node], list[ChemicalEdge], li
         raise ValueError("graph.edges must be an array")
 
     dt = _graph_dt(graph)
+    delay_max = _delay_max(ir)
 
     nodes: list[Node] = []
     nodes_by_id: dict[str, Node] = {}
@@ -192,9 +230,10 @@ def _parse_graph(ir: dict[str, Any]) -> tuple[list[Node], list[ChemicalEdge], li
         nodes.append(node)
         nodes_by_id[node.node_id] = node
     nodes.sort(key=lambda n: n.index)
+    node_pos_by_id: dict[str, int] = {node.node_id: pos for pos, node in enumerate(nodes)}
 
     chemicals: list[ChemicalEdge] = []
-    gap_pairs: dict[tuple[str, str, Fraction], GapPair] = {}
+    gap_pairs: dict[tuple[int, int, Fraction, int], GapPair] = {}
 
     for idx, edge in enumerate(edge_raw):
         if not isinstance(edge, dict):
@@ -205,22 +244,37 @@ def _parse_graph(ir: dict[str, Any]) -> tuple[list[Node], list[ChemicalEdge], li
         dst = str(edge.get("target", edge.get("dst", edge.get("to"))))
         if src not in nodes_by_id or dst not in nodes_by_id:
             raise ValueError(f"edge '{edge_id}' references unknown node")
+        delay_ticks = _edge_delay_ticks(edge, edge_id=edge_id, delay_max=delay_max)
 
         if kind == "CHEMICAL":
             weight_raw = edge.get("weight", edge.get("conductance", 0))
             weight = _as_fraction(weight_raw, field_name=f"edge[{edge_id}].weight")
-            chemicals.append(ChemicalEdge(edge_id=edge_id, source=src, target=dst, weight=weight))
+            chemicals.append(
+                ChemicalEdge(
+                    edge_id=edge_id,
+                    source_idx=node_pos_by_id[src],
+                    target_idx=node_pos_by_id[dst],
+                    weight=weight,
+                    delay_ticks=delay_ticks,
+                )
+            )
             continue
 
         if kind == "GAP":
             g = _as_fraction(edge.get("conductance", 0), field_name=f"edge[{edge_id}].conductance")
-            a, b = sorted((src, dst))
-            key = (a, b, g)
+            a_idx, b_idx = sorted((node_pos_by_id[src], node_pos_by_id[dst]))
+            key = (a_idx, b_idx, g, delay_ticks)
             if key not in gap_pairs:
-                gap_pairs[key] = GapPair(pair_key=key, a=a, b=b, conductance=g)
+                gap_pairs[key] = GapPair(
+                    pair_key=key,
+                    a_idx=a_idx,
+                    b_idx=b_idx,
+                    conductance=g,
+                    delay_ticks=delay_ticks,
+                )
             continue
 
-    return nodes, chemicals, list(gap_pairs.values()), dt
+    return nodes, chemicals, list(gap_pairs.values()), dt, delay_max
 
 
 def _tanh_lookup(v_raw_q8_8: int, lut_q8_8: list[int]) -> int:
@@ -245,18 +299,24 @@ def simulate(
     if ticks < 0:
         raise ValueError("ticks must be >= 0")
 
-    nodes, chem_edges, gap_pairs, dt = _parse_graph(ir)
+    nodes, chem_edges, gap_pairs, dt, delay_max = _parse_graph(ir)
     lut_q8_8 = _load_tanh_lut(ir, base_dir=base_dir)
-
-    by_id: dict[str, Node] = {node.node_id: node for node in nodes}
-    v_state: dict[str, int] = {node.node_id: node.v_init_raw for node in nodes}
+    node_count = len(nodes)
+    v_state: list[int] = [node.v_init_raw for node in nodes]
     tick_digests: list[str] = []
 
-    order = list(nodes)
+    order = list(range(node_count))
     if eval_order == "reverse":
         order = list(reversed(order))
     elif eval_order != "index":
         raise ValueError(f"unsupported eval_order: {eval_order}")
+
+    ring_size = delay_max + 1
+    v_seed = list(v_state)
+    a_seed = [_tanh_lookup(v_raw_q8_8, lut_q8_8) for v_raw_q8_8 in v_seed]
+    v_ring: list[list[int]] = [list(v_seed) for _ in range(ring_size)]
+    a_ring: list[list[int]] = [list(a_seed) for _ in range(ring_size)]
+    ring_cursor = 0
 
     trace_stream = None
     if trace_path is not None:
@@ -266,39 +326,52 @@ def simulate(
     try:
         for tick in range(ticks):
             # 1) Snapshot.
-            v_snapshot = {node_id: raw for node_id, raw in v_state.items()}
+            v_snapshot = list(v_state)
             # 2) Activation from snapshot.
-            a_snapshot = {
-                node_id: _tanh_lookup(v_raw_q8_8, lut_q8_8)
-                for node_id, v_raw_q8_8 in v_snapshot.items()
-            }
+            a_snapshot = [_tanh_lookup(v_raw_q8_8, lut_q8_8) for v_raw_q8_8 in v_snapshot]
 
-            i_chem = {node.node_id: 0 for node in nodes}
-            i_gap = {node.node_id: 0 for node in nodes}
+            i_chem = [0 for _ in range(node_count)]
+            i_gap = [0 for _ in range(node_count)]
 
             # 3a) Chemical accumulation (msg quantized to Q12.8).
             for edge in chem_edges:
-                msg = _quantize_weighted_raw(edge.weight, a_snapshot[edge.source], ACCUM_TYPE)
-                i_chem[edge.target] = _saturating_add(i_chem[edge.target], msg, ACCUM_TYPE)
+                if edge.delay_ticks == 0:
+                    pre_output = a_snapshot[edge.source_idx]
+                else:
+                    delayed_slot = (ring_cursor - edge.delay_ticks) % ring_size
+                    pre_output = a_ring[delayed_slot][edge.source_idx]
+                msg = _quantize_weighted_raw(edge.weight, pre_output, ACCUM_TYPE)
+                i_chem[edge.target_idx] = _saturating_add(i_chem[edge.target_idx], msg, ACCUM_TYPE)
 
             # 3b) GAP accumulation once per symmetric pair.
             for pair in gap_pairs:
-                va = v_snapshot[pair.a]
-                vb = v_snapshot[pair.b]
+                if pair.delay_ticks == 0:
+                    va = v_snapshot[pair.a_idx]
+                    vb = v_snapshot[pair.b_idx]
+                else:
+                    delayed_slot = (ring_cursor - pair.delay_ticks) % ring_size
+                    va = v_ring[delayed_slot][pair.a_idx]
+                    vb = v_ring[delayed_slot][pair.b_idx]
                 msg = _quantize_weighted_raw(pair.conductance, vb - va, ACCUM_TYPE)
-                i_gap[pair.a] = _saturating_add(i_gap[pair.a], msg, ACCUM_TYPE)
-                i_gap[pair.b] = _saturating_add(i_gap[pair.b], -msg, ACCUM_TYPE)
+                i_gap[pair.a_idx] = _saturating_add(i_gap[pair.a_idx], msg, ACCUM_TYPE)
+                i_gap[pair.b_idx] = _saturating_add(i_gap[pair.b_idx], -msg, ACCUM_TYPE)
 
             # 4) Euler update using snapshot currents.
-            next_v = dict(v_state)
-            for node in order:
-                total_i = _saturating_add(i_chem[node.node_id], i_gap[node.node_id], ACCUM_TYPE)
+            next_v = list(v_state)
+            for node_idx in order:
+                node = nodes[node_idx]
+                total_i = _saturating_add(i_chem[node_idx], i_gap[node_idx], ACCUM_TYPE)
                 inv_tau = dt / node.tau_m
                 delta_v_raw = _quantize_weighted_raw(inv_tau, total_i, V_TYPE)
-                next_v[node.node_id] = V_TYPE.saturate_raw(v_snapshot[node.node_id] + delta_v_raw)
+                next_v[node_idx] = V_TYPE.saturate_raw(v_snapshot[node_idx] + delta_v_raw)
+
+            # Store snapshot-derived outputs for delayed reads in future ticks.
+            v_ring[ring_cursor] = list(v_snapshot)
+            a_ring[ring_cursor] = list(a_snapshot)
+            ring_cursor = (ring_cursor + 1) % ring_size
 
             v_state = next_v
-            v_by_index = [v_state[node.node_id] for node in nodes]
+            v_by_index = list(v_state)
             digest = _digest_v(v_by_index)
             tick_digests.append(digest)
 
@@ -324,5 +397,5 @@ def simulate(
         "seed": seed,
         "ticks": ticks,
         "tickDigestsSha256": tick_digests,
-        "finalVRawByIndex": [v_state[node.node_id] for node in nodes],
+        "finalVRawByIndex": list(v_state),
     }

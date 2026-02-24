@@ -31,6 +31,10 @@ class EdgeView:
     target: str
     directed: bool
     conductance: Decimal
+    delay_ticks: int
+
+
+MAX_DELAY_TICKS = 4096
 
 
 def _sha256_bytes(raw: bytes) -> str:
@@ -115,6 +119,29 @@ def _extract_directed(edge: dict[str, Any], edge_id: str) -> bool:
     if not isinstance(directed, bool):
         raise IRValidationError(f"edge '{edge_id}' directed flag must be boolean")
     return directed
+
+
+def _extract_delay_ticks(edge: dict[str, Any], edge_id: str) -> int:
+    if "delayTicks" not in edge:
+        return 0
+    return _require_nonnegative_int(edge.get("delayTicks"), f"edge '{edge_id}' delayTicks")
+
+
+def _extract_delay_max(payload: dict[str, Any]) -> int:
+    compile_obj = payload.get("compile")
+    if not isinstance(compile_obj, dict):
+        return 0
+    schedule_obj = compile_obj.get("schedule")
+    if not isinstance(schedule_obj, dict):
+        return 0
+    if "delayMax" not in schedule_obj:
+        return 0
+    delay_max = _require_nonnegative_int(schedule_obj.get("delayMax"), "compile.schedule.delayMax")
+    if delay_max > MAX_DELAY_TICKS:
+        raise IRValidationError(
+            f"compile.schedule.delayMax must be <= {MAX_DELAY_TICKS} (got {delay_max})"
+        )
+    return delay_max
 
 
 def _validate_external(
@@ -212,6 +239,8 @@ def _validate_graph(
         node_ids.add(node_id)
         node_indices.add(node_index)
 
+    delay_max = _extract_delay_max(payload)
+
     edge_ids: set[str] = set()
     edge_views: list[EdgeView] = []
     for idx, edge_raw in enumerate(edges):
@@ -231,6 +260,11 @@ def _validate_graph(
         kind = _extract_kind(edge, edge_id)
         directed = _extract_directed(edge, edge_id)
         conductance = _extract_conductance(edge, edge_id)
+        delay_ticks = _extract_delay_ticks(edge, edge_id)
+        if delay_ticks > delay_max:
+            raise IRValidationError(
+                f"edge '{edge_id}' delayTicks ({delay_ticks}) exceeds compile.schedule.delayMax ({delay_max})"
+            )
 
         if kind == "CHEMICAL" and not directed:
             raise IRValidationError(f"edge '{edge_id}' kind CHEMICAL must be directed")
@@ -243,6 +277,7 @@ def _validate_graph(
                 target=target,
                 directed=directed,
                 conductance=conductance,
+                delay_ticks=delay_ticks,
             )
         )
 
@@ -251,13 +286,13 @@ def _validate_graph(
         for edge in edge_views
         if edge.kind == "GAP" and edge.directed
     ]
-    gap_counter = Counter((edge.source, edge.target, edge.conductance) for edge in gap_directed)
-    for (source, target, conductance), count in gap_counter.items():
-        mirror_count = gap_counter.get((target, source, conductance), 0)
+    gap_counter = Counter((edge.source, edge.target, edge.conductance, edge.delay_ticks) for edge in gap_directed)
+    for (source, target, conductance, delay_ticks), count in gap_counter.items():
+        mirror_count = gap_counter.get((target, source, conductance, delay_ticks), 0)
         if mirror_count < count:
             raise IRValidationError(
                 "GAP edge symmetry violation: directed representation must contain mirror edges "
-                f"for {source}->{target} (conductance={conductance})"
+                f"for {source}->{target} (conductance={conductance}, delayTicks={delay_ticks})"
             )
 
     _validate_external(graph, ir_path, allow_missing_for_smoke=allow_external_smoke)
@@ -290,6 +325,7 @@ def validate_ir(path: Path, *, allow_external_smoke: bool = False) -> dict[str, 
             "gap_edges_are_symmetric",
             "non_negative_conductance",
             "canonical_order_id_present",
+            "delay_ticks_within_delay_max",
             "graph_external_file_and_sha256",
         ],
         "top_level_keys": sorted(payload.keys()),

@@ -175,3 +175,12 @@ def test_graph_external_placeholder_hash_is_allowed(tmp_path: Path) -> None:
 
     report = validate_ir(ir_path)
     assert report["ok"] is True
+
+
+def test_delay_ticks_exceeds_delay_max_fails(tmp_path: Path) -> None:
+    payload = _base_valid_ir()
+    payload["compile"] = {"schedule": {"delayMax": 1}}
+    payload["graph"]["edges"][0]["delayTicks"] = 2
+    ir_path = tmp_path / "delay_ticks_exceeds_delay_max.json"
+    _write_ir(ir_path, payload)
+    _assert_invalid(ir_path, "delayTicks")
