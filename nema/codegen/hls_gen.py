@@ -458,6 +458,12 @@ void nema_kernel(
     int16_t a_snapshot[nema_model::NODE_STORAGE];
     int32_t i_chem[nema_model::NODE_STORAGE];
     int32_t i_gap[nema_model::NODE_STORAGE];
+    static bool delay_initialized = false;
+    static int delay_cursor = 0;
+    static int16_t delay_v_ring[nema_model::DELAY_RING_SIZE][nema_model::NODE_STORAGE];
+    static int16_t delay_a_ring[nema_model::DELAY_RING_SIZE][nema_model::NODE_STORAGE];
+    #pragma HLS BIND_STORAGE variable=delay_v_ring type=RAM_2P impl=BRAM
+    #pragma HLS BIND_STORAGE variable=delay_a_ring type=RAM_2P impl=BRAM
 
     for (int i = 0; i < nema_model::NODE_COUNT; ++i) {
         v_snapshot[i] = v_in[i];
@@ -469,6 +475,17 @@ void nema_kernel(
         const uint16_t lut_idx =
             static_cast<uint16_t>(static_cast<int32_t>(v_snapshot[i]) - static_cast<int32_t>(-32768));
         a_snapshot[i] = tanh_lut[lut_idx];
+    }
+
+    if (nema_model::HAS_DELAY && !delay_initialized) {
+        for (int slot = 0; slot < nema_model::DELAY_RING_SIZE; ++slot) {
+            for (int i = 0; i < nema_model::NODE_COUNT; ++i) {
+                delay_v_ring[slot][i] = v_snapshot[i];
+                delay_a_ring[slot][i] = a_snapshot[i];
+            }
+        }
+        delay_cursor = 0;
+        delay_initialized = true;
     }
 
     for (int post = 0; post < nema_model::NODE_COUNT; ++post) {
@@ -485,10 +502,20 @@ void nema_kernel(
                     continue;
                 }
                 const int pre = static_cast<int>(nema_model::CHEM_PRE_IDX[edge]);
+                int32_t pre_output = static_cast<int32_t>(a_snapshot[pre]);
+                if (nema_model::HAS_DELAY) {
+                    const int delay_ticks = static_cast<int>(nema_model::CHEM_DELAY_TICKS[edge]);
+                    if (delay_ticks > 0) {
+                        const int delayed_slot =
+                            (delay_cursor - delay_ticks + nema_model::DELAY_RING_SIZE) %
+                            nema_model::DELAY_RING_SIZE;
+                        pre_output = static_cast<int32_t>(delay_a_ring[delayed_slot][pre]);
+                    }
+                }
                 const int32_t msg = quantize_to_accum(
                     nema_model::CHEM_WEIGHT_NUM[edge],
                     nema_model::CHEM_WEIGHT_DEN[edge],
-                    static_cast<int32_t>(a_snapshot[pre]));
+                    pre_output);
                 i_chem[post] = sat_add_accum(i_chem[post], msg);
             }
         }
@@ -497,7 +524,19 @@ void nema_kernel(
     for (int edge = 0; edge < nema_model::GAP_EDGE_COUNT; ++edge) {
         const int a = static_cast<int>(nema_model::GAP_A_IDX[edge]);
         const int b = static_cast<int>(nema_model::GAP_B_IDX[edge]);
-        const int32_t dv = static_cast<int32_t>(v_snapshot[b]) - static_cast<int32_t>(v_snapshot[a]);
+        int32_t va = static_cast<int32_t>(v_snapshot[a]);
+        int32_t vb = static_cast<int32_t>(v_snapshot[b]);
+        if (nema_model::HAS_DELAY) {
+            const int delay_ticks = static_cast<int>(nema_model::GAP_DELAY_TICKS[edge]);
+            if (delay_ticks > 0) {
+                const int delayed_slot =
+                    (delay_cursor - delay_ticks + nema_model::DELAY_RING_SIZE) %
+                    nema_model::DELAY_RING_SIZE;
+                va = static_cast<int32_t>(delay_v_ring[delayed_slot][a]);
+                vb = static_cast<int32_t>(delay_v_ring[delayed_slot][b]);
+            }
+        }
+        const int32_t dv = vb - va;
         const int32_t msg = quantize_to_accum(
             nema_model::GAP_CONDUCTANCE_NUM[edge],
             nema_model::GAP_CONDUCTANCE_DEN[edge],
@@ -522,6 +561,14 @@ void nema_kernel(
                 total_i);
             v_out[i] = sat_i16_i64(static_cast<int64_t>(v_snapshot[i]) + static_cast<int64_t>(delta_v));
         }
+    }
+
+    if (nema_model::HAS_DELAY) {
+        for (int i = 0; i < nema_model::NODE_COUNT; ++i) {
+            delay_v_ring[delay_cursor][i] = v_snapshot[i];
+            delay_a_ring[delay_cursor][i] = a_snapshot[i];
+        }
+        delay_cursor = (delay_cursor + 1) % nema_model::DELAY_RING_SIZE;
     }
 }
 """
@@ -842,32 +889,14 @@ int main(int argc, char** argv) {{
 
     std::array<int16_t, nema_model::NODE_STORAGE> v_cur{{}};
     std::array<int16_t, nema_model::NODE_STORAGE> v_next{{}};
-    std::array<int16_t, nema_model::NODE_STORAGE * nema_model::DELAY_RING_SIZE> v_ring{{}};
-    std::array<int16_t, nema_model::NODE_STORAGE * nema_model::DELAY_RING_SIZE> a_ring{{}};
     for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
         v_cur[static_cast<std::size_t>(i)] = nema_model::V_INIT[static_cast<std::size_t>(i)];
     }}
-    if (nema_model::HAS_DELAY) {{
-        for (int slot = 0; slot < nema_model::DELAY_RING_SIZE; ++slot) {{
-            for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
-                const std::size_t ring_index =
-                    static_cast<std::size_t>(slot * nema_model::NODE_STORAGE + i);
-                const int16_t v0 = v_cur[static_cast<std::size_t>(i)];
-                v_ring[ring_index] = v0;
-                a_ring[ring_index] = tanh_lookup(lut, v0);
-            }}
-        }}
-    }}
-    int ring_cursor = 0;
 
     std::array<uint8_t, nema_model::NODE_STORAGE * 2> packed{{}};
     std::cout << "{{\\\"ticks\\\":" << ticks << ",\\\"tickDigestsSha256\\\":[";
     for (int tick = 0; tick < ticks; ++tick) {{
-        if (nema_model::HAS_DELAY) {{
-            delayed_tick(v_cur, v_next, lut, v_ring, a_ring, ring_cursor);
-        }} else {{
-            nema_kernel(v_cur.data(), lut.data(), v_next.data());
-        }}
+        nema_kernel(v_cur.data(), lut.data(), v_next.data());
         v_cur = v_next;
 
         for (int i = 0; i < nema_model::NODE_COUNT; ++i) {{
