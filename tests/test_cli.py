@@ -138,7 +138,7 @@ def test_hwtest_emits_bench_report(tmp_path: Path) -> None:
     outdir = tmp_path / "build"
     write_ir(ir)
 
-    code = main(["hwtest", str(ir), "--outdir", str(outdir), "--ticks", "2"])
+    code = main(["hwtest", str(ir), "--outdir", str(outdir), "--ticks", "2", "--cosim", "off"])
 
     assert code == 0
     reports = list(outdir.glob("*/bench_report.json"))
@@ -173,3 +173,58 @@ def test_materialize_external_creates_bundle(tmp_path: Path) -> None:
     assert payload["subgraphId"] == "test_subgraph"
     assert len(payload["graph"]["nodes"]) == 8
     assert len(payload["graph"]["edges"]) == 16
+
+
+def test_vivado_bitstream_command_wires_to_hwtest(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    ir = tmp_path / "ir.json"
+    write_ir(ir)
+    outdir = tmp_path / "build_hw"
+    captured: dict[str, object] = {}
+
+    def fake_run_hwtest(
+        ir_path: Path,
+        outdir: Path,
+        ticks: int,
+        *,
+        hw_mode: str = "auto",
+        cosim_mode: str = "auto",
+        vivado_part: str | None = None,
+        write_bitstream: bool = False,
+    ):
+        captured["ir_path"] = ir_path
+        captured["outdir"] = outdir
+        captured["ticks"] = ticks
+        captured["hw_mode"] = hw_mode
+        captured["cosim_mode"] = cosim_mode
+        captured["vivado_part"] = vivado_part
+        captured["write_bitstream"] = write_bitstream
+        return 0, {"ok": True, "bench_report": str(outdir / "bench_report.json")}
+
+    monkeypatch.setattr("nema.cli.run_hwtest", fake_run_hwtest)
+
+    code = main(
+        [
+            "vivado",
+            "bitstream",
+            str(ir),
+            "--outdir",
+            str(outdir),
+            "--ticks",
+            "3",
+            "--part",
+            "xc7a35tcsg324-1",
+        ]
+    )
+
+    assert code == 0
+    assert captured["ir_path"] == ir
+    assert captured["outdir"] == outdir
+    assert captured["ticks"] == 3
+    assert captured["hw_mode"] == "require"
+    assert captured["cosim_mode"] == "off"
+    assert captured["vivado_part"] == "xc7a35tcsg324-1"
+    assert captured["write_bitstream"] is True
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True

@@ -138,6 +138,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="override Vivado target part for implementation reports (e.g. xc7a35tcsg324-1)",
     )
+    hwtest_cmd.add_argument(
+        "--write-bitstream",
+        action="store_true",
+        help="request Vivado to emit a .bit artifact after route_design",
+    )
 
     selftest_cmd = subparsers.add_parser("selftest", help="run built-in deterministic self tests")
     selftest_cmd.add_argument("target", choices=["fixed"], help="selftest suite target")
@@ -189,6 +194,27 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="output format (default: text)",
+    )
+
+    vivado_cmd = subparsers.add_parser("vivado", help="Vivado flow utilities")
+    vivado_subparsers = vivado_cmd.add_subparsers(dest="vivado_command", required=True)
+    vivado_bitstream_cmd = vivado_subparsers.add_parser(
+        "bitstream",
+        help="run hwtest in --hw require mode and emit a Vivado bitstream",
+    )
+    vivado_bitstream_cmd.add_argument("ir_json", type=Path, help="path to IR JSON")
+    vivado_bitstream_cmd.add_argument("--outdir", type=Path, default=Path("build_hw"), help="output directory")
+    vivado_bitstream_cmd.add_argument("--ticks", type=int, default=2, help="number of ticks for sim stage")
+    vivado_bitstream_cmd.add_argument(
+        "--part",
+        required=True,
+        help="target Vivado FPGA part (e.g. xc7a35tcsg324-1)",
+    )
+    vivado_bitstream_cmd.add_argument(
+        "--cosim",
+        choices=("auto", "on", "off"),
+        default="off",
+        help="C/RTL cosim policy for this run (default: off)",
     )
 
     add_dsl_subparser(subparsers)
@@ -281,6 +307,7 @@ def main(argv: list[str] | None = None) -> int:
             hw_mode=args.hw,
             cosim_mode=args.cosim,
             vivado_part=args.vivado_part,
+            write_bitstream=bool(args.write_bitstream),
         )
         _emit(report)
         return code
@@ -339,6 +366,21 @@ def main(argv: list[str] | None = None) -> int:
                 print(render_hw_doctor_text(report))
             return code
         parser.error(f"unknown hw command: {args.hw_command}")
+
+    if args.command == "vivado":
+        if args.vivado_command == "bitstream":
+            code, report = run_hwtest(
+                args.ir_json,
+                outdir=args.outdir,
+                ticks=args.ticks,
+                hw_mode="require",
+                cosim_mode=args.cosim,
+                vivado_part=args.part,
+                write_bitstream=True,
+            )
+            _emit(report)
+            return code
+        parser.error(f"unknown vivado command: {args.vivado_command}")
 
     if args.command == "dsl":
         code, report = run_dsl_command(args)

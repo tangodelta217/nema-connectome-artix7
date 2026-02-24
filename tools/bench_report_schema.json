@@ -454,6 +454,8 @@
             "runLog",
             "utilizationReport",
             "timingReport",
+            "bitstreamPath",
+            "bitstreamPlaceholder",
             "rtlSourceCount",
             "part",
             "clk_ns",
@@ -524,6 +526,15 @@
                 "string",
                 "null"
               ]
+            },
+            "bitstreamPath": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bitstreamPlaceholder": {
+              "type": "boolean"
             },
             "rtlSourceCount": {
               "type": "integer",

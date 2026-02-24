@@ -1,6 +1,7 @@
 {
   "artifactsKeys": [
     "benchReport",
+    "bitstream",
     "cppRefMain",
     "hlsCpp",
     "hlsHeader",
@@ -152,6 +153,8 @@
     "version": "null|str",
     "vivado": {
       "attempted": "bool",
+      "bitstreamPath": "null|str",
+      "bitstreamPlaceholder": "bool",
       "clk_ns": "float|int|null",
       "elapsedSeconds": "float|int|null",
       "implOk": "bool|null",
@@ -175,6 +178,8 @@
       "tns": "float|int|null",
       "topKeys": [
         "attempted",
+        "bitstreamPath",
+        "bitstreamPlaceholder",
         "clk_ns",
         "elapsedSeconds",
         "implOk",

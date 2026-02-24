@@ -11,6 +11,7 @@ def test_toolchain_scripts_exist_and_executable() -> None:
         Path("tools/run_hw_gates.sh"),
         Path("tools/run_hw_gates_two_parts.sh"),
         Path("tools/hw/smoke_toolchain.sh"),
+        Path("tools/fpga/deploy_bitstream.sh"),
     ]
     for script in scripts:
         assert script.exists(), f"missing script: {script}"

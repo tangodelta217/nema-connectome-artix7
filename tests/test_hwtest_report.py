@@ -133,6 +133,8 @@ def _bench_report_schema_projection(report: dict) -> dict:
                 "runLog": _expect_type(vivado["runLog"], {"str", "null"}),
                 "utilizationReport": _expect_type(vivado["utilizationReport"], {"str", "null"}),
                 "timingReport": _expect_type(vivado["timingReport"], {"str", "null"}),
+                "bitstreamPath": _expect_type(vivado["bitstreamPath"], {"str", "null"}),
+                "bitstreamPlaceholder": _expect_type(vivado["bitstreamPlaceholder"], {"bool"}),
                 "rtlSourceCount": _expect_type(vivado["rtlSourceCount"], {"int"}),
                 "part": _expect_type(vivado["part"], {"str", "null"}),
                 "clk_ns": _expect_type(vivado["clk_ns"], {"float", "int", "null"}),

@@ -121,6 +121,7 @@ def run_hwtest(
     hw_mode: str = "auto",
     cosim_mode: str = "auto",
     vivado_part: str | None = None,
+    write_bitstream: bool = False,
 ) -> tuple[int, dict]:
     return run_hwtest_pipeline(
         ir_path=ir_path,
@@ -129,6 +130,7 @@ def run_hwtest(
         hw_mode=hw_mode,
         cosim_mode=cosim_mode,
         vivado_part=vivado_part,
+        write_bitstream=write_bitstream,
     )
 
 
