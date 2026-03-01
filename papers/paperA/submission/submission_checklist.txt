@@ -1,0 +1,52 @@
+Paper A Submission Checklist
+==========================
+
+PASS/FAIL compile: PASS
+PASS/FAIL refs ok: PASS
+PASS/FAIL cites ok: PASS
+PASS/FAIL figuras ok: PASS
+PASS/FAIL tablas ok: PASS
+PASS/FAIL section inputs complete: PASS
+
+Paths
+-----
+PDF: papers/paperA/submission/paperA.pdf
+Build log: papers/paperA/submission/latex_build.log
+Final LaTeX log: papers/paperA/text/paper.log
+
+TODO/FIXME
+----------
+papers/paperA/text/refs.bib:1: @comment{TODO: add validated references only.}
+papers/paperA/text/sections/06_appendix.tex:3: % @TODO: Incluir comandos exactos del blueprint.
+
+Overfull/Underfull warnings summary
+-----------------------------------
+Overfull count: 285
+Underfull count: 21
+Top Overfull entries (up to 10):
+- Overfull \hbox (40.59807pt too wide) in paragraph at lines 18--18
+- Overfull \hbox (70.47981pt too wide) in paragraph at lines 11--12
+- Overfull \hbox (7.17241pt too wide) in paragraph at lines 13--14
+- Overfull \hbox (115.52519pt too wide) in paragraph at lines 13--14
+- Overfull \hbox (12.78737pt too wide) in paragraph at lines 20--21
+- Overfull \hbox (136.39279pt too wide) in paragraph at lines 21--22
+- Overfull \hbox (81.80704pt too wide) in paragraph at lines 21--22
+- Overfull \hbox (24.1265pt too wide) in paragraph at lines 22--23
+- Overfull \hbox (107.70096pt too wide) in paragraph at lines 22--23
+- Overfull \hbox (187.52463pt too wide) in paragraph at lines 22--23
+Top Underfull entries (up to 10):
+- Underfull \vbox (badness 10000) has occurred while \output is active
+- Underfull \vbox (badness 10000) has occurred while \output is active)
+- Underfull \vbox (badness 10000) has occurred while \output is active
+- Underfull \vbox (badness 2042) has occurred while \output is active [3.3{/usr/s
+- Underfull \vbox (badness 10000) has occurred while \output is active [6.6]
+- Underfull \vbox (badness 10000) has occurred while \output is active
+- Underfull \hbox (badness 10000) in paragraph at lines 109--109
+- Underfull \vbox (badness 10000) has occurred while \output is active [1.1{/var/
+- Underfull \vbox (badness 10000) has occurred while \output is active)
+- Underfull \vbox (badness 10000) has occurred while \output is active
+
+Undefined references/citations (from final paper.log)
+-----------------------------------------------------
+Undefined references: 0
+Undefined citations: 0

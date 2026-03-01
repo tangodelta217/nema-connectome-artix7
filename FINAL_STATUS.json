@@ -1,0 +1,58 @@
+{
+  "generatedAtUtc": "2026-03-01T02:39:35.131708+00:00",
+  "git": {
+    "head": "bb17ac319debc7ee40a28f4502fe4189f0795ac5",
+    "dirty": true
+  },
+  "contract": [
+    "docs/CODEX_RUN_CONTRACT.md",
+    "docs/GATE_STATUS.md",
+    "docs/CLAIMS.md"
+  ],
+  "targetPart": "xc7a200t-1sbg484c",
+  "gates": {
+    "G1b": {
+      "status": "OPEN",
+      "reason": "B3 benchmark identity is aliased to B3 baseline assets; canonical varshney identity not demonstrated.",
+      "evidence": [
+        "build/amd_hls/summary.json",
+        "review_pack/tables/artix7_hls_digest_summary.csv",
+        "artifacts/traces/*.amd_csim.trace.jsonl",
+        "artifacts/traces/*.amd_cosim.trace.jsonl"
+      ]
+    },
+    "G1c": {
+      "status": "OPEN",
+      "reason": "Vivado implementation skipped for requested part: requested_part_unavailable:xc7a200t-1sbg484c.",
+      "evidence": [
+        "build/amd_vivado/summary.json",
+        "build/amd_vivado/part_probe.json",
+        "review_pack/tables/artix7_qor.csv"
+      ]
+    },
+    "G1d": {
+      "status": "OPEN",
+      "reason": "Power evidence is estimated pre-board only; SAIF coverage incomplete for required B3 benchmark identity.",
+      "evidence": [
+        "build/amd_power/summary.json",
+        "review_pack/tables/artix7_power.csv",
+        "build/amd_power/*/power_vectorless.rpt",
+        "build/amd_power/*/power_saif.rpt"
+      ]
+    }
+  },
+  "boardMeasurement": {
+    "available": false,
+    "notes": "No MEASURED_ON_BOARD artifact present in this state."
+  },
+  "artifacts": {
+    "reviewPackTables": [
+      "review_pack/tables/artix7_hls_digest_summary.csv",
+      "review_pack/tables/artix7_qor.csv",
+      "review_pack/tables/artix7_power.csv"
+    ],
+    "paper": "paper/paper.pdf",
+    "paperSource": "paper/paper.tex"
+  },
+  "principalHashesFile": "build/codex_handoff/PRIMARY_HASHES.sha256"
+}

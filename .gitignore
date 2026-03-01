@@ -1,7 +1,56 @@
+# Python / packaging
 .venv/
 __pycache__/
 .pytest_cache/
-*.pyc
+.mypy_cache/
+*.py[cod]
+*.egg-info/
+
+# Build outputs
 build/
 dist/
-*.egg-info/
+
+# Hardware / EDA generated artifacts
+.Xil/
+.gen/
+xsim.dir/
+*.log
+*.rpt
+*.dcp
+*.jou
+*.str
+*.wdb
+*.vcd
+*.saif
+*.pb
+clockInfo.txt
+tight_setup_hold_pins.txt
+
+# Temporary run directories
+*_out/
+build_*/
+checkpoint_*/
+project_eval_out*/
+release_round*/
+toolchain_stress_out/
+hw_autorun_out/
+hw_debug_out/
+hw_fix_out/
+hw_probe_out/
+
+# Local handoff/release bundles (keep manifests/checksums in git, not binary bundles)
+build/**/*.tar.gz
+project_eval_out/**/*.tar.gz
+project_eval_out_v2/**/*.tar.gz
+release/*.tar.gz
+codex_handoff*.tar.gz
+codex_handoff*.sha256
+
+# LaTeX build intermediates
+paper.aux
+paper.fdb_latexmk
+paper.fls
+paper.log
+
+# Misc local scratch files
+0

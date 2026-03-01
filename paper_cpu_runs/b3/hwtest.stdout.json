@@ -1,0 +1,22 @@
+{
+  "bench_report": "/home/tangodelta/Escritorio/NEMA/paper_cpu_runs/b3/B3_kernel_302_7500/bench_report.json",
+  "bitstream_path": null,
+  "cpp_ref_ok": true,
+  "digest_match": true,
+  "external_verified": true,
+  "golden_ok": true,
+  "graph_resolved": {
+    "edgeCounts": {
+      "chemical": 7500,
+      "gap": 0,
+      "gapDirected": 0,
+      "total": 7500
+    },
+    "nodeCount": 302
+  },
+  "hls_toolchain_available": false,
+  "model_id": "B3_kernel_302_7500",
+  "ok": true,
+  "synthetic_used": false,
+  "ticks": 1000
+}

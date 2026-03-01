@@ -1,0 +1,5 @@
+benchmark,ticksExpected,goldenTickCount,csimTickCount,cosimTickCount,goldenEqCsim,goldenEqCosim,csimEqCosim,runnerExitCode,g1bEligible
+b1_small,20,20,20,20,True,True,True,0,True
+b2_mid_64_1024,20,20,20,20,True,True,True,0,True
+b3_varshney_exec_expanded_gap_279_7284,20,20,20,20,True,True,True,0,True
+b6_delay_small,20,20,20,20,True,True,True,0,True

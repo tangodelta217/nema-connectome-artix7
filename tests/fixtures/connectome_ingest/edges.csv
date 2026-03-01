@@ -1,0 +1,5 @@
+id,src,dst,type,directed,conductance,weight,modelId
+e0,n0,n2,CHEMICAL,true,0.015625,0.015625,chemical_current_v0
+e1,n1,n2,CHEMICAL,true,0.01171875,0.01171875,chemical_current_v0
+g0f,n2,n3,GAP,true,0.03125,,gap_conductance_v0
+g0r,n3,n2,GAP,true,0.03125,,gap_conductance_v0

@@ -1,0 +1,19 @@
+{
+  "expectedDigests": [
+    "1fbb4a5517dfa1032bb197c4cf689e694b5182d4a9df443fa5f1556a157a5797",
+    "1fbb4a5517dfa1032bb197c4cf689e694b5182d4a9df443fa5f1556a157a5797"
+  ],
+  "expectedGraphCounts": {
+    "chemical": 12,
+    "gap": 0,
+    "nodeCount": 8,
+    "total": 12
+  },
+  "expectedProvenance": {
+    "externalVerified": true,
+    "syntheticUsed": false
+  },
+  "irPath": "example_b4_celegans_external_bundle.json",
+  "name": "B4_real_connectome",
+  "ticks": 2
+}

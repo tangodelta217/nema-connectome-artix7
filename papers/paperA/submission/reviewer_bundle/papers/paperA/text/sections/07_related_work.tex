@@ -1,0 +1,29 @@
+\section{Related Work}
+
+\subsection{Determinism and Bit-Exact Reproducibility in Numerical and ML Systems}
+
+Recent software-engineering and ML-systems work shows that ``same code + same seed'' is often insufficient for repeatability because of hidden variance sources in kernels, reduction order, scheduling, and floating-point non-associativity \cite{PhamASE2020Variance,ChenICSE2022ReproDL,ZhuangArxiv2106.11872,ShanmugaveluArxiv2408.05148}. Follow-on work proposes mitigation mechanisms such as controlling hardware nondeterminism or tracking residual stochastic behavior in ostensibly deterministic settings \cite{SrivastavaArxiv2403.09603,AtilArxiv2408.04667,RaviArxiv2505.03165}. A complementary numerical-analysis line focuses on reproducible summation to recover bitwise stability under ordering changes \cite{AhrensTOMS2020ReproSum,BlanchardSIAM2020FABsum,ChouMICRO2020DAB}.
+
+\paragraph{Positioning relative to NEMA.}
+Most of this bucket either measures nondeterminism or reduces it under floating-point semantics. NEMA instead defines determinism and bit-exactness as a semantic contract for a fixed-point tick model and validates that contract through reproducible artifact gates.
+
+\subsection{Operational Semantics, Numeric Contracts, and Conformance Testing}
+
+In PL and compiler-correctness literature, one strand emphasizes explicit operational semantics and mechanization (e.g., WebAssembly mechanizations and spec tooling) \cite{WattFM2021WasmCert,YounPLDI2024SpecTec,RaoPOPL2025Progressful}. Another emphasizes semantic refinement and translation validation at IR boundaries, notably for LLVM \cite{LopesPLDI2021Alive2}. Verified compilation lines for floating-point programs (e.g., RealCake) show how correctness arguments can be structured around constrained numeric semantics \cite{BeckerECOOP2022RealCake}. Foundational precedents include translation validation and verified-compilation traditions \cite{PnueliTACAS1998TranslationValidation,LeroyCACM2009CompCert,YangPLDI2011Csmith}.
+
+\paragraph{Positioning relative to NEMA.}
+NEMA adopts a spec-first, conformance-driven stance with executable references and regression gates, but does not claim end-to-end mechanized proof of the full toolchain.
+
+\subsection{HLS/FPGA Compilation Correctness and QoR Evidence}
+
+Hardware compilation work spans new accelerator IR/compiler infrastructures (e.g., Calyx, ScaleHLS) \cite{NigamASPLOS2021Calyx,YeDAC2022ScaleHLS,YeArxiv2107.11673}, formal/validated compilation paths (e.g., Vericert, verified scheduling, verified source-to-source HLS rewrites) \cite{HerklotzOOPSLA2021Vericert,HerklotzPLDI2024Hyperblock,PouchetFPGA2024HLSVerify}, and QoR prediction/design-space exploration via ML surrogates \cite{GoswamiIntegration2023MLDSE,GaoArxiv2401.08696,WangTODAES2022DSE}.
+
+\paragraph{Positioning relative to NEMA.}
+NEMA is complementary: it does not present a new HLS optimizer or proof-producing HLS compiler; it provides a deterministic DSL/IR contract plus an evidence-producing software/hardware pipeline with machine-checkable outputs.
+
+\subsection{Neuromorphic and Spiking Compilation Flows}
+
+Neuromorphic toolchains increasingly emphasize portable intermediate representations and multi-backend execution, including NIR-style interoperability goals and framework-driven backend portability \cite{PedersenNatComm2024NIR,PedersenArxiv2311.14641,DeWolfArxiv2007.10227}. FPGA SNN surveys summarize deployment bottlenecks and implementation diversity \cite{KaramimaneshNeuralNetworks2025SNNFPGA}.
+
+\paragraph{Positioning relative to NEMA.}
+NEMA overlaps at the level of graph-structured neural workloads but differs in objective: the core claim is deterministic, bit-exact, artifact-auditable execution across a fixed-point tick contract rather than biological fidelity or broad simulator portability.

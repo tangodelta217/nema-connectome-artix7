@@ -1,0 +1,97 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\title{NEMA v0.1: Reviewer-Proof Pre-Board Release (Round10b)}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+\newcommand{\TableRoot}{../release_round10b/tables}
+\IfFileExists{../tables/artix7_power.tex}{\renewcommand{\TableRoot}{../tables}}{}
+
+\begin{abstract}
+This release documents deterministic NEMA v0.1 evidence from IR through HLS, Vivado post-route QoR, and SAIF-guided power estimates. 
+All quantitative values are consumed from generated CSV/JSON artifacts (no manual hardcoding). 
+Power and energy are explicitly \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}; no board measurement claim is made.
+\end{abstract}
+
+\section{Semantics and Contract}
+Numerics and tick semantics follow repository-normative artifacts (\texttt{spec.md}, \texttt{nema\_ir.proto}) \cite{nema_spec_v01}. 
+Conformance claims in this release are bounded by those contracts and by generated evidence paths listed in \texttt{release\_round10b/FINAL\_STATUS.json}.
+
+\section{Compiler and Deterministic Toolchain}
+The pipeline is deterministic by construction: IR $\rightarrow$ golden CPU simulator $\rightarrow$ HLS kernel $\rightarrow$ Vivado post-route reports. 
+Toolchain versions are captured in release manifests and aligned with Vivado/Vitis HLS 2025.2 \cite{xilinx_vivado_2025_2,xilinx_vitis_hls_2025_2}.
+
+\section{Hardware Flow (Artix-7)}
+Post-route QoR evidence is sourced from existing Round8 implementation reports on part \texttt{xc7a200tsbg484-1}. 
+Round9 refresh corrects QoR parsing (Slice LUTs, Slice Registers, Block RAM Tile, DSPs) without rerunning synth/impl.
+
+\section{Verification and Conformance}
+Gate status and closure rationale are synchronized in \texttt{docs/GATE\_STATUS.md}. 
+Canonical B3 identity is traced via \texttt{build/codex\_handoff/B3\_CANONICAL\_STATUS.json}.
+
+\section{Evaluation (Pre-Board)}
+Tables below are generated from release-selected CSV artifacts (Round10b functional-SAIF finals when present).
+
+\subsection{HLS Digest Parity}
+\begin{table}[h]
+\centering
+\small
+\input{\TableRoot/artix7_hls_digest_summary.tex}
+\caption{Generated from strict digest summary CSV.}
+\end{table}
+
+\subsection{Post-Route QoR}
+\begin{table}[h]
+\centering
+\small
+\input{\TableRoot/artix7_qor.tex}
+\caption{Generated from release-selected QoR CSV.}
+\end{table}
+
+\subsection{Power Sensitivity}
+\begin{table}[h]
+\centering
+\small
+\input{\TableRoot/artix7_power.tex}
+\caption{Generated from release-selected power CSV.}
+\end{table}
+
+\subsection{Derived Throughput and Energy}
+\begin{table}[h]
+\centering
+\small
+\input{\TableRoot/artix7_metrics.tex}
+\caption{Generated from release-selected metrics CSV.}
+\end{table}
+
+\paragraph{Pre-board disclaimer.}
+All power/energy values are \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}.
+
+\paragraph{SAIF methodology limitation.}
+SAIF activity is produced from post-route functional xsim simulation with a tick-driven benchmark testbench. This improves representativity versus clock-only stimulus, but remains pre-board estimation (not board-measured telemetry).
+
+\section{Threats to Validity}
+Key threats are (i) simulation stimulus representativity window, (ii) absence of measured board telemetry, and (iii) dependence on host toolchain versions. 
+These are recorded explicitly in \texttt{docs/POWER\_METHODOLOGY.md} and release manifests.
+
+\section{Reproducibility}
+Reproduction entry points:
+\begin{itemize}
+\item Repository source: \url{https://github.com/tangodelta217/nema-connectome-artix7}
+\item Release artifacts: \url{https://github.com/tangodelta217/nema-connectome-artix7/releases}
+\item Verify hashes: \texttt{sha256sum -c release\_round10b/SHA256SUMS.txt}
+\item Evidence navigation: \texttt{release\_round10b/evidence/}
+\item Gate/status machine-readable manifest: \texttt{release\_round10b/FINAL\_STATUS.json}
+\end{itemize}
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}

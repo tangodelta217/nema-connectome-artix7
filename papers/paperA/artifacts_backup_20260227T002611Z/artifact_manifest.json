@@ -1,0 +1,50 @@
+{
+  "files": [
+    {
+      "path": "papers/paperA/artifacts/ARTIFACT_README.md",
+      "sha256": "e82ec3767383d7e4d594ccd9841b4227362e9b1b41b705012b8e2ea2c6ef3dc4",
+      "sizeBytes": 1375
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_hardware.json",
+      "sha256": "beedf7fe08df500ed19c5a3ab0f8272ebf6d0df534fa10d11e5f874a5c1656bb",
+      "sizeBytes": 1379532
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_software.json",
+      "sha256": "5d036a9a4a297da9912904c0b297bd546af848d64302876d96a4da685ae774df",
+      "sizeBytes": 1379532
+    },
+    {
+      "path": "papers/paperA/artifacts/figures/gates_status.txt",
+      "sha256": "c41e05defa42d3804eb14417ed225d3c9159dac0fd5273adc5721c6da7813f4a",
+      "sizeBytes": 102
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/build_tables.py",
+      "sha256": "dce823749c51efd08a8889737fe7893f8cfa8eab0dc23d04b5eecb9bba2897f3",
+      "sizeBytes": 2492
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/regenerate_artifacts.sh",
+      "sha256": "50a56422d8841569a225110398da31c233148234f559722f148d037286ea2599",
+      "sizeBytes": 790
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/validate_artifacts.sh",
+      "sha256": "91f1ccbe3d19437a524ec15567331018f33230f1d5d5d02fc51e4e53940d4121",
+      "sizeBytes": 908
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/gates_summary.csv",
+      "sha256": "f4458cb18d0689ab9daf6a78e35b73c6041e94d80e509520ba9f33ac2ae218c5",
+      "sizeBytes": 146
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/gates_summary.md",
+      "sha256": "c7715f019e37a360c0e139a01be4fbe2026b20759d1e2cf63444cf551a2082d6",
+      "sizeBytes": 221
+    }
+  ],
+  "root": "papers/paperA/artifacts"
+}

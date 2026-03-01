@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "NEMA v0.1"
+version: "0.1.0"
+date-released: 2026-03-01
+authors:
+  - family-names: "Millañanco Fernandez"
+    given-names: "Mariano"
+    affiliation: "University of Seville, Seville, Spain"
+    email: "marmilfer@alum.us.es"
+repository-code: "https://github.com/tangodelta217/nema-connectome-artix7"
+preferred-citation:
+  type: article
+  title: "NEMA: Deterministic Toolchain for Fixed-Point Neural Micrographs (arXiv preprint placeholder)"
+  authors:
+    - family-names: "Millañanco Fernandez"
+      given-names: "Mariano"
+      affiliation: "University of Seville, Seville, Spain"
+  journal: "arXiv"
+  year: 2026
+  identifiers:
+    - type: other
+      value: "arXiv:XXXX.XXXXX"
+      description: "arXiv preprint placeholder"

@@ -1,0 +1,7 @@
+benchId,N,E,ticks,verify_ok,mismatches_len,digestMatchOk,independent_check_ok,trace_present,bench_report_path
+B1,2,3,20,true,0,true,-,true,build/audit_min/bench_verify/b1/example_b1_small_subgraph/bench_report.json
+B2,64,1024,20,true,0,true,-,true,build/audit_min/bench_verify/b2/B2_mid_64_1024/bench_report.json
+B3,302,7500,20,true,0,true,-,true,build/audit_min/bench_verify/b3/B3_kernel_302_7500/bench_report.json
+B4,8,12,2,true,0,true,-,true,build/bench_verify_b4/B4_celegans_external_bundle/bench_report.json
+B5,96,1800,2,-,-,true,-,true,build/bench_verify_b5_family/B5_synth_96_1800_s503/bench_report.json
+B6,3,2,20,-,-,true,-,true,build/paperA_routeA/B6/B6_delay_small/bench_report.json

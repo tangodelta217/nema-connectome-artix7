@@ -64,6 +64,42 @@ def _find_first(text: str, patterns: list[str]) -> int | float | None:
     return None
 
 
+def _extract_design_timing_summary_values(text: str) -> dict[str, int | float | None]:
+    """Extract WNS/TNS/Failing Endpoints from Vivado's tabular timing summary."""
+    result: dict[str, int | float | None] = {
+        "wns": None,
+        "tns": None,
+        "failingEndpoints": None,
+    }
+    marker = re.search(r"Design Timing Summary", text, flags=re.IGNORECASE)
+    if not marker:
+        return result
+
+    lines = text[marker.end() :].splitlines()
+    header_idx: int | None = None
+    for idx, line in enumerate(lines):
+        if "WNS(ns)" in line and "TNS(ns)" in line:
+            header_idx = idx
+            break
+    if header_idx is None:
+        return result
+
+    for line in lines[header_idx + 1 : header_idx + 32]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if set(stripped) <= {"-", " ", "|"}:
+            continue
+        numbers = re.findall(r"-?[0-9]+(?:\.[0-9]+)?", stripped)
+        if len(numbers) < 3:
+            continue
+        result["wns"] = _to_number(numbers[0])
+        result["tns"] = _to_number(numbers[1])
+        result["failingEndpoints"] = _to_number(numbers[2])
+        break
+    return result
+
+
 def _is_vivado_report(path: Path) -> bool:
     parts = {part.lower() for part in path.parts}
     name = path.name.lower()
@@ -83,10 +119,26 @@ def parse_vivado_qor(hw_reports_dir: Path, *, source_prefix: str = "hw_reports")
     if not hw_reports_dir.exists():
         return payload
 
+    def _candidate_priority(path: Path) -> tuple[int, str]:
+        name = path.name.lower()
+        suffix = path.suffix.lower()
+        if "timing_summary" in name and suffix == ".rpt":
+            return (0, str(path))
+        if "utilization" in name and suffix == ".rpt":
+            return (1, str(path))
+        if suffix == ".rpt":
+            return (2, str(path))
+        if suffix == ".log":
+            return (3, str(path))
+        return (4, str(path))
+
     candidates = sorted(
-        path
-        for path in hw_reports_dir.rglob("*")
-        if path.is_file() and path.suffix.lower() in _REPORT_SUFFIXES and _is_vivado_report(path.relative_to(hw_reports_dir))
+        (
+            path
+            for path in hw_reports_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() in _REPORT_SUFFIXES and _is_vivado_report(path.relative_to(hw_reports_dir))
+        ),
+        key=_candidate_priority,
     )
     if not candidates:
         return payload
@@ -160,8 +212,7 @@ def parse_vivado_qor(hw_reports_dir: Path, *, source_prefix: str = "hw_reports")
             _find_first(
                 text,
                 [
-                    r"\bWNS\(ns\)\s*[:=]?\s*(-?[0-9]+(?:\.[0-9]+)?)",
-                    r"\bWNS\b[^0-9\-]*(-?[0-9]+(?:\.[0-9]+)?)",
+                    r"\bWNS(?:\(ns\))?\s*[:=]\s*(-?[0-9]+(?:\.[0-9]+)?)",
                 ],
             ),
         )
@@ -171,8 +222,7 @@ def parse_vivado_qor(hw_reports_dir: Path, *, source_prefix: str = "hw_reports")
             _find_first(
                 text,
                 [
-                    r"\bTNS\(ns\)\s*[:=]?\s*(-?[0-9]+(?:\.[0-9]+)?)",
-                    r"\bTNS\b[^0-9\-]*(-?[0-9]+(?:\.[0-9]+)?)",
+                    r"\bTNS(?:\(ns\))?\s*[:=]\s*(-?[0-9]+(?:\.[0-9]+)?)",
                 ],
             ),
         )
@@ -182,8 +232,7 @@ def parse_vivado_qor(hw_reports_dir: Path, *, source_prefix: str = "hw_reports")
             _find_first(
                 text,
                 [
-                    r"\bWHS\(ns\)\s*[:=]?\s*(-?[0-9]+(?:\.[0-9]+)?)",
-                    r"\bWHS\b[^0-9\-]*(-?[0-9]+(?:\.[0-9]+)?)",
+                    r"\bWHS(?:\(ns\))?\s*[:=]\s*(-?[0-9]+(?:\.[0-9]+)?)",
                 ],
             ),
         )
@@ -193,8 +242,7 @@ def parse_vivado_qor(hw_reports_dir: Path, *, source_prefix: str = "hw_reports")
             _find_first(
                 text,
                 [
-                    r"\bTHS\(ns\)\s*[:=]?\s*(-?[0-9]+(?:\.[0-9]+)?)",
-                    r"\bTHS\b[^0-9\-]*(-?[0-9]+(?:\.[0-9]+)?)",
+                    r"\bTHS(?:\(ns\))?\s*[:=]\s*(-?[0-9]+(?:\.[0-9]+)?)",
                 ],
             ),
         )
@@ -204,11 +252,15 @@ def parse_vivado_qor(hw_reports_dir: Path, *, source_prefix: str = "hw_reports")
             _find_first(
                 text,
                 [
-                    r"\bFailing Endpoints\b[^0-9\-]*([0-9][0-9,]*)",
-                    r"\bFail Endpoints\b[^0-9\-]*([0-9][0-9,]*)",
+                    r"\bFailing Endpoints\b\s*[:=]\s*([0-9][0-9,]*)",
+                    r"\bSetup\s*:\s*([0-9][0-9,]*)\s*Failing Endpoints\b",
                 ],
             ),
         )
 
-    return payload
+        summary_values = _extract_design_timing_summary_values(text)
+        _assign_first(timing, "wns", summary_values.get("wns"))
+        _assign_first(timing, "tns", summary_values.get("tns"))
+        _assign_first(timing, "failingEndpoints", summary_values.get("failingEndpoints"))
 
+    return payload

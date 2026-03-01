@@ -1,0 +1,7 @@
+benchId,cpp_ticks_per_sec,hw_ticks_per_sec_est,notes,hwBenchReportPath
+B1,13551.925813,8072849.392922,estimated_from_clk_wns_ii,build/audit_min/bench_verify/b1/example_b1_small_subgraph/bench_report.json
+B2,19045.968409,402835.640642,estimated_from_clk_wns_ii,build/audit_min/bench_verify/b2/B2_mid_64_1024/bench_report.json
+B3,1227.552657,90769.207309,estimated_from_clk_wns_ii,build/pre_board_20260228T132542Z/runs/b3_hw/B3_kernel_302_7500/bench_report.json
+B4,1398.144798,2520161.290323,estimated_from_clk_wns_ii,build/bench_verify_b4/B4_celegans_external_bundle/bench_report.json
+B5,1662.200901,224215.246637,estimated_from_clk_wns_ii;vivado=FAIL,build/bench_verify_b5_family/B5_synth_96_1800_s503/bench_report.json
+B6,14268.693766,3635015.376115,estimated_from_clk_wns_ii,build/paperA_routeA/B6/B6_delay_small/bench_report.json

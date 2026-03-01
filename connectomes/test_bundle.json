@@ -1,0 +1,103 @@
+{
+  "checksums": {
+    "algorithm": "sha256",
+    "bundle": "sha256:b360d32efc03fc672a9ec9043f0f1ad0701b23ace96933b5ecc3311359a5628f",
+    "sections": {
+      "edges": "sha256:ae9662240062a69cce87047b4aeeb737a9404280a5ac9f6d0f18024f259d297e",
+      "graph": "sha256:d60ac1429a08cf4da6ec3aee9347d86044349b806214b3c36fb12ba00c3b8c3b",
+      "metadata": "sha256:44af672db83fb51425fa709effa0476b3e44749a96da016997a8a3cba1536d37",
+      "nodes": "sha256:47c9b8de8478931ac840779fc93ed42439b6945c55b199baefa7560e65b25e01"
+    }
+  },
+  "counts": {
+    "chemicalEdgeCount": 2,
+    "edgeCountTotal": 3,
+    "gapDirectedCount": 0,
+    "gapEdgeCount": 1,
+    "nodeCount": 4
+  },
+  "formatId": "nema.connectome.bundle.v0.1",
+  "graph": {
+    "edges": [
+      {
+        "conductance": 0.015625,
+        "directed": true,
+        "id": "e0",
+        "kind": "CHEMICAL",
+        "modelId": "chemical_current_v0",
+        "source": "n0",
+        "target": "n2",
+        "weight": 0.015625
+      },
+      {
+        "conductance": 0.01171875,
+        "directed": true,
+        "id": "e1",
+        "kind": "CHEMICAL",
+        "modelId": "chemical_current_v0",
+        "source": "n1",
+        "target": "n2",
+        "weight": 0.01171875
+      },
+      {
+        "conductance": 0.03125,
+        "directed": false,
+        "id": "gap_000000",
+        "kind": "GAP",
+        "modelId": "gap_conductance_v0",
+        "source": "n2",
+        "target": "n3"
+      }
+    ],
+    "nodes": [
+      {
+        "canonicalOrderId": 0,
+        "id": "n0",
+        "index": 0,
+        "name": "ADAL",
+        "role": "sensory",
+        "tauM": 2.0,
+        "vInitRaw": -64
+      },
+      {
+        "canonicalOrderId": 1,
+        "id": "n1",
+        "index": 1,
+        "name": "ADAR",
+        "role": "sensory",
+        "tauM": 2.0,
+        "vInitRaw": -32
+      },
+      {
+        "canonicalOrderId": 2,
+        "id": "n2",
+        "index": 2,
+        "name": "ADEL",
+        "role": "inter",
+        "tauM": 3.0,
+        "vInitRaw": 0
+      },
+      {
+        "canonicalOrderId": 3,
+        "id": "n3",
+        "index": 3,
+        "name": "ADER",
+        "role": "motor",
+        "tauM": 4.0,
+        "vInitRaw": 16
+      }
+    ]
+  },
+  "license": {
+    "spdxId": "MIT"
+  },
+  "provenance": {
+    "retrievedAt": "2026-02-24T00:00:00Z",
+    "sourceSha256": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "sourceUrls": [
+      "https://example.org/connectome/test"
+    ]
+  },
+  "schemaVersion": "0.1",
+  "subgraphId": "test_subgraph"
+}

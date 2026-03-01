@@ -1,0 +1,114 @@
+\section{Implementation and Artifact Reproducibility}
+
+\subsection{Implementation}
+
+NEMA v0.1 is implemented as a layered toolchain that makes the semantics and the evidence machine-checkable end-to-end: a deterministic tick semantics, a fixed-point contract, an IR validator, reference execution, and optional hardware compilation stages that emit a uniform \texttt{bench\_report.json} and auxiliary artifacts.
+
+Methodologically, this positions NEMA closer to executable conformance and translation-validation style workflows \cite{LopesPLDI2021Alive2,PnueliTACAS1998TranslationValidation} than to fully mechanized end-to-end verified compilers, while remaining comparable to verified-HLS efforts in intent \cite{HerklotzOOPSLA2021Vericert,HerklotzPLDI2024Hyperblock}.
+
+\textbf{DSL v0.1/v0.2 (supporting tech only).}
+The repository contains a textual DSL front-end with a conventional compiler structure: lexer/parser, static checking, lowering, and structured diagnostics, exposed via a CLI. The DSL is treated as an authoring convenience; the paper's core claims are verified via IR-level bench verification and hardware audits rather than via DSL-specific novelty.
+
+\textbf{IR + MUST invariants (validation contract).}
+The IR contract is defined as a JSON shape mirrored by \texttt{nema\_ir.proto}, and the implementation includes an IR validator (\texttt{nema/ir\_validate.py}) that enforces invariants before execution/compilation. The validator invariants evidenced in the current state include:
+\begin{itemize}
+\item uniqueness of node/edge identities,
+\item edges reference existing nodes,
+\item CHEMICAL edges are directed; GAP edges are symmetric,
+\item non-negative conductance,
+\item \texttt{canonicalOrderId} required,
+\item \texttt{license.spdx} must be in an allowed list,
+\item \texttt{graph.external} references must exist and (when non-placeholder) match the referenced file's SHA-256.
+\end{itemize}
+
+This validation layer is part of the bit-exactness threat model: it removes ambiguous or under-specified inputs before they can introduce divergence.
+
+\textbf{Deterministic execution and bit-exact instrumentation (software reference path).}
+The determinism model is explicit in the spec extracts included in the input: node iteration is index-ordered and the snapshot rule is intended to make updates order-independent for a tick. The reference implementation is \texttt{nema/sim.py}. Bit-exactness is defined operationally: two executions are bit-exact if and only if all per-tick digests match; digests are computed by collecting \texttt{V} in node-index order, packing each raw voltage as signed int16 little-endian, and hashing the packed byte array with SHA-256. The numeric contract is fixed-point with RNE + saturation, and overflow behavior is SATURATE-only (no wrap).
+
+\textbf{hwtest / hardware compilation pipeline (evidence-producing path).}
+The repo includes the pipeline components needed to compile and record evidence across stages:
+\begin{itemize}
+\item simulation/reference execution (\texttt{nema/sim.py}),
+\item HLS code generation (\texttt{nema/codegen/hls\_gen.py}),
+\item a hwtest runner (\texttt{nema/hwtest.py}),
+\item a schema for the resulting report (\texttt{tools/bench\_report\_schema.json}),
+\item and a gate script (\texttt{tools/audit\_min.py}) that turns these artifacts into pass/fail criteria.
+\end{itemize}
+
+The intended evidence outputs follow repo conventions and include:
+\begin{itemize}
+\item \texttt{**/bench\_report.json},
+\item \texttt{golden/digest.json},
+\item \texttt{golden/trace.jsonl},
+\item generated HLS sources under \texttt{hls/*},
+\item and toolchain reports under \texttt{hw\_reports/*}.
+\end{itemize}
+
+At the paper-claim level, the hardware pipeline is treated as verified only when the hardware audit gate returns \texttt{decision=\"GO\"} (see Claim C2 verification path) and includes evidence of toolchain availability, HLS execution/report capture, and Vivado implementation timing parse (G3).
+
+\subsection{Artifact and Reproducibility}
+
+\textbf{Artifact contract (what must exist / what can be regenerated).}
+The artifact pack is organized around a small set of contracts that reviewers can re-run and/or inspect:
+\begin{enumerate}
+\item \textbf{Semantic/source contracts}
+\begin{itemize}
+\item \texttt{spec.md} (semantic contract) and \texttt{nema\_ir.proto} (schema mirror).
+\item Benchmark manifests for core evaluation: \texttt{benches/B1\_small/manifest.json}, \texttt{benches/B3\_kernel\_302\_7500/manifest.json}, \texttt{benches/B4\_real\_connectome/manifest.json}.
+\item Core IR exemplars referenced by those manifests (e.g., \texttt{example\_b1\_small\_subgraph.json}, \texttt{example\_b3\_kernel\_302.json}, and B4 external bundle IR when applicable).
+\end{itemize}
+\item \textbf{Generated evidence contracts}
+\begin{itemize}
+\item A hardware build directory \texttt{build\_hw/} that contains, at minimum, \texttt{**/bench\_report.json} and \texttt{**/hw\_reports/**/*.(rpt|xml|log)} (or whatever the parser consumes).
+\end{itemize}
+\item \textbf{Paper-facing artifact index and summary}
+\begin{itemize}
+\item Tables: \texttt{papers/paperA/artifacts/tables/gates\_summary.csv} and \texttt{papers/paperA/artifacts/tables/gates\_summary.md} (software/hardware gate status summary).
+\item Figures: \texttt{papers/paperA/artifacts/figures/gates\_status.txt} (caption currently marked missing in the index).
+\item Evidence pointers: \texttt{papers/paperA/artifacts/evidence/audit\_software.json} and \texttt{papers/paperA/artifacts/evidence/audit\_hardware.json} referenced by the artifact index.
+\item Manifest summary metadata (git HEAD, tool versions, artifact manifest SHA-256, and counts of tables/figures/evidence).
+\end{itemize}
+\end{enumerate}
+
+\textbf{Gates (software/hardware) and what GO means.}
+The artifact index records both software and hardware audits as \texttt{decision=GO} and highlights the key criteria that are treated as gate-defining:
+\begin{itemize}
+\item software GO includes \texttt{dslReady}, \texttt{digestMatchAll}, \texttt{benchVerifyOk}, \texttt{b3Evidence302\_7500}, and \texttt{graphCountsNormalized}.
+\item hardware GO includes \texttt{hardwareToolchainAvailable}, \texttt{hardwareEvidenceG0b}, \texttt{hardwareEvidenceG2}, \texttt{hardwareEvidenceG3}, and \texttt{digestMatchAll}. A compact snapshot of both gates is also included as \texttt{gates\_status.txt}.
+\end{itemize}
+
+\textbf{How to reproduce (reviewer-facing commands, relative to the repo).}
+The paper's current claims are designed to be verified via the following scripts/commands:
+
+\textit{Bit-exactness on core benches (Claim C1):}
+\begin{verbatim}
+python -m nema bench verify benches/B1_small/manifest.json --outdir build/paper_verify/b1
+python -m nema bench verify benches/B3_kernel_302_7500/manifest.json --outdir build/paper_verify/b3
+\end{verbatim}
+
+PASS criterion: \texttt{ok == true} and \texttt{mismatches == []} in the verify JSON output.
+
+\textit{Hardware evidence gate (Claim C2):}
+\begin{verbatim}
+python tools/audit_min.py --mode hardware
+\end{verbatim}
+
+PASS criterion: exit code \texttt{0}, \texttt{decision == \"GO\"}, and the relevant \texttt{criteria.*} flags are true (toolchain available, G0b/G2, and Vivado implementation evidence as tracked by the gate).
+
+\textit{Full reproducibility gate bundle (Claim C3):}
+\begin{verbatim}
+python -m pytest -q
+python tools/audit_min.py --mode software
+python tools/audit_min.py --mode hardware
+# optional:
+bash tools/checkpoint_full.sh
+\end{verbatim}
+
+PASS criterion: \texttt{pytest} exit \texttt{0}, both audits exit \texttt{0} with \texttt{decision=\"GO\"}, and the optional checkpoint bundle exists (when used) and references reproducibility evidence.
+
+\textbf{One-shot script (recommended ergonomics, not a claim).}
+The input proposes a reviewer-friendly wrapper script \texttt{tools/reproduce\_paper\_a.sh} that runs \texttt{pytest}, both audits, hardware gates, and bench verify for B1/B3/B4, writing all outputs under \texttt{build/paper\_a/}. This is explicitly described as artifact ergonomics rather than a scientific claim.
+
+\textbf{Limitations explicitly carried into the artifact story.}
+The current artifact-based no-claims include no on-board (measured) power/latency results in the artifact at this stage. Additionally, the artifact index notes a missing manifest for \texttt{benches/B5\_synthetic\_family/manifest.json} in the current state, which should be treated as an incompleteness in benchmark packaging rather than as a semantic limitation.

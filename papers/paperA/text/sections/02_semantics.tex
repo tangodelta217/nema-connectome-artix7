@@ -1,0 +1,95 @@
+\subsection{Tick Semantics (\texttt{nema.tick.v0.1})}
+NEMA v0.1 defines a discrete-time, deterministic operational semantics over a \emph{fixed} neural graph. The semantic core is identified in the specification as \texttt{nema.tick.v0.1} (spec.md:141). A \emph{tick} is the single state-transition step that all backends (software reference, generated C++, and hardware flows) are required to implement consistently under the fixed-point contract (§\ref{sec:fixedpoint}) and the determinism constraints (§\ref{sec:determinism}).
+
+\paragraph{State.}
+The observable state for conformance is per-node voltage and activation in signed fixed-point: voltage $V$ is signed Q8.8 stored as raw \texttt{int16}, and activation $A$ is signed Q8.8 (spec.md:143–145). Tick execution also depends on a graph-level timestep $dt$ (optional; defaults to 1.0) and a membrane time constant $\tau_M$ that must be positive (node-level if present, else a graph-level default) (spec.md:133–134).
+
+\paragraph{Operational structure and snapshot rule.}
+The tick semantics is structured around a snapshot-style update discipline (the specification’s “snapshot rule”) to ensure deterministic results independent of update ordering (spec.md:169–171). Concretely, each tick is defined as a pure function from the prior tick’s state snapshot to the next tick’s state: all reads of per-node state that influence the tick are conceptually taken from a single consistent snapshot, and next-state values are written only after the tick’s computations are complete.
+
+The specification additionally requires that simulation node iteration is index-ordered (spec.md:170). Combined with the snapshot rule (spec.md:171), this yields a deterministic evaluation for each tick even for graph structures where naive in-place updates would introduce order dependence.
+
+\paragraph{Normative reference.}
+The reference implementation for \texttt{nema.tick.v0.1} is \texttt{nema/sim.py} (spec.md:173). The specification imposes a maintenance constraint on the semantic definition: if the implementation and the specification disagree, both must be updated together along with regression tests in the same change (spec.md:9). This constraint makes the semantics executable and keeps the operational definition aligned with the conformance tests that underpin the artifact.
+
+\subsection{Fixed-Point Contract (\texttt{RNE} + \texttt{SATURATE})}
+\label{sec:fixedpoint}
+NEMA v0.1 fixes the numeric model to a restricted, deterministic fixed-point contract. The specification states that overflow behavior is \texttt{SATURATE} only and rounding behavior is \texttt{RNE} (round-to-nearest, ties-to-even) only (spec.md:23–27). These behaviors are not configurable in v0.1; they are part of the language’s semantic contract.
+
+This explicit choice avoids floating-point execution variance reported across compiler/platform/toolchain contexts and is intentionally stricter than generic IEEE-754 portability expectations.
+
+\paragraph{Raw domains.}
+For a signed fixed-point value with total bitwidth $T$, the raw integer range is bounded by (spec.md:31–33):
+\begin{itemize}
+\item \textbf{raw min:} $-(2^{(T-1)})$
+\item \textbf{raw max:} $(2^{(T-1)}) - 1$
+\end{itemize}
+This raw-domain definition is used to define saturation and to constrain behaviors at representational limits.
+
+\paragraph{Deterministic primitives.}
+The contract additionally constrains several primitive operations to be deterministic in edge cases, including shifts (logical right shift is defined as a bit-pattern shift), \texttt{abs} (saturates when applied to the signed minimum), and comparisons/\texttt{mux}/\texttt{clip} (deterministic with explicit ordering) (spec.md:56–58).
+
+\paragraph{Normative reference.}
+The specification identifies \texttt{nema/fixed.py} as the reference implementation of fixed-point behavior (spec.md:60). In v0.1, conformance to \texttt{nema.tick.v0.1} is defined relative to this contract: any backend that claims to implement \texttt{nema.tick.v0.1} must implement arithmetic such that all observable per-tick outputs (as defined by §\ref{sec:bitexact}) are bit-identical under the specified rounding and saturation rules.
+
+\paragraph{Nonlinearities.}
+Nonlinearities are mediated by a fixed tanh lookup-table policy \texttt{nema.tanh\_lut.v0.1} (spec.md:160–162). This further reduces the semantic surface area of implementation-defined numeric behavior.
+
+\subsection{Bit-Exactness Contract (Per-Tick Digests)}
+\label{sec:bitexact}
+NEMA v0.1 defines bit-exact equivalence between executions through a per-tick digest contract. The specification states:
+\begin{quote}
+“Two executions are bit-exact equal when all per-tick digests match.” (spec.md:177)
+\end{quote}
+
+\paragraph{Digest algorithm.}
+For each tick, the digest is computed deterministically as follows (spec.md:179–182):
+\begin{enumerate}
+\item Collect $V$ in node index order.
+\item Pack each raw voltage as signed \texttt{int16} \emph{little-endian}.
+\item Compute SHA-256 over the packed byte array.
+\end{enumerate}
+
+This definition makes the correctness criterion explicit and machine-checkable. It is also backend-agnostic: any execution that produces the same ordered sequence of raw \texttt{int16} voltages per tick can be validated against any other execution (e.g., reference vs.\ generated code, or software vs.\ hardware flow) without floating-point tolerances or implementation-specific traces.
+
+\paragraph{Observables.}
+Notably, the specification’s digest definition is stated over $V$ (spec.md:180–182). In v0.1, voltage is therefore the primary observable for bit-exact equivalence; activation $A$ is internal to the tick computation but is constrained indirectly through the fixed-point contract and determinism requirements.
+
+\subsection{Determinism Threat Model and Mitigations}
+\label{sec:determinism}
+NEMA’s determinism goal in v0.1 is narrow and explicit: eliminate nondeterminism in the semantics and in the conformance checks that validate backends against the reference.
+
+\paragraph{Threat model.}
+The primary threats addressed by the v0.1 contract are:
+\begin{itemize}
+\item \textbf{Numeric nondeterminism} from floating-point behavior differences across compilers, platforms, or optimization levels.
+\item \textbf{Order-dependent updates} in graph computations (e.g., in-place state updates that depend on visitation order).
+\item \textbf{Implementation drift} between the executable reference and the written specification.
+\item \textbf{Silent input drift} from external graph/bundle references changing without detection.
+\end{itemize}
+
+\paragraph{Mitigations (spec-driven).}
+The specification provides concrete mitigations required for conformance:
+\begin{enumerate}
+\item \textbf{Fixed-point only + fixed rounding/overflow.} By mandating \texttt{SATURATE} overflow and \texttt{RNE} rounding (spec.md:23–27), and by specifying deterministic behaviors for edge-case primitives (spec.md:56–58), NEMA removes floating-point variability from the semantic core.
+\item \textbf{Canonical iteration and snapshot rule.} The semantics requires index-ordered node iteration (spec.md:170) and uses the snapshot rule to guarantee order-independent results with respect to update ordering (spec.md:171).
+\item \textbf{Executable reference implementation.} The tick semantics is tied to \texttt{nema/sim.py} (spec.md:173), and the specification mandates synchronized updates to implementation + specification + regression tests when inconsistencies are discovered (spec.md:9). This is a process-level mitigation against spec/implementation divergence that would otherwise undermine reproducibility.
+\item \textbf{Integrity checks for external references.} For external graph references, the specification requires that referenced paths exist and that, when a \texttt{sha256} value is not a placeholder token, it must match the file digest (spec.md:136–139). This defines deterministic input identity and prevents “same IR, different underlying bundle” situations from passing silently.
+\end{enumerate}
+
+Together, these measures define a concrete determinism envelope: within \texttt{nema.tick.v0.1} and the fixed-point contract, executions are considered equivalent precisely when the per-tick SHA-256 digests match under the specified byte-level packing (spec.md:177–182).
+
+\subsection{Relation to Spiking/Event-Driven Models}
+NEMA’s v0.1 semantic core is \emph{tick-based}: time advances in discrete steps with an explicit snapshot rule and an explicit byte-level correctness oracle (per-tick digests). This choice is driven by two engineering constraints that are central to this paper’s claims: (i) \textbf{determinism}, enforced by snapshot semantics and canonical index order, and (ii) \textbf{auditability}, enabled by a stable, backend-agnostic digest contract.
+
+This paper \emph{does not} implement event-driven spike processing or event-scheduling semantics. Instead, executions proceed by repeated application of the tick transition defined by \texttt{nema.tick.v0.1} under a fixed-point contract.
+
+Conceptually, a tick-based model can be viewed as a discretization of a dynamical system: the specification defines the discrete step and its fixed-point numeric contract. This interpretation is used only to motivate the design choice of discrete ticks for determinism and conformance testing; it is not used to claim biological fidelity or event-driven spiking behavior in this paper.
+
+\paragraph{Definitions (used in claims).}
+\begin{description}
+\item[\textbf{tick}] One application of the \texttt{nema.tick.v0.1} state-transition step that maps a prior snapshot of per-node state $(V,A)$ to a next-state $(V',A')$ under the fixed-point contract (spec.md:141,143–145,169–173).
+\item[\textbf{snapshot rule}] The update discipline requiring that all state reads influencing a tick are taken from a single consistent prior snapshot, with next-state writes committed after the tick’s computations complete; paired with index-ordered node iteration for determinism (spec.md:169–171).
+\item[\textbf{RNE+SAT}] The fixed-point numeric contract in v0.1: rounding is \texttt{RNE} (round-to-nearest, ties-to-even) and overflow saturates to the representable raw domain (\texttt{SATURATE}); these are non-configurable in v0.1 (spec.md:23–27,31–33).
+\item[\textbf{bit-exact}] Two executions are \emph{bit-exact equal} iff all per-tick SHA-256 digests match, where each digest is computed by collecting $V$ in node-index order, packing each raw voltage as signed \texttt{int16} little-endian, and hashing the resulting byte array (spec.md:177–182).
+\end{description}

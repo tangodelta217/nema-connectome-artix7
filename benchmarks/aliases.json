@@ -1,0 +1,10 @@
+{
+  "b3_varshney_exec_expanded_gap_279_7284": {
+    "targetBenchmark": "b3_varshney_exec_expanded_gap_300_5824",
+    "manifestPath": "benches/B3_varshney_exec_expanded_gap_300_5824/manifest.json",
+    "irPath": "artifacts/ir/b3_varshney_exec_expanded_gap_300_5824.json",
+    "sidecarPath": "datasets/sidecars/b3_varshney_exec_expanded_gap_300_5824.json",
+    "compileManifestPath": "benchmarks/b3_varshney_exec_expanded_gap_300_5824/compile_manifest.json",
+    "reason": "deterministic import from vendored Varshney raw dataset produced different N/E than requested label; alias points to canonical dedicated assets and not baseline B3_kernel_302_7500."
+  }
+}

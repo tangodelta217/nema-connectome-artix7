@@ -1,0 +1,22 @@
+{
+  "bench_report": "/home/tangodelta/Escritorio/NEMA/paper_cpu_runs/b1/example_b1_small_subgraph/bench_report.json",
+  "bitstream_path": null,
+  "cpp_ref_ok": true,
+  "digest_match": true,
+  "external_verified": false,
+  "golden_ok": true,
+  "graph_resolved": {
+    "edgeCounts": {
+      "chemical": 1,
+      "gap": 1,
+      "gapDirected": 2,
+      "total": 3
+    },
+    "nodeCount": 2
+  },
+  "hls_toolchain_available": false,
+  "model_id": "example_b1_small_subgraph",
+  "ok": true,
+  "synthetic_used": false,
+  "ticks": 1000
+}

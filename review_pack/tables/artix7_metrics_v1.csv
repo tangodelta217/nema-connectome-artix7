@@ -1,0 +1,3 @@
+bench,part,lut,ff,bram,dsp,wns,f_run_mhz,cycles_per_tick,ticks/s,power_total_w,energy_per_tick_mJ
+b1_small,xc7a200tsbg484-1,474,323,0,0,-1.743000,148.301943,-,-,0.126000,-
+b3_varshney_exec_expanded_gap_300_5824,xc7a200tsbg484-1,2734,2862,7,2,0.356000,200,15008,13326.226013,0.148000,0.011106

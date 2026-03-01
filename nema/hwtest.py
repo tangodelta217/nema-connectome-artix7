@@ -730,6 +730,23 @@ def _empty_vivado_result(reason: str, *, requested_part: str | None = None) -> d
     }
 
 
+def _precond_vivado_result(
+    reason: str,
+    *,
+    requested_part: str | None = None,
+    project_dir: Path | None = None,
+    run_log: Path | None = None,
+) -> dict[str, Any]:
+    payload = _empty_vivado_result(f"HLS export incomplete: {reason}", requested_part=requested_part)
+    payload["ok"] = False
+    payload["implOk"] = False
+    if project_dir is not None:
+        payload["projectDir"] = str(project_dir)
+    if run_log is not None:
+        payload["runLog"] = str(run_log)
+    return payload
+
+
 def _collect_exported_rtl_files(solution_dir: Path) -> list[Path]:
     candidates = [
         solution_dir / "syn" / "verilog",
@@ -741,6 +758,57 @@ def _collect_exported_rtl_files(solution_dir: Path) -> list[Path]:
             continue
         rtl_files.extend(path.resolve() for path in root.rglob("*") if path.is_file() and path.suffix.lower() in {".v", ".sv"})
     return sorted(set(rtl_files))
+
+
+def _collect_exported_ip_xci_files(solution_dir: Path) -> list[Path]:
+    """Collect generated HLS IP cores (.xci) for Vivado synthesis resolution."""
+    preferred_root = solution_dir / "impl" / "ip" / "hdl" / "ip"
+    fallback_root = solution_dir / "impl" / "ip"
+    search_roots: list[Path] = []
+    if preferred_root.exists():
+        search_roots.append(preferred_root)
+    if fallback_root.exists() and fallback_root != preferred_root:
+        search_roots.append(fallback_root)
+
+    xci_files: list[Path] = []
+    for root in search_roots:
+        xci_files.extend(path.resolve() for path in root.rglob("*.xci") if path.is_file())
+    return sorted(set(xci_files))
+
+
+def _rtl_contains_ip_instance(rtl_files: list[Path]) -> bool:
+    pattern = re.compile(r"\b[A-Za-z0-9_]+_ip\b")
+    for path in rtl_files:
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if pattern.search(text):
+            return True
+    return False
+
+
+def _check_vivado_export_precondition(solution_dir: Path, rtl_files: list[Path], ip_xci_files: list[Path]) -> str | None:
+    syn_verilog_dir = solution_dir / "syn" / "verilog"
+    syn_rtl = [
+        path for path in syn_verilog_dir.rglob("*") if path.is_file() and path.suffix.lower() in {".v", ".sv"}
+    ] if syn_verilog_dir.exists() else []
+
+    if not rtl_files:
+        return "no exported RTL files found under HLS solution (expected syn/verilog or impl/verilog)"
+
+    missing_rtl = [path for path in rtl_files if not path.exists()]
+    if missing_rtl:
+        sample = ", ".join(str(path) for path in missing_rtl[:3])
+        return f"exported RTL list contains missing files ({len(missing_rtl)}), sample: {sample}"
+
+    if not syn_rtl:
+        return "missing syn/verilog RTL export"
+
+    if _rtl_contains_ip_instance(rtl_files) and not ip_xci_files:
+        return "detected *_ip RTL instances but no .xci files in impl/ip export"
+
+    return None
 
 
 def _run_vivado_batch(
@@ -761,6 +829,7 @@ def _run_vivado_batch(
         return _empty_vivado_result("vivado binary missing", requested_part=part)
 
     rtl_files = _collect_exported_rtl_files(solution_dir)
+    ip_xci_files = _collect_exported_ip_xci_files(solution_dir)
     vivado_dir = (project_dir / "vivado_batch").resolve()
     vivado_dir.mkdir(parents=True, exist_ok=True)
     tcl_path = vivado_dir / "run_vivado.tcl"
@@ -772,34 +841,17 @@ def _run_vivado_batch(
     run_log = vivado_dir / "run_vivado.log"
     clk_value = _as_float(clock_ns)
 
-    if not rtl_files:
-        return {
-            "attempted": False,
-            "ok": None,
-            "implOk": None,
-            "skipped": True,
-            "reason": "no exported RTL files found under HLS solution",
-            "returncode": None,
-            "elapsedSeconds": None,
-            "projectDir": str(vivado_dir),
-            "runLog": str(run_log),
-            "utilizationReport": None,
-            "timingReport": None,
-            "bitstreamPath": None,
-            "bitstreamPlaceholder": False,
-            "rtlSourceCount": 0,
-            "part": part,
-            "clk_ns": clk_value,
-            "wns": None,
-            "tns": None,
-            "util": {
-                "lut": None,
-                "ff": None,
-                "bram": None,
-                "dsp": None,
-            },
-            "reportFiles": [],
-        }
+    precond_error = _check_vivado_export_precondition(solution_dir, rtl_files, ip_xci_files)
+    if precond_error is not None:
+        payload = _precond_vivado_result(
+            precond_error,
+            requested_part=part,
+            project_dir=vivado_dir,
+            run_log=run_log,
+        )
+        payload["rtlSourceCount"] = len(rtl_files)
+        payload["clk_ns"] = clk_value
+        return payload
 
     tcl_lines = [
         f"set requested_part {{{part}}}",
@@ -819,6 +871,56 @@ def _run_vivado_batch(
         "puts $fp $selected_part",
         "close $fp",
     ]
+
+    ip_glob_root = (solution_dir / "impl" / "ip" / "hdl" / "ip").resolve()
+    ip_glob_pattern = str((ip_glob_root / "**" / "*.xci").resolve())
+    ip_glob_root_dir = str(ip_glob_root)
+    tcl_lines.extend(
+        [
+            f"set ip_xci [glob -nocomplain -types f {{{ip_glob_pattern}}}]",
+            f"set ip_repo_dirs [glob -nocomplain -types d {{{ip_glob_root_dir}}}]",
+            "if {[llength $ip_repo_dirs] > 0} {",
+            "  set_property ip_repo_paths $ip_repo_dirs [current_project]",
+            "  update_ip_catalog -rebuild",
+            "}",
+        ]
+    )
+    if ip_xci_files:
+        tcl_lines.append("if {[llength $ip_xci] == 0} {")
+        tcl_lines.append("  set ip_xci [list]")
+        for xci in ip_xci_files:
+            tcl_lines.append(f"  lappend ip_xci {{{xci}}}")
+        tcl_lines.append("}")
+    tcl_lines.extend(
+        [
+            "foreach ip $ip_xci { read_ip $ip }",
+            "if {[llength $ip_xci] > 0} {",
+            "  generate_target all [get_files -all -quiet *.xci]",
+            "  catch { synth_ip [get_ips -all] }",
+            "}",
+            "set nema_has_ip_inst 0",
+            "set rtl_scan_files [list]",
+        ]
+    )
+    for rtl in rtl_files:
+        tcl_lines.append(f"lappend rtl_scan_files {{{rtl}}}")
+    tcl_lines.extend(
+        [
+            "foreach rtl $rtl_scan_files {",
+            "  if {![file exists $rtl]} { continue }",
+            "  set fh [open $rtl r]",
+            "  set rtl_text [read $fh]",
+            "  close $fh",
+            "  if {[regexp {\\m[A-Za-z0-9_]+_ip\\M} $rtl_text]} {",
+            "    set nema_has_ip_inst 1",
+            "    break",
+            "  }",
+            "}",
+            "if {$nema_has_ip_inst && [llength $ip_xci] == 0} {",
+            "  error \"NEMA_VIVADO_ERROR: detected *_ip instance but no .xci files were found under HLS impl/ip export\"",
+            "}",
+        ]
+    )
     for rtl in rtl_files:
         tcl_lines.append(f"read_verilog {{{rtl}}}")
     tcl_lines.extend(
@@ -979,8 +1081,37 @@ def _run_vitis_hls(
 
     proc = _cmd([vitis_binary, "-f", str(tcl_path)], cwd=project_dir)
     run_log_path = project_dir / "run_hls.log"
-    run_log_path.write_text((proc.stdout or "") + ("\n" if proc.stdout else "") + (proc.stderr or ""), encoding="utf-8")
     solution_dir = project_dir / "nema_hwtest" / "sol1"
+
+    hls_logs: list[tuple[str, CmdResult]] = [("primary", proc)]
+
+    model_id_lc = model_root.name.lower()
+    b3_needs_export_retry = (
+        bool(vivado_info.get("available"))
+        and "b3" in model_id_lc
+        and not (solution_dir / "impl" / "ip").exists()
+    )
+    if b3_needs_export_retry:
+        retry_tcl = (project_dir / "run_hls_export_retry.tcl").resolve()
+        retry_lines = [
+            f"open_project {{{project_name}}}",
+            "open_solution sol1",
+            "export_design -rtl verilog",
+            "exit",
+        ]
+        retry_tcl.write_text("\n".join(retry_lines) + "\n", encoding="utf-8")
+        retry_proc = _cmd([vitis_binary, "-f", str(retry_tcl)], cwd=project_dir)
+        hls_logs.append(("retry_export", retry_proc))
+
+    log_chunks: list[str] = []
+    for tag, entry in hls_logs:
+        log_chunks.append(f"=== NEMA_HLS_{tag.upper()} returncode={entry.returncode} elapsed={entry.elapsed_s:.3f}s ===")
+        if entry.stdout:
+            log_chunks.append(entry.stdout.rstrip("\n"))
+        if entry.stderr:
+            log_chunks.append(entry.stderr.rstrip("\n"))
+    run_log_path.write_text("\n\n".join(log_chunks).strip() + "\n", encoding="utf-8")
+
     vivado = _run_vivado_batch(
         vivado_info=vivado_info,
         project_dir=project_dir,

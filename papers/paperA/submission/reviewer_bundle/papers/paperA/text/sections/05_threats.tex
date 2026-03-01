@@ -1,0 +1,58 @@
+\section{Threats to Validity and Limitations}
+
+\subsection{Threats to Validity}
+
+\begin{itemize}
+\item \textbf{T1. Scope of benchmarks is intentionally narrow} (core: B1/B3/B4; B2/B6 optional; B5 manifest missing).\\
+\textit{Impact:} Claims may not generalize to other graphs, schedules, or workloads beyond the included manifests.\\
+\textit{Mitigation (or residual risk):} The paper's claims are scoped to machine-checkable commands over explicit manifests (e.g., \texttt{benches/B1\_small/manifest.json}, \texttt{benches/B3\_kernel\_302\_7500/manifest.json}, \texttt{benches/B4\_real\_connectome/manifest.json}) and the gates (\texttt{python tools/audit\_min.py ...}). Residual risk: generalization is not claimed.
+
+\item \textbf{T2. Bit-exactness definition is digest-based and only hashes per-tick \texttt{V}}.\\
+\textit{Impact:} Two executions could differ in other internal quantities (e.g., \texttt{A}) yet still match digests, depending on what is hashed.\\
+\textit{Mitigation (or residual risk):} The definition is explicit: ``bit-exact equal when all per-tick digests match'', and digest computation is specified (collect \texttt{V} in node index order, pack int16 LE, SHA-256). The claim is stated exactly in those terms, and verified via \texttt{python -m nema bench verify ...} on B1/B3. Residual risk: any state not included in the digest is out of the bit-exact contract as currently defined.
+
+\item \textbf{T3. Bit-exactness is proven only for the evaluated trace (``traza evaluada'')}.\\
+\textit{Impact:} Longer horizons or different inputs/ticks could expose divergences not covered by the verified trace.\\
+\textit{Mitigation (or residual risk):} The claim is explicitly bounded to the evaluated trace returned by \texttt{bench verify} (PASS iff \texttt{ok=true} and \texttt{mismatches=[]}). Residual risk: the paper does not claim bit-exactness beyond what the verifier executes.
+
+\item \textbf{T4. Determinism depends on explicit ordering rules (index-ordered iteration + snapshotRule)}.\\
+\textit{Impact:} Any implementation that violates ordering could reintroduce nondeterminism, especially if parallelization is introduced later.\\
+\textit{Mitigation (or residual risk):} Determinism requirements are specified (\texttt{simulation node iteration is index-ordered}; \texttt{snapshot rule guarantees order-independent results for update ordering}) and a reference implementation is named (\texttt{nema/sim.py}). Divergence is detected by the bit-exact verifier (\texttt{bench verify}) on B1/B3 for the evaluated trace.
+
+\item \textbf{T5. Hardware evidence is tool-report-based (boardless), not on-board measurement}.\\
+\textit{Impact:} QoR/timing evidence may not match physical board measurements; power/latency on silicon is not established.\\
+\textit{Mitigation (or residual risk):} This is an explicit no-claim (``No on-board power/latency measurement claim in current artifact''). Hardware claims are limited to what \texttt{audit\_min --mode hardware} machine-checks (toolchain detectable, G0b/G2 evidence present, and G3 timing parse with non-null WNS when available).
+
+\item \textbf{T6. Toolchain-version sensitivity (Vivado/Vitis HLS)}.\\
+\textit{Impact:} Different Vivado/Vitis versions could change II/latency/utilization/timing or even fail flows, harming reproducibility on other setups.\\
+\textit{Mitigation (or residual risk):} Toolchain versions are recorded (Vivado v2025.2; Vitis HLS v2025.2) and the artifact contract relies on gates (hardware \texttt{audit\_min} must return \texttt{decision=\"GO\"} with \texttt{hardwareToolchainAvailable==true} and evidence flags). Residual risk: reproducibility across versions is not claimed.
+
+\item \textbf{T7. Report parsing / schema drift risk (QoR + Vivado timing)}.\\
+\textit{Impact:} If tool output formats change, the parser might mis-parse or miss fields (e.g., WNS), weakening evidence.\\
+\textit{Mitigation (or residual risk):} Hardware gate requires evidence (\texttt{hardwareEvidenceG2==true} and \texttt{hardwareEvidenceG3==true}) and the pipeline is contractually captured in \texttt{bench\_report.json} with a schema (\texttt{tools/bench\_report\_schema.json}) and audited via \texttt{python tools/audit\_min.py --mode hardware}.
+
+\item \textbf{T8. External bundle workflow depends on file availability + sha256 discipline}.\\
+\textit{Impact:} If external bundle files are not packaged, moved, or hashed inconsistently, B4 may not reproduce.\\
+\textit{Mitigation (or residual risk):} IR validation requires external references to exist and (when sha256 is not a placeholder token) to match the file digest; B4 is included specifically to exercise this workflow. Residual risk: if a placeholder is used, integrity is weaker by design; the paper should state this clearly.
+
+\item \textbf{T9. Numeric model restrictions (RNE + SATURATE; simulator path requires \texttt{Q8.8 -> Q8.8})}.\\
+\textit{Impact:} Limits applicability to other fixed-point formats or overflow/rounding modes; may not cover broader numeric regimes.\\
+\textit{Mitigation (or residual risk):} This is a deliberate contract: only \texttt{SATURATE} overflow and \texttt{RNE} rounding are allowed, and current simulator path requires \texttt{Q8.8 -> Q8.8}. Type/IR validation is expected to reject invalid configurations; correctness claims are made only under this contract.
+
+\item \textbf{T10. Artifact pack is minimal (few pre-generated tables/figures); most results are script-generated}.\\
+\textit{Impact:} Reviewers may question whether enough evidence is precomputed, or whether scripts are easy to run.\\
+\textit{Mitigation (or residual risk):} The artifact story explicitly centers on gates + stable paths (e.g., \texttt{tools/audit\_min.py}, \texttt{tools/run\_hw\_gates.sh}, \texttt{python -m nema bench verify ...}) and includes a recommended one-shot script (\texttt{tools/reproduce\_paper\_a.sh}) as ergonomics (not a claim). Residual risk: ease-of-use depends on evaluator environment.
+\end{itemize}
+
+\subsection{Limitations}
+
+\begin{itemize}
+\item No ML/accuracy superiority claims (no SOTA comparisons, no accuracy/sample-efficiency statements).
+\item No biological fidelity claims (no claim that dynamics match real electrophysiology/plasticity).
+\item No on-board power/latency measurements are included in the current artifact; hardware evidence is tool-report-based.
+\item Numeric contract is deliberately narrow: overflow is \texttt{SATURATE} only; rounding is \texttt{RNE} only; current simulator path requires \texttt{Q8.8 -> Q8.8}.
+\item Bit-exactness contract is digest-based and defined over per-tick digests (digest is over packed \texttt{V} in node index order).
+\item B5 is not a reproducible bench manifest in the current pack (\texttt{benches/B5\_synthetic\_family/manifest.json} is marked MISSING), so B5 cannot be part of the core claimed evaluation.
+\item B4 exercises the external bundle workflow, but in the current artifact index it is represented as \texttt{B4\_celegans\_external\_bundle/CE/8-12}, so it validates the workflow rather than claiming full-scale connectome coverage by itself.
+\item The paper's pre-generated artifact tables/figures are currently limited (2 tables, 1 figure, 2 evidence JSONs); additional result tables should be generated via the provided commands rather than assumed to be pre-bundled.
+\end{itemize}

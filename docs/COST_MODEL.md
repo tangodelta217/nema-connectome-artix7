@@ -6,6 +6,8 @@
 ## Commands
 - `python -m nema cost estimate <ir.json>`
 - `python -m nema cost compare <bench_report.json>`
+- `python tools/qor_dataset.py --root <bench_root> --out build/qor_dataset.csv`
+- `python tools/cost_model_fit.py --csv build/qor_dataset.csv`
 
 Both commands emit JSON with stable key names.
 
@@ -32,6 +34,15 @@ Current v0 cycle approximation:
 
 It reports relative error for each metric when available.
 
+## QoR Dataset + Fit Baseline
+`tools/qor_dataset.py` scans bench reports and emits a stable CSV:
+- columns: `N,E,qformat,P_N,P_S,ii,latency,lut,ff,bram,dsp`
+- sorted deterministically by report path
+
+`tools/cost_model_fit.py` fits a baseline linear model:
+- `cycles ~= bias + a*(N/P_N) + b*(E/P_S)`
+- reports `meanRelativeError`, `maxRelativeError`, `pointsWithActualQor`
+
 ## G2 Context
 For audit usage, G2 hardware evidence is considered present when at least one is true:
 - `hardware.reports.files` is non-empty
@@ -39,15 +50,14 @@ For audit usage, G2 hardware evidence is considered present when at least one is
 
 `cost compare` exposes this as `g2Evidence`.
 
-## audit_min Hardware Gate
-`tools/audit_min.py --mode hardware` applies a quantitative sanity check using
-`cost compare` over relevant bench reports.
+## audit_min Hardware Gate (G2)
+`tools/audit_min.py --mode hardware` applies G2 sanity over relevant bench reports.
 
-G2 passes only if both are true:
+G2 passes only if all are true:
 - hardware reports/QoR evidence exists
-- estimated cycles and measured QoR are within a ratio threshold
+- there are at least `K` usable QoR points (`K >= 3`)
+- fitted model mean relative error is below threshold
 
-Threshold:
-- `--cost-max-ratio <float>` (default `3.0`)
-- check is based on `comparison.maxRatio` from `nema cost compare`
-- condition: `maxRatio < cost-max-ratio`
+Parameters:
+- `--cost-min-points <int>` (default `3`, must be `>= 3`)
+- `--cost-mean-rel-error-max <float>` (default `1.0`)

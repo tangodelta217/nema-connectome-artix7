@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nema.fpga_measure.power_latency_report.v0.1",
+  "title": "NEMA FPGA Power+Latency Measurement Report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "method",
+    "board",
+    "part",
+    "bitstreamSha256",
+    "latency",
+    "power",
+    "rawFiles"
+  ],
+  "properties": {
+    "method": {
+      "type": "string",
+      "const": "MEASURED_ON_BOARD"
+    },
+    "board": {
+      "type": "string",
+      "minLength": 1
+    },
+    "part": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bitstreamSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "latency": {
+      "type": "object",
+      "required": [
+        "unit",
+        "samples",
+        "p50",
+        "p95",
+        "max"
+      ],
+      "properties": {
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "samples": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "p50": {
+          "type": "number"
+        },
+        "p95": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "power": {
+      "type": "object",
+      "required": [
+        "unit",
+        "samples",
+        "avg",
+        "max"
+      ],
+      "properties": {
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "samples": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "avg": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "rawFiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}
+

@@ -1,0 +1,31 @@
+{
+  "modelId": "fixture_a",
+  "config": {
+    "graph": {
+      "chemicalEdgeCount": 100,
+      "edgeCountTotal": 100,
+      "gapEdgeCount": 0,
+      "nodeCount": 10
+    },
+    "qformats": {
+      "voltage": "Q8.8"
+    },
+    "schedule": {
+      "neuronLanes": 1,
+      "synapseLanes": 1
+    }
+  },
+  "hardware": {
+    "qor": {
+      "ii": 140,
+      "latencyCycles": 140,
+      "utilization": {
+        "bram": 1,
+        "dsp": 2,
+        "ff": 2000,
+        "lut": 1000
+      }
+    }
+  },
+  "ok": true
+}

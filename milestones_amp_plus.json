@@ -1,0 +1,325 @@
+{
+  "version": "amp_plus.v1",
+  "description": "Post-AMP aspirational milestones for NEMA maturity growth",
+  "items": [
+    {
+      "id": "AMPPLUS-001",
+      "title": "Real FPGA measurement report (power/latency) published",
+      "points": 1,
+      "checks": {
+        "anyOf": [
+          {
+            "type": "glob_count_at_least",
+            "glob": "build_hw/**/*power*.rpt",
+            "min": 1
+          },
+          {
+            "type": "glob_count_at_least",
+            "glob": "build_hw/**/*power*.csv",
+            "min": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-002",
+      "title": "Gap junction support validated in spec+tests",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "regex_in_file",
+            "path": "spec.md",
+            "pattern": "\\bGAP\\b"
+          },
+          {
+            "type": "regex_in_file",
+            "path": "tests/test_tick_micrographs.py",
+            "pattern": "\\bGAP\\b"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-003",
+      "title": "Discrete synaptic delays (1..N ticks) implemented",
+      "points": 1,
+      "checks": {
+        "anyOf": [
+          {
+            "type": "regex_in_file",
+            "path": "spec.md",
+            "pattern": "(?i)delay"
+          },
+          {
+            "type": "regex_in_file",
+            "path": "nema/sim.py",
+            "pattern": "(?i)delay"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-004",
+      "title": "At least two FPGA parts covered by real reports",
+      "points": 1,
+      "checks": {
+        "type": "json_unique_count_at_least",
+        "glob": "build_hw/**/bench_report.json",
+        "jsonPath": "hardware.vivado.part",
+        "min": 2
+      }
+    },
+    {
+      "id": "AMPPLUS-005",
+      "title": "Task-level benchmark present and reproducible (B4)",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "file_exists",
+            "path": "benches/B4_real_connectome/manifest.json"
+          },
+          {
+            "type": "json_path_equals",
+            "path": "project_eval_out_v2/evidence/bench_verify_b4.json",
+            "jsonPath": "ok",
+            "equals": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-006",
+      "title": "Bitstream export + deploy path available",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "glob_count_at_least",
+            "glob": "build_hw/**/*.bit",
+            "min": 1
+          },
+          {
+            "type": "anyOf",
+            "anyOf": [
+              {
+                "type": "glob_count_at_least",
+                "glob": "tools/**/*deploy*.sh",
+                "min": 1
+              },
+              {
+                "type": "regex_in_file",
+                "path": "docs/HW_VIVADO.md",
+                "pattern": "(?i)deploy"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-007",
+      "title": "CLI packaging and semver metadata",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "regex_in_file",
+            "path": "pyproject.toml",
+            "pattern": "(?m)^version\\s*=\\s*\"\\d+\\.\\d+\\.\\d+\""
+          },
+          {
+            "type": "regex_in_file",
+            "path": "pyproject.toml",
+            "pattern": "(?m)^nema\\s*=\\s*\"nema\\.cli:main\""
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-008",
+      "title": "CI software gates always-on",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "file_exists",
+            "path": ".github/workflows/tests.yml"
+          },
+          {
+            "type": "regex_in_file",
+            "path": ".github/workflows/tests.yml",
+            "pattern": "Audit Gate \\(Software\\)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-009",
+      "title": "CI hardware gates conditional/manual pathway",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "regex_in_file",
+            "path": ".github/workflows/tests.yml",
+            "pattern": "hardware-gates"
+          },
+          {
+            "type": "regex_in_file",
+            "path": ".github/workflows/tests.yml",
+            "pattern": "CI_HW"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-010",
+      "title": "Connectome bundle verify path proven in evidence",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "file_exists",
+            "path": "connectomes/test_bundle.json"
+          },
+          {
+            "type": "file_exists",
+            "path": "project_eval_out_v2/evidence/connectome_verify_test_bundle.exitcode.txt"
+          },
+          {
+            "type": "text_file_value_equals",
+            "path": "project_eval_out_v2/evidence/connectome_verify_test_bundle.exitcode.txt",
+            "equals": "0"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-011",
+      "title": "Lane sweep produced stable table outputs",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "file_exists",
+            "path": "build/sweep_lanes_full/sweep_results.json"
+          },
+          {
+            "type": "file_exists",
+            "path": "build/sweep_lanes_full/sweep_results.csv"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-012",
+      "title": "Cost model cross-validation support available",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "regex_in_file",
+            "path": "tools/cost_model_fit.py",
+            "pattern": "--split-by"
+          },
+          {
+            "type": "regex_in_file",
+            "path": "tools/cost_model_fit.py",
+            "pattern": "--test-fraction"
+          },
+          {
+            "type": "regex_in_file",
+            "path": "tools/cost_model_fit.py",
+            "pattern": "--split-seed"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-013",
+      "title": "G3 Vivado impl evidence with non-null WNS",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "json_any_match",
+            "glob": "build_hw/**/bench_report.json",
+            "jsonPath": "hardware.vivado.implOk",
+            "equals": true,
+            "minMatches": 1
+          },
+          {
+            "type": "json_any_match_non_null",
+            "glob": "build_hw/**/bench_report.json",
+            "jsonPath": "hardware.vivado.wns",
+            "minMatches": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-014",
+      "title": "Hardware checkpoint bundle tooling available",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "file_exists",
+            "path": "tools/checkpoint_hw.py"
+          },
+          {
+            "type": "regex_in_file",
+            "path": "tools/checkpoint_hw.py",
+            "pattern": "nema_hw_checkpoint_bundle\\.tar\\.gz"
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-015",
+      "title": "Reproducibility evidence (B1/B3 digests stable)",
+      "points": 1,
+      "checks": {
+        "allOf": [
+          {
+            "type": "json_path_equals",
+            "path": "project_eval_out_v2/evidence/repro_summary.json",
+            "jsonPath": "ok",
+            "equals": true
+          },
+          {
+            "type": "json_path_equals",
+            "path": "project_eval_out_v2/evidence/repro_summary.json",
+            "jsonPath": "benchmarks.B1.digestsEqual",
+            "equals": true
+          },
+          {
+            "type": "json_path_equals",
+            "path": "project_eval_out_v2/evidence/repro_summary.json",
+            "jsonPath": "benchmarks.B3.digestsEqual",
+            "equals": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "AMPPLUS-016",
+      "title": "Nightly/manual hardware gate evidence exists",
+      "points": 1,
+      "checks": {
+        "anyOf": [
+          {
+            "type": "file_exists",
+            "path": "build_hw/audit_min_hardware.json"
+          },
+          {
+            "type": "file_exists",
+            "path": "project_eval_out_v2/evidence/audit_mode_hardware.json"
+          }
+        ]
+      }
+    }
+  ]
+}

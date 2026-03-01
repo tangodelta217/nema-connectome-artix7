@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 def _write_report(
     path: Path,

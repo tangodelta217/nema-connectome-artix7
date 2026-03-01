@@ -1,0 +1,4 @@
+Gate status snapshot
+====================
+software: decision=GO ok=true
+hardware: decision=GO ok=true

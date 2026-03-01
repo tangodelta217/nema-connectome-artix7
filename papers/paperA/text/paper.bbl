@@ -1,0 +1,482 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{31}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Ahrens et~al\mbox{.}(2020)]%
+        {AhrensTOMS2020ReproSum}
+\bibfield{author}{\bibinfo{person}{Willow Ahrens}, \bibinfo{person}{James
+  Demmel}, {and} \bibinfo{person}{Hong~Diep Nguyen}.}
+  \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Algorithms for Efficient Reproducible Floating
+  Point Summation}.
+\newblock \bibinfo{journal}{\emph{ACM Trans. Math. Software}}
+  (\bibinfo{year}{2020}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3389360}
+\showDOI{\tempurl}
+
+
+\bibitem[Atil et~al\mbox{.}(2024)]%
+        {AtilArxiv2408.04667}
+\bibfield{author}{\bibinfo{person}{Berk Atil}, \bibinfo{person}{Sarp Aykent},
+  \bibinfo{person}{Alexa Chittams}, \bibinfo{person}{Lisheng Fu},
+  \bibinfo{person}{Rebecca~J. Passonneau}, {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \bibinfo{title}{Non-Determinism of ``Deterministic'' {LLM} Settings}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2408.04667}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2408.04667}~[cs.CL]
+
+
+\bibitem[Becker et~al\mbox{.}(2022)]%
+        {BeckerECOOP2022RealCake}
+\bibfield{author}{\bibinfo{person}{Heiko Becker}, \bibinfo{person}{Robert
+  Rabe}, \bibinfo{person}{Eva Darulova}, \bibinfo{person}{Magnus~O. Myreen},
+  \bibinfo{person}{Zachary Tatlock}, \bibinfo{person}{Ramana Kumar},
+  \bibinfo{person}{Yong~Kiam Tan}, {and} \bibinfo{person}{Anthony Fox}.}
+  \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Verified Compilation and Optimization of
+  Floating-Point Programs in CakeML}. In \bibinfo{booktitle}{\emph{ECOOP
+  2022}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.4230/LIPIcs.ECOOP.2022.1}
+\showDOI{\tempurl}
+
+
+\bibitem[Blanchard et~al\mbox{.}(2020)]%
+        {BlanchardSIAM2020FABsum}
+\bibfield{author}{\bibinfo{person}{Pierre Blanchard},
+  \bibinfo{person}{Nicholas~J. Higham}, {and} \bibinfo{person}{Th{\'e}o Mary}.}
+  \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{A Class of Fast and Accurate Summation Algorithms}.
+\newblock \bibinfo{journal}{\emph{SIAM Journal on Scientific Computing}}
+  (\bibinfo{year}{2020}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1137/19M1257780}
+\showDOI{\tempurl}
+
+
+\bibitem[Chen et~al\mbox{.}(2022)]%
+        {ChenICSE2022ReproDL}
+\bibfield{author}{\bibinfo{person}{Boyuan Chen}, \bibinfo{person}{Mingzhi Wen},
+  \bibinfo{person}{Yong Shi}, \bibinfo{person}{Dayi Lin},
+  \bibinfo{person}{Gopi~Krishnan Rajbahadur}, {and} \bibinfo{person}{Zhen~Ming
+  Jiang}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Towards Training Reproducible Deep Learning
+  Models}. In \bibinfo{booktitle}{\emph{44th IEEE/ACM International Conference
+  on Software Engineering (ICSE 2022)}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3510003.3510163}
+\showDOI{\tempurl}
+
+
+\bibitem[Chou et~al\mbox{.}(2020)]%
+        {ChouMICRO2020DAB}
+\bibfield{author}{\bibinfo{person}{Yu-Hsin Chou} {et~al\mbox{.}}}
+  \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Deterministic Atomic Buffering}. In
+  \bibinfo{booktitle}{\emph{53rd Annual IEEE/ACM International Symposium on
+  Microarchitecture (MICRO-53)}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1109/MICRO50266.2020.00083}
+\showDOI{\tempurl}
+
+
+\bibitem[DeWolf et~al\mbox{.}(2020)]%
+        {DeWolfArxiv2007.10227}
+\bibfield{author}{\bibinfo{person}{Travis DeWolf}, \bibinfo{person}{Pawel
+  Jaworski}, {and} \bibinfo{person}{Chris Eliasmith}.}
+  \bibinfo{year}{2020}\natexlab{}.
+\newblock \bibinfo{title}{Nengo and low-power AI hardware for robust, embedded
+  neurorobotics}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2007.10227}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2007.10227}~[cs.RO]
+
+
+\bibitem[Gao et~al\mbox{.}(2024)]%
+        {GaoArxiv2401.08696}
+\bibfield{author}{\bibinfo{person}{Mingzhe Gao}, \bibinfo{person}{Jieru Zhao},
+  \bibinfo{person}{Zhe Lin}, {and} \bibinfo{person}{Minyi Guo}.}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \bibinfo{title}{Hierarchical Source-to-Post-Route QoR Prediction in
+  High-Level Synthesis with GNNs}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2401.08696}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2401.08696}~[cs.AR]
+
+
+\bibitem[Goswami et~al\mbox{.}(2023)]%
+        {GoswamiIntegration2023MLDSE}
+\bibfield{author}{\bibinfo{person}{Pingakshya Goswami},
+  \bibinfo{person}{Benjamin~Carrion Schaefer}, {and} \bibinfo{person}{Dinesh
+  Bhatia}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Machine learning based fast and accurate High Level
+  Synthesis design space exploration: From graph to synthesis}.
+\newblock \bibinfo{journal}{\emph{Integration}} (\bibinfo{year}{2023}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.vlsi.2022.09.006}
+\showDOI{\tempurl}
+
+
+\bibitem[Herklotz et~al\mbox{.}(2021)]%
+        {HerklotzOOPSLA2021Vericert}
+\bibfield{author}{\bibinfo{person}{Yann Herklotz}, \bibinfo{person}{James~D.
+  Pollard}, \bibinfo{person}{Nadesh Ramanathan}, {and} \bibinfo{person}{John
+  Wickerson}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Formal Verification of High-Level Synthesis}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming
+  Languages}} (\bibinfo{year}{2021}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3485494}
+\showDOI{\tempurl}
+
+
+\bibitem[Herklotz and Wickerson(2024)]%
+        {HerklotzPLDI2024Hyperblock}
+\bibfield{author}{\bibinfo{person}{Yann Herklotz} {and} \bibinfo{person}{John
+  Wickerson}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Hyperblock Scheduling for Verified High-Level
+  Synthesis}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming
+  Languages}} (\bibinfo{year}{2024}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3656455}
+\showDOI{\tempurl}
+
+
+\bibitem[Karamimanesh et~al\mbox{.}(2025)]%
+        {KaramimaneshNeuralNetworks2025SNNFPGA}
+\bibfield{author}{\bibinfo{person}{Mehrzad Karamimanesh},
+  \bibinfo{person}{Ebrahim Abiri}, \bibinfo{person}{Mahyar Shahsavari},
+  \bibinfo{person}{Kourosh Hassanli}, \bibinfo{person}{Andr{\'e} van Schaik},
+  {and} \bibinfo{person}{Jason Eshraghian}.} \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{Spiking neural networks on FPGA: A survey of
+  methodologies and recent advancements}.
+\newblock \bibinfo{journal}{\emph{Neural Networks}} (\bibinfo{year}{2025}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1016/j.neunet.2025.107256}
+\showDOI{\tempurl}
+
+
+\bibitem[Leroy(2009)]%
+        {LeroyCACM2009CompCert}
+\bibfield{author}{\bibinfo{person}{Xavier Leroy}.}
+  \bibinfo{year}{2009}\natexlab{}.
+\newblock \showarticletitle{Formal Verification of a Realistic Compiler}.
+\newblock \bibinfo{journal}{\emph{Commun. ACM}} (\bibinfo{year}{2009}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/1538788.1538814}
+\showDOI{\tempurl}
+
+
+\bibitem[Lopes et~al\mbox{.}(2021)]%
+        {LopesPLDI2021Alive2}
+\bibfield{author}{\bibinfo{person}{Nuno~P. Lopes}, \bibinfo{person}{Juneyoung
+  Lee}, \bibinfo{person}{Chung-Kil Hur}, \bibinfo{person}{Zhengyang Liu}, {and}
+  \bibinfo{person}{John Regehr}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Alive2: Bounded Translation Validation for LLVM}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming
+  Languages}} (\bibinfo{year}{2021}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3453483.3454030}
+\showDOI{\tempurl}
+
+
+\bibitem[Nigam et~al\mbox{.}(2021)]%
+        {NigamASPLOS2021Calyx}
+\bibfield{author}{\bibinfo{person}{Rachit Nigam}, \bibinfo{person}{Samuel
+  Thomas}, \bibinfo{person}{Zhijing Li}, {and} \bibinfo{person}{Adrian
+  Sampson}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{A Compiler Infrastructure for Accelerator
+  Generators}. In \bibinfo{booktitle}{\emph{ASPLOS '21}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3445814.3446712}
+\showDOI{\tempurl}
+
+
+\bibitem[Pedersen et~al\mbox{.}(2023)]%
+        {PedersenArxiv2311.14641}
+\bibfield{author}{\bibinfo{person}{Jens~E. Pedersen} {et~al\mbox{.}}}
+  \bibinfo{year}{2023}\natexlab{}.
+\newblock \bibinfo{title}{Neuromorphic Intermediate Representation: A Unified
+  Instruction Set for Interoperable Brain-Inspired Computing}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2311.14641}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2311.14641}~[cs.NE]
+
+
+\bibitem[Pedersen et~al\mbox{.}(2024)]%
+        {PedersenNatComm2024NIR}
+\bibfield{author}{\bibinfo{person}{Jens~E. Pedersen} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Neuromorphic intermediate representation: A unified
+  instruction set for interoperable brain-inspired computing}.
+\newblock \bibinfo{journal}{\emph{Nature Communications}}
+  (\bibinfo{year}{2024}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1038/s41467-024-52259-9}
+\showDOI{\tempurl}
+
+
+\bibitem[Pham et~al\mbox{.}(2020)]%
+        {PhamASE2020Variance}
+\bibfield{author}{\bibinfo{person}{Hung~Viet Pham}, \bibinfo{person}{Shangshu
+  Qian}, \bibinfo{person}{Jiannan Wang}, \bibinfo{person}{Thibaud Lutellier},
+  \bibinfo{person}{Jonathan Rosenthal}, {et~al\mbox{.}}}
+  \bibinfo{year}{2020}\natexlab{}.
+\newblock \showarticletitle{Problems and Opportunities in Training Deep
+  Learning Software Systems: An Analysis of Variance}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 35th IEEE/ACM International
+  Conference on Automated Software Engineering (ASE '20)}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3324884.3416545}
+\showDOI{\tempurl}
+
+
+\bibitem[Pnueli et~al\mbox{.}(1998)]%
+        {PnueliTACAS1998TranslationValidation}
+\bibfield{author}{\bibinfo{person}{Amir Pnueli}, \bibinfo{person}{Michael
+  Siegel}, {and} \bibinfo{person}{Eli Singerman}.}
+  \bibinfo{year}{1998}\natexlab{}.
+\newblock \showarticletitle{Translation Validation}. In
+  \bibinfo{booktitle}{\emph{Tools and Algorithms for the Construction and
+  Analysis of Systems (TACAS '98)}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1007/BFb0054170}
+\showDOI{\tempurl}
+
+
+\bibitem[Pouchet et~al\mbox{.}(2024)]%
+        {PouchetFPGA2024HLSVerify}
+\bibfield{author}{\bibinfo{person}{Louis-No{\"e}l Pouchet},
+  \bibinfo{person}{Emily Tucker}, \bibinfo{person}{Niansong Zhang},
+  \bibinfo{person}{Hongzheng Chen}, \bibinfo{person}{Debjit Pal},
+  \bibinfo{person}{Gabriel Rodr{\'i}guez}, {and} \bibinfo{person}{Zhiru
+  Zhang}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Formal Verification of Source-to-Source
+  Transformations for HLS}. In \bibinfo{booktitle}{\emph{FPGA '24}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3626202.3637563}
+\showDOI{\tempurl}
+
+
+\bibitem[Rao et~al\mbox{.}(2025)]%
+        {RaoPOPL2025Progressful}
+\bibfield{author}{\bibinfo{person}{Xiaojia Rao}, \bibinfo{person}{S. Radziuk},
+  \bibinfo{person}{Conrad Watt}, {and} \bibinfo{person}{Philippa Gardner}.}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{Progressful Interpreters for Efficient WebAssembly
+  Mechanisation}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming
+  Languages}} (\bibinfo{year}{2025}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3704858}
+\showDOI{\tempurl}
+
+
+\bibitem[Ravi et~al\mbox{.}(2025)]%
+        {RaviArxiv2505.03165}
+\bibfield{author}{\bibinfo{person}{Aysha Ravi} {et~al\mbox{.}}}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \bibinfo{title}{Improving the Reproducibility of Deep Learning
+  Software: An Initial Investigation through a Case Study Analysis}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2505.03165}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2505.03165}~[cs.SE]
+
+
+\bibitem[Shanmugavelu et~al\mbox{.}(2024)]%
+        {ShanmugaveluArxiv2408.05148}
+\bibfield{author}{\bibinfo{person}{Shanmugavelu} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \bibinfo{title}{Impacts of floating-point non-associativity on
+  reproducibility for HPC and deep learning applications}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2408.05148}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2408.05148}~[cs.DC]
+
+
+\bibitem[Srivastava et~al\mbox{.}(2024)]%
+        {SrivastavaArxiv2403.09603}
+\bibfield{author}{\bibinfo{person}{Megha Srivastava}, \bibinfo{person}{Simran
+  Arora}, {and} \bibinfo{person}{Dan Boneh}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \bibinfo{title}{Optimistic Verifiable Training by Controlling
+  Hardware Nondeterminism}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2403.09603}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2403.09603}~[cs.CR]
+
+
+\bibitem[Wang and Schafer(2022)]%
+        {WangTODAES2022DSE}
+\bibfield{author}{\bibinfo{person}{Zi Wang} {and}
+  \bibinfo{person}{Benjamin~Carrion Schafer}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Learning from the Past: Efficient High-level
+  Synthesis Design Space Exploration for FPGAs}.
+\newblock \bibinfo{journal}{\emph{ACM Transactions on Design Automation of
+  Electronic Systems}} (\bibinfo{year}{2022}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3495531}
+\showDOI{\tempurl}
+
+
+\bibitem[Watt et~al\mbox{.}(2021)]%
+        {WattFM2021WasmCert}
+\bibfield{author}{\bibinfo{person}{Conrad Watt}, \bibinfo{person}{Xiaojia Rao},
+  \bibinfo{person}{Jean Pichon{-}Pharabod}, \bibinfo{person}{Martin Bodin},
+  {and} \bibinfo{person}{Philippa Gardner}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Two Mechanisations of WebAssembly 1.0}. In
+  \bibinfo{booktitle}{\emph{Formal Methods (FM 2021)}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1007/978-3-030-90870-6_4}
+\showDOI{\tempurl}
+
+
+\bibitem[Yang et~al\mbox{.}(2011)]%
+        {YangPLDI2011Csmith}
+\bibfield{author}{\bibinfo{person}{Xuejun Yang}, \bibinfo{person}{Yang Chen},
+  \bibinfo{person}{Eric Eide}, {and} \bibinfo{person}{John Regehr}.}
+  \bibinfo{year}{2011}\natexlab{}.
+\newblock \showarticletitle{Finding and Understanding Bugs in C Compilers}. In
+  \bibinfo{booktitle}{\emph{PLDI '11}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/1993316.1993532}
+\showDOI{\tempurl}
+
+
+\bibitem[Ye et~al\mbox{.}(2022)]%
+        {YeDAC2022ScaleHLS}
+\bibfield{author}{\bibinfo{person}{Hanchen Ye} {et~al\mbox{.}}}
+  \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{ScaleHLS: a Scalable High-Level Synthesis Framework
+  with Multi-level Transformations and Optimizations}. In
+  \bibinfo{booktitle}{\emph{DAC '22}}.
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3489517.3530631}
+\showDOI{\tempurl}
+
+
+\bibitem[Ye et~al\mbox{.}(2021)]%
+        {YeArxiv2107.11673}
+\bibfield{author}{\bibinfo{person}{Hanchen Ye}, \bibinfo{person}{Cong Hao},
+  \bibinfo{person}{Jianyi Cheng}, \bibinfo{person}{Hyunmin Jeong},
+  \bibinfo{person}{Jack Huang}, \bibinfo{person}{Stephen Neuendorffer}, {and}
+  \bibinfo{person}{Deming Chen}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \bibinfo{title}{ScaleHLS: A New Scalable High-Level Synthesis
+  Framework on Multi-Level Intermediate Representation}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2107.11673}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2107.11673}~[cs.AR]
+
+
+\bibitem[Youn et~al\mbox{.}(2024)]%
+        {YounPLDI2024SpecTec}
+\bibfield{author}{\bibinfo{person}{D. Youn} {et~al\mbox{.}}}
+  \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{Bringing the WebAssembly Standard up to Speed with
+  SpecTec}.
+\newblock \bibinfo{journal}{\emph{Proceedings of the ACM on Programming
+  Languages}} (\bibinfo{year}{2024}).
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.1145/3656440}
+\showDOI{\tempurl}
+
+
+\bibitem[Zhuang et~al\mbox{.}(2021)]%
+        {ZhuangArxiv2106.11872}
+\bibfield{author}{\bibinfo{person}{Donglin Zhuang}, \bibinfo{person}{Xingyao
+  Zhang}, \bibinfo{person}{Shuaiwen~Leon Song}, {and} \bibinfo{person}{Sara
+  Hooker}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \bibinfo{title}{Randomness In Neural Network Training: Characterizing
+  The Impact of Tooling}.
+\newblock
+\newblock
+\urldef\tempurl%
+\url{https://doi.org/10.48550/arXiv.2106.11872}
+\showDOI{\tempurl}
+\showeprint[arxiv]{2106.11872}~[cs.LG]
+
+
+\end{thebibliography}

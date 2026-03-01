@@ -1,0 +1,45 @@
+\section{Threats to Validity and Limitations}
+
+\subsection{Threats to Validity (10)}
+
+\begin{itemize}
+\item \textbf{T1 (High) --- Benchmark representativeness.} The evaluated set mixes small/mid synthetic graphs (B1/B2), a medium kernel (B3), an external-bundle workflow (B4), and a small delay case (B6). Results may not generalize to substantially larger graphs, different activation functions, or different scheduling regimes. \textit{Mitigation:} keep all claims benchmark-scoped (per-row in the paper tables), and treat coverage as an explicit dimension reported by the artifact. \textit{Residual risk:} untested regimes may fail or show different QoR behavior.
+
+\item \textbf{T2 (High) --- Boardless hardware evidence vs on-board reality.} All hardware evidence is derived from HLS/Vivado flows and report parsing; no physical-board measurements are included. Tool-reported timing/utilization can diverge from achieved frequency on a real board due to board-level constraints, DDR/IO, routing, thermal throttling, or different clocks. \textit{Mitigation:} label all hardware throughput as estimated (not measured), and explicitly separate boardless evidence from on-board measurement in claims and limitations. \textit{Residual risk:} absolute performance and power may differ materially on hardware.
+
+\item \textbf{T3 (High) --- Partial Vivado coverage across benches.} The artifact explicitly records that B4/B5/B6 currently have \texttt{vivado\_impl\_ok=false}; therefore Vivado implementation evidence is not uniform across the benchmark suite. \textit{Mitigation:} present Vivado results only where \texttt{vivado\_impl\_ok=true} (B1/B2/B3) and explicitly state failures/non-coverage for other benches. \textit{Residual risk:} readers may overgeneralize if the paper's phrasing is not disciplined.
+
+\item \textbf{T4 (Medium) --- Throughput is an estimate derived from reports, not a measured rate.} The table reports \texttt{hw\_ticks\_per\_sec\_est} with notes such as \texttt{estimated\_from\_clk\_wns\_ii} and marks \texttt{vivado=FAIL} where implementation did not succeed. This estimation can be sensitive to how \texttt{fmax\_est} is derived and does not model runtime effects. \textit{Mitigation:} interpret \texttt{hw\_ticks\_per\_sec\_est} only as a report-based estimate and always pair it with the CPU measured \texttt{cpp\_ticks\_per\_sec} baseline as contextual anchor. \textit{Residual risk:} estimates can mispredict by a large factor without on-board validation.
+
+\item \textbf{T5 (High) --- Toolchain nondeterminism and version sensitivity.} HLS/Vivado are complex proprietary toolchains; QoR can change across versions, OS distributions, licensing settings, or machine environments. \textit{Mitigation:} pin and report tool versions, record sha256 for all paper tables and key evidence, and treat QoR reproduction as same-toolchain-version evidence rather than a universal property. \textit{Residual risk:} third-party environments may not reproduce identical QoR even when semantics/bit-exactness hold.
+
+\item \textbf{T6 (Medium) --- Limited tick horizon on some benches.} Some verification runs use short tick counts (e.g., B4/B5 rows show \texttt{ticks=2}); short runs may miss long-horizon divergence modes (e.g., accumulation/saturation patterns) even if per-tick digests match for a few steps. \textit{Mitigation:} keep the tick count explicit in the tables and position short-tick benches as workflow validation rather than maximal stress tests. \textit{Residual risk:} bugs that appear only after many ticks remain unexercised for those benches.
+
+\item \textbf{T7 (Medium) --- External-bundle dependency for B4.} The external connectome workflow depends on referenced files being present and having stable digests; missing or mutated external inputs can break reproducibility. \textit{Mitigation:} require file existence and sha256 validation when provided, and treat external-verified status as part of the artifact contract (not as biological correctness). \textit{Residual risk:} long-term availability and licensing/provenance of external files can remain outside the artifact's control.
+
+\item \textbf{T8 (Medium) --- Bit-exactness depends on the serialization contract.} Correctness is mediated by a digest of the packed state vector; if the serialization/digest definition is wrong, digest equality could still hold while semantics drift. \textit{Mitigation:} keep the bit-exactness definition explicit and narrow (digest over the specified representation), and pair it with trace presence and independent consistency checks where available. \textit{Residual risk:} this is conformance to the stated contract, not a proof of equivalence of all internal/latent states.
+
+\item \textbf{T9 (High) --- Audit circularity (self-certification).} A single auditing implementation (\texttt{audit\_min}) could accidentally encode the same assumption/bug as the pipeline it validates, producing false confidence. \textit{Mitigation:} the artifact includes an additional independent checker that runs in preflight and is reported separately (exit code and logs), reducing single-point-of-failure risk. \textit{Residual risk:} the independent checker is still part of the same repository ecosystem and is not an external formal verifier.
+
+\item \textbf{T10 (Low) --- Presentation/tooling drift (paper build warnings vs scientific results).} The evidence pack notes LaTeX warnings (e.g., undefined citations and an encoding anomaly). While this does not change the underlying JSON/CSV evidence, it can confuse reviewers or obscure traceability. \textit{Mitigation:} treat paper-build cleanliness as an artifact-quality gate and fix encoding/citation issues proactively. \textit{Residual risk:} none for correctness, but real risk for review reception and AE friction.
+\end{itemize}
+
+\subsection{Limitations}
+
+\begin{itemize}
+\item \textbf{No on-board measurement.} The artifact does not include measured power, measured wall-clock latency on a physical FPGA, or measured end-to-end throughput on a deployed bitstream; hardware evidence is boardless and report-derived.
+
+\item \textbf{Vivado implementation is not shown to succeed for all benches.} B4/B5/B6 are explicitly recorded as \texttt{vivado\_impl\_ok=false}; claims must not imply universal implementation success.
+
+\item \textbf{Throughput is reported as an estimate.} \texttt{hw\_ticks\_per\_sec\_est} is derived from report quantities (and is marked \texttt{vivado=FAIL} when applicable), so it is not a measured performance number.
+
+\item \textbf{Short-run verification for some workflows.} Rows with \texttt{ticks=2} validate workflow and contract adherence but do not establish long-horizon behavior under many-tick runs.
+
+\item \textbf{B5 is not a core, fully packaged benchmark in the current state.} The evaluation tables include a B5-family row, but it is not treated as a core correctness+implementation claim in the artifact story; treat it as non-core/experimental coverage.
+
+\item \textbf{Toolchain dependency.} Reproducing the hardware evidence requires access to the proprietary Xilinx/AMD toolchain (Vitis HLS / Vivado) and a compatible host environment.
+
+\item \textbf{Independent checking is separate, not formal.} The independent checker improves robustness against audit circularity but is not a formal proof system and is not external to the repository.
+
+\item \textbf{Paper-build hygiene is not yet perfect.} The evidence pack flags LaTeX issues (undefined citations, encoding anomaly) that should be fixed for a clean submission and for AE usability.
+\end{itemize}

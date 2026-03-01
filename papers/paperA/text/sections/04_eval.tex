@@ -1,0 +1,103 @@
+\section{Evaluation}
+
+\subsection{Setup and Methodology}
+Our evaluation is designed to avoid ``numbers in a vacuum'' by tying every reported metric to a concrete artifact produced by the toolchain and checked by scripts. For each benchmark, we (i) run the deterministic tick semantics for a fixed number of ticks, (ii) check bit-exactness against a golden digest when a verification manifest is available, and (iii) collect boardless hardware evidence from HLS and (when available) Vivado implementation reports.
+
+The evaluation tables are generated from per-benchmark \texttt{bench\_report.json} outputs and contain: (a) correctness/bit-exact status (\texttt{results\_bitexact.csv}), (b) HLS/Vivado QoR summaries (\texttt{results\_qor.csv}), and (c) a throughput-oriented view that combines cycle-level results with an explicitly stated estimate model (\texttt{results\_throughput.csv}). All quantitative values shown in this section come from those generated tables (via \texttt{\input}), not from manually hardcoded numbers in the manuscript.
+
+\subsection{Correctness / Bit-Exact}
+Table~\ref{tab:bitexact-summary} reports the script-generated bit-exact summary used by this paper, including graph size $(N,E)$, tick count, verifier outcome, mismatch count, digest-match status, independent-check status, and trace presence.
+
+\paragraph{Verified bit-exactness.}
+For B1, B2, B3, and B4, Table~\ref{tab:bitexact-summary} reports \texttt{verify\_ok=true}, \texttt{mismatches\_len=0}, and \texttt{digestMatchOk=true}. This is the strongest correctness claim in this paper: for manifest-verified benchmarks, the reference and compiled executions agree bit-for-bit on the recorded digest.
+
+\paragraph{Unverified-but-digested runs.}
+For B5 and B6, Table~\ref{tab:bitexact-summary} reports \texttt{digestMatchOk=true} and \texttt{trace\_present=true}, while \texttt{verify\_ok} and \texttt{mismatches\_len} remain ``-''. This indicates digested outputs are present, but manifest-style mismatch counting is not asserted by this table for those rows.
+
+\paragraph{Independent-check coverage.}
+Table~\ref{tab:bitexact-summary} explicitly separates independent-check coverage from manifest verification by reporting \texttt{independent\_check\_ok} per benchmark row.
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\input{../artifacts/tables/results_bitexact.tex}
+\caption{Bit-exact summary generated from artifact evidence (source: \texttt{papers/paperA/artifacts/tables/results\_bitexact.csv}).}
+\label{tab:bitexact-summary}
+\end{table*}
+
+\subsection{Hardware Evidence (boardless)}
+Table~\ref{tab:qor-summary} summarizes boardless hardware evidence from generated reports, including HLS schedule fields (\texttt{ii}, \texttt{latencyCycles}), resource utilization fields (\texttt{lut}, \texttt{ff}, \texttt{bram}, \texttt{dsp}), and implementation/timing fields when available.
+
+\paragraph{What \texttt{ii} and \texttt{latencyCycles} mean.}
+We interpret each \emph{tick} as one full deterministic network update step. In this context:
+\begin{itemize}
+\item \textbf{Initiation interval (II):} \texttt{ii} is the cycle spacing between starts of consecutive ticks in steady state.
+\item \textbf{Latency cycles:} \texttt{latencyCycles} is the pipeline latency of one tick.
+\end{itemize}
+Thus, II controls steady-state tick throughput, while \texttt{latencyCycles} controls fill/flush transients.
+
+\paragraph{HLS evidence.}
+All listed benchmarks in Table~\ref{tab:qor-summary} report \texttt{hls\_csim\_ok=true} and \texttt{hls\_csynth\_ok=true}, showing that HLS C-simulation and HLS synthesis completed for each listed row.
+
+\paragraph{Vivado implementation coverage is not universal.}
+Table~\ref{tab:qor-summary} shows \texttt{vivado\_impl\_ok=true} for B1/B2/B3 and \texttt{vivado\_impl\_ok=false} for B4/B5/B6, with missing timing fields represented explicitly (for example \texttt{wns='-'} on non-implemented rows). Accordingly, the strongest boardless ``scale + implementation'' evidence in this artifact pack is B3, which is both the largest listed benchmark and marked with successful implementation/timing fields.
+
+\paragraph{Resource context.}
+Utilization and timing fields are tool-reported boardless evidence from the flow outputs; they are not on-board measurements.
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\input{../artifacts/tables/results_qor.tex}
+\caption{QoR summary (boardless) generated from \texttt{bench\_report.json} artifacts (source: \texttt{papers/paperA/artifacts/tables/results\_qor.csv}).}
+\label{tab:qor-summary}
+\end{table*}
+
+\subsection{Throughput Context (boardless estimate + CPU baseline)}
+Table~\ref{tab:throughput-summary} contextualizes QoR by expressing throughput in ticks/s and pairing estimated HW throughput with a measured CPU baseline.
+
+\paragraph{Cycle-to-throughput translation.}
+For estimated maximum frequency \texttt{fmax\_est} (MHz) and initiation interval \texttt{ii} (cycles/tick), steady-state estimated HW tick throughput is:
+\[
+\texttt{hw\_ticks\_per\_sec\_est} = \frac{\texttt{fmax\_est} \cdot 10^{6}}{\texttt{ii}}.
+\]
+This gives the same unit (ticks/s) as the CPU baseline and makes II/frequency comparisons interpretable.
+
+\paragraph{Estimated HW vs measured CPU.}
+Table~\ref{tab:throughput-summary} reports both \texttt{cpp\_ticks\_per\_sec} and \texttt{hw\_ticks\_per\_sec\_est} per benchmark row. Benchmarks marked with failed implementation coverage in Table~\ref{tab:qor-summary} remain explicitly flagged in throughput notes (for example \texttt{vivado=FAIL}), so those estimates are not interpreted as timing-closure evidence.
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\input{../artifacts/tables/results_throughput.tex}
+\caption{Throughput context from generated artifacts: measured CPU ticks/s and boardless HW ticks/s estimates (source: \texttt{papers/paperA/artifacts/tables/results\_throughput.csv}).}
+\label{tab:throughput-summary}
+\end{table*}
+
+\subsection{Benchmark Coverage and Interpretation}
+The evaluated set spans correctness, scaling, external-graph flow, and delay-aware variants, as reflected directly in the generated rows for B1/B2/B3/B4/B5/B6 in Tables~\ref{tab:bitexact-summary}--\ref{tab:throughput-summary}. The coverage artifact \texttt{papers/paperA/artifacts/evidence/vivado\_coverage\_report.md} is included to keep implementation coverage auditable and consistent with \texttt{vivado\_impl\_ok} in Table~\ref{tab:qor-summary}.
+
+\subsection{What this does \emph{not} prove}
+\begin{itemize}
+\item These results are not on-board performance or power measurements; hardware evidence here is tool-based.
+\item For rows with \texttt{vivado\_impl\_ok=false}, reported \texttt{hw\_ticks\_per\_sec\_est} does not prove timing closure or deployability.
+\item The CPU baseline is a minimal context anchor and not a claim of highly tuned CPU optimization.
+\item QoR/utilization fields are tool-reported and do not replace on-board validation.
+\end{itemize}
+
+\subsection{Roadmap to on-board measurement (future work)}
+Once a physical FPGA board is available, the artifact pack can be extended while preserving the same script-verifiable contract:
+\begin{itemize}
+\item \textbf{Measure real tick throughput:} add on-device ticks/s outputs with raw logs.
+\item \textbf{Measure power/energy:} add board telemetry artifacts and raw measurement logs.
+\item \textbf{Validate on-board timing closure context:} record exact part, clocking, bitstream, and implementation logs.
+\item \textbf{Cross-check on-board correctness:} compare on-device digest logs against golden digests.
+\end{itemize}
+
+\paragraph{Claim-to-table pointers (Evaluation).}
+\begin{itemize}
+\item \textbf{E1 (Bit-exactness for manifest-verified benchmarks):} Table~\ref{tab:bitexact-summary} from \texttt{results\_bitexact.csv} (fields \texttt{verify\_ok}, \texttt{mismatches\_len}, \texttt{digestMatchOk}).
+\item \textbf{E2 (Boardless HLS success + explicit Vivado coverage):} Table~\ref{tab:qor-summary} from \texttt{results\_qor.csv} (fields \texttt{hls\_csim\_ok}, \texttt{hls\_csynth\_ok}, \texttt{vivado\_impl\_ok}, \texttt{wns}, \texttt{fmax\_est}).
+\item \textbf{E3 (Throughput contextualization):} Table~\ref{tab:throughput-summary} from \texttt{results\_throughput.csv} (fields \texttt{cpp\_ticks\_per\_sec}, \texttt{hw\_ticks\_per\_sec\_est}, \texttt{notes}).
+\item \textbf{E4 (Implementation coverage evidence):} \texttt{papers/paperA/artifacts/evidence/vivado\_coverage\_report.md}, consistent with Table~\ref{tab:qor-summary}.
+\end{itemize}

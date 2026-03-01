@@ -1,0 +1,109 @@
+This is BibTeX, Version 0.99d (TeX Live 2023/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: paper.aux
+The style file: ACM-Reference-Format.bst
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Database file #1: refs.bib
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated glb_str_ptr (elt_size=4) to 20 items from 10.
+Reallocated global_strs (elt_size=200001) to 20 items from 10.
+Reallocated glb_str_end (elt_size=4) to 20 items from 10.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Warning--no number and no volume in AhrensTOMS2020ReproSum
+Warning--page numbers missing in both pages and numpages fields in AhrensTOMS2020ReproSum
+Warning--empty publisher in BeckerECOOP2022RealCake
+Warning--empty address in BeckerECOOP2022RealCake
+Warning--page numbers missing in both pages and numpages fields in BeckerECOOP2022RealCake
+Warning--no number and no volume in BlanchardSIAM2020FABsum
+Warning--page numbers missing in both pages and numpages fields in BlanchardSIAM2020FABsum
+Warning--empty publisher in ChenICSE2022ReproDL
+Warning--empty address in ChenICSE2022ReproDL
+Warning--page numbers missing in both pages and numpages fields in ChenICSE2022ReproDL
+Warning--empty publisher in ChouMICRO2020DAB
+Warning--empty address in ChouMICRO2020DAB
+Warning--page numbers missing in both pages and numpages fields in ChouMICRO2020DAB
+Warning--no number and no volume in GoswamiIntegration2023MLDSE
+Warning--page numbers missing in both pages and numpages fields in GoswamiIntegration2023MLDSE
+Warning--no number and no volume in HerklotzOOPSLA2021Vericert
+Warning--page numbers missing in both pages and numpages fields in HerklotzOOPSLA2021Vericert
+Warning--no number and no volume in HerklotzPLDI2024Hyperblock
+Warning--page numbers missing in both pages and numpages fields in HerklotzPLDI2024Hyperblock
+Warning--no number and no volume in KaramimaneshNeuralNetworks2025SNNFPGA
+Warning--page numbers missing in both pages and numpages fields in KaramimaneshNeuralNetworks2025SNNFPGA
+Warning--no number and no volume in LeroyCACM2009CompCert
+Warning--page numbers missing in both pages and numpages fields in LeroyCACM2009CompCert
+Warning--no number and no volume in LopesPLDI2021Alive2
+Warning--page numbers missing in both pages and numpages fields in LopesPLDI2021Alive2
+Warning--empty publisher in NigamASPLOS2021Calyx
+Warning--empty address in NigamASPLOS2021Calyx
+Warning--page numbers missing in both pages and numpages fields in NigamASPLOS2021Calyx
+Warning--no number and no volume in PedersenNatComm2024NIR
+Warning--page numbers missing in both pages and numpages fields in PedersenNatComm2024NIR
+Warning--empty publisher in PhamASE2020Variance
+Warning--empty address in PhamASE2020Variance
+Warning--page numbers missing in both pages and numpages fields in PhamASE2020Variance
+Warning--empty publisher in PnueliTACAS1998TranslationValidation
+Warning--empty address in PnueliTACAS1998TranslationValidation
+Warning--page numbers missing in both pages and numpages fields in PnueliTACAS1998TranslationValidation
+Warning--empty publisher in PouchetFPGA2024HLSVerify
+Warning--empty address in PouchetFPGA2024HLSVerify
+Warning--page numbers missing in both pages and numpages fields in PouchetFPGA2024HLSVerify
+Warning--no number and no volume in RaoPOPL2025Progressful
+Warning--page numbers missing in both pages and numpages fields in RaoPOPL2025Progressful
+Warning--no number and no volume in WangTODAES2022DSE
+Warning--page numbers missing in both pages and numpages fields in WangTODAES2022DSE
+Warning--empty publisher in WattFM2021WasmCert
+Warning--empty address in WattFM2021WasmCert
+Warning--page numbers missing in both pages and numpages fields in WattFM2021WasmCert
+Warning--empty publisher in YangPLDI2011Csmith
+Warning--empty address in YangPLDI2011Csmith
+Warning--page numbers missing in both pages and numpages fields in YangPLDI2011Csmith
+Warning--empty publisher in YeDAC2022ScaleHLS
+Warning--empty address in YeDAC2022ScaleHLS
+Warning--page numbers missing in both pages and numpages fields in YeDAC2022ScaleHLS
+Warning--no number and no volume in YounPLDI2024SpecTec
+Warning--page numbers missing in both pages and numpages fields in YounPLDI2024SpecTec
+You've used 31 entries,
+            5981 wiz_defined-function locations,
+            1667 strings with 24658 characters,
+and the built_in function-call counts, 30962 in all, are:
+= -- 3738
+> -- 1227
+< -- 0
++ -- 422
+- -- 427
+* -- 2337
+:= -- 3142
+add.period$ -- 145
+call.type$ -- 31
+change.case$ -- 241
+chr.to.int$ -- 31
+cite$ -- 85
+duplicate$ -- 2625
+empty$ -- 1880
+format.name$ -- 519
+if$ -- 7319
+int.to.chr$ -- 2
+int.to.str$ -- 1
+missing$ -- 98
+newline$ -- 380
+num.names$ -- 217
+pop$ -- 1165
+preamble$ -- 1
+purify$ -- 480
+quote$ -- 0
+skip$ -- 925
+stack$ -- 0
+substring$ -- 1752
+swap$ -- 134
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 762
+warning$ -- 54
+while$ -- 133
+width$ -- 0
+write$ -- 689
+(There were 54 warnings)

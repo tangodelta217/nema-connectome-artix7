@@ -1,0 +1,101 @@
+\section{Evaluation}
+
+\subsection{Setup and Methodology (gates)}
+
+Our evaluation is defined as a set of machine-checkable gates (exit code + JSON contract) that collectively establish (i) software correctness and determinism, and (ii) boardless hardware-toolchain evidence. The artifact pack records the gate outcomes in a compact summary table (\texttt{papers/paperA/artifacts/tables/gates\_summary.\{csv,md\}}) and in the full audit JSON outputs (\texttt{papers/paperA/artifacts/evidence/audit\_software.json}, \texttt{papers/paperA/artifacts/evidence/audit\_hardware.json}).
+
+\textbf{Primary commands (repro contract):}
+\begin{itemize}
+\item \texttt{python -m pytest -q} (regression suite)
+\item \texttt{python tools/audit\_min.py --mode software} $\Rightarrow$ \texttt{decision=\"GO\"}
+\item \texttt{python tools/audit\_min.py --mode hardware} $\Rightarrow$ \texttt{decision=\"GO\"}
+\end{itemize}
+
+\textbf{Benchmark-level correctness gate (bit-exactness):}
+\begin{itemize}
+\item \texttt{python -m nema bench verify \ldots} for manifest-driven verification.
+\end{itemize}
+
+The current artifact summary reports \texttt{decision=GO} for both software and hardware audits.
+
+\subsection{Correctness / Bit-Exact}
+
+We evaluate correctness using bit-exactness checks exposed by the repository's verification tooling. The paper's correctness metrics are strictly those produced by scripts:
+\begin{itemize}
+\item \texttt{mismatch == 0}, operationalized as \texttt{mismatches=[]} in \texttt{nema bench verify}
+\item \texttt{digestMatchOk == true} (or equivalent field, if exposed)
+\item \texttt{bench\_report.ok == true}
+\end{itemize}
+
+\textbf{Core correctness claim (C1).} For the base benchmarks B1 and B3, the verification command \texttt{python -m nema bench verify \ldots} must return \texttt{ok=true} and \texttt{mismatches=[]} (mismatch=0), establishing bit-exact agreement between the golden path and the C++ reference runner for the evaluated trace.
+
+\textbf{Audit corroboration.} The software audit summary records \texttt{benchVerifyOk=True} and \texttt{digestMatchAll=True}, and the artifact index lists successful \texttt{bench\_report.json} outputs for B1 and B3 (\texttt{ok=True}).
+
+\textbf{Reproducibility aspect.} In addition to per-run correctness, Claim C3 states that the repo's reproducible routine includes evidence that repeated runs produce identical digests for the B1/B3 baseline (run1==run2), stored as artifact evidence (e.g., a \texttt{repro\_summary.json}-style reference in the bundle).
+
+Table~\ref{tab:bitexact-summary} reports the script-generated bit-exact summary used by this paper. The table is generated directly from artifact outputs and includes verifier status, mismatch count, digest-match status, and IR hash per benchmark row. No values are hand-entered in the manuscript; the LaTeX table is emitted by \texttt{papers/paperA/artifacts/scripts/make\_table\_bitexact.py}.
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\input{../artifacts/tables/results_bitexact.tex}
+\caption{Bit-exact summary generated from artifact evidence (\texttt{results\_bitexact.tex}).}
+\label{tab:bitexact-summary}
+\end{table*}
+
+\subsection{Hardware Evidence (boardless)}
+
+We explicitly treat hardware evidence as toolchain evidence rather than physical-board measurement. The hardware pipeline is considered supported when the hardware audit gate passes:
+\begin{itemize}
+\item \texttt{python tools/audit\_min.py --mode hardware} must return \texttt{decision=\"GO\"} and satisfy:
+\begin{itemize}
+\item \texttt{hardwareToolchainAvailable == true}
+\item \texttt{hardwareEvidenceG0b == true}
+\item \texttt{hardwareEvidenceG2 == true}
+\item \texttt{hardwareEvidenceG3 == true} (Vivado implementation evidence with timing parsed; WNS non-null in the intended contract)
+\end{itemize}
+\end{itemize}
+
+The hardware metrics we rely on are those recorded in \texttt{bench\_report.json} and named in the evaluation contract:
+\begin{itemize}
+\item \texttt{hardware.qor.ii}
+\item \texttt{hardware.qor.latencyCycles}
+\item \texttt{hardware.qor.utilization.\{lut,ff,bram,dsp\}} (when present)
+\item \texttt{hardware.vivado.wns} (when implementation exists)
+\end{itemize}
+
+The artifact summary table indicates the hardware mode is \texttt{ok=true} with \texttt{decision=GO}.
+
+Table~\ref{tab:qor-summary} provides the boardless QoR summary extracted from the same bench reports. It includes HLS status flags, core QoR metrics, and Vivado fields when available, while preserving missing values explicitly. The table is emitted by \texttt{papers/paperA/artifacts/scripts/make\_table\_qor.py} and inserted without manual editing.
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\input{../artifacts/tables/results_qor.tex}
+\caption{QoR summary (boardless) generated from \texttt{bench\_report.json} artifacts (\texttt{results\_qor.tex}).}
+\label{tab:qor-summary}
+\end{table*}
+
+\subsection{Benchmark Coverage (B1/B3/B4/B2/B6 + note B5)}
+
+We report coverage using the manifest presence and the existence of a corresponding \texttt{bench\_report.json} marked \texttt{ok=True}, as recorded in the artifact index.
+
+\textbf{Included in this evaluation section:}
+\begin{itemize}
+\item \textbf{B1} (manifest present): \texttt{benches/B1\_small/manifest.json}; latest report \texttt{\ldots/example\_b1\_small\_subgraph/CE/2-1} (\texttt{ok=True}).
+\item \textbf{B3} (manifest present): \texttt{benches/B3\_kernel\_302\_7500/manifest.json}; latest report \texttt{\ldots/B3\_kernel\_302\_7500/CE/302-7500} (\texttt{ok=True}).
+\item \textbf{B4} (manifest present; external bundle workflow): \texttt{benches/B4\_real\_connectome/manifest.json}; latest report \texttt{\ldots/B4\_celegans\_external\_bundle/CE/8-12} (\texttt{ok=True}).
+\item \textbf{B2} (manifest present; mid-scale diversity): \texttt{benches/B2\_mid/manifest.json}; latest report \texttt{\ldots/B2\_mid\_64\_1024/CE/64-1024} (\texttt{ok=True}).
+\item \textbf{B6} (manifest present; delay-focused benchmark): \texttt{benches/B6\_delay\_small/manifest.json}; latest report \texttt{build\_hw/b6/B6\_delay\_small/bench\_report.json} with target \texttt{CE/3-2} (\texttt{ok=True}).
+\end{itemize}
+
+\textbf{Note on B5.} A B5-family \texttt{bench\_report.json} exists and is marked \texttt{ok=True}, but the benchmark manifest is recorded as missing (\texttt{manifest=NO} for \texttt{benches/B5\_synthetic\_family/manifest.json}). As a result, B5 can be discussed only as a supplementary data point unless/until the manifest-based verification path is part of the artifact contract for B5.
+
+\subsection{What is NOT claimed}
+
+We explicitly scope the evaluation to determinism/bit-exactness and boardless toolchain evidence. The paper makes the following no-claims:
+\begin{enumerate}
+\item \textbf{No ML superiority claim}: no statement that NEMA (or connectome-derived structures) outperforms other ML models or achieves SOTA accuracy/sample-efficiency.
+\item \textbf{No biological fidelity claim}: no statement of biological realism; the guarantee is determinism + bit-exact execution under the spec/IR contract.
+\item \textbf{No on-board power/latency claim}: hardware results are not presented as measured-on-board power/latency; hardware evidence here is derived from tool outputs captured in \texttt{bench\_report.json} and audited by gates.
+\end{enumerate}

@@ -1,0 +1,25 @@
+{
+  "generatedAtUtc": "2026-02-28T15:18:58.850342+00:00",
+  "git": {
+    "head": "bb17ac319debc7ee40a28f4502fe4189f0795ac5"
+  },
+  "artifactManifest": {
+    "path": "papers/paperA/artifacts/artifact_manifest.json",
+    "sha256": "639c795cba264af5de5ed2fad5862c45dee732028102181da7d844fcff68e6e0"
+  },
+  "counts": {
+    "evidence": 11,
+    "tables": 7,
+    "figures": 2
+  },
+  "toolchainVersions": {
+    "vitis_hls": {
+      "path": "/home/tangodelta/.local/bin/vitis_hls",
+      "version": "Vitis HLS - High-Level Synthesis from C, C++ and OpenCL v2025.2 (64-bit)"
+    },
+    "vivado": {
+      "path": "/home/tangodelta/.local/bin/vivado",
+      "version": "vivado v2025.2 (64-bit)"
+    }
+  }
+}

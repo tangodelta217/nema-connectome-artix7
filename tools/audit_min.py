@@ -17,15 +17,17 @@ REPO_IMPORT_ROOT = SCRIPT_DIR.parent
 if str(REPO_IMPORT_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_IMPORT_ROOT))
 
-from nema.cost import run_cost_compare
+from nema.qor_model import extract_rows_from_paths, fit_cost_model
 
 DSL_PROGRAMS: dict[str, str] = {
     "B1": "programs/b1_small.nema",
+    "B2": "programs/b2_mid.nema",
     "B3": "programs/b3_kernel_302.nema",
 }
 
 BENCH_MANIFESTS: dict[str, str] = {
     "B1": "benches/B1_small/manifest.json",
+    "B2": "benches/B2_mid/manifest.json",
     "B3": "benches/B3_kernel_302_7500/manifest.json",
 }
 
@@ -81,6 +83,8 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
     qor_latency_cycles = None
     vivado_attempted = None
     vivado_ok = None
+    vivado_impl_ok = None
+    vivado_wns = None
     vivado_utilization_partial = False
     vivado_timing_present = False
     hardware_has_reports = False
@@ -135,7 +139,15 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
                 vivado_attempted = vivado.get("attempted")
             if isinstance(vivado.get("ok"), bool):
                 vivado_ok = vivado.get("ok")
+            if isinstance(vivado.get("implOk"), bool):
+                vivado_impl_ok = vivado.get("implOk")
+            elif isinstance(vivado_ok, bool):
+                vivado_impl_ok = vivado_ok
             vivado_util = vivado.get("utilization")
+            if not isinstance(vivado_util, dict):
+                alt_util = vivado.get("util")
+                if isinstance(alt_util, dict):
+                    vivado_util = alt_util
             if isinstance(vivado_util, dict):
                 vivado_utilization_partial = any(isinstance(vivado_util.get(key), (int, float)) for key in ("lut", "ff", "bram", "dsp"))
             vivado_timing = vivado.get("timing")
@@ -144,6 +156,10 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
                     isinstance(vivado_timing.get(key), (int, float))
                     for key in ("wns", "tns", "whs", "ths", "failingEndpoints")
                 )
+                if isinstance(vivado_timing.get("wns"), (int, float)):
+                    vivado_wns = vivado_timing.get("wns")
+            if isinstance(vivado.get("wns"), (int, float)):
+                vivado_wns = vivado.get("wns")
             vivado_source = vivado.get("sourceReports")
             if isinstance(vivado_source, list) and any(isinstance(item, str) and item for item in vivado_source):
                 hardware_has_reports = True
@@ -186,6 +202,8 @@ def _report_summary(path: Path, report: dict[str, Any]) -> dict[str, Any]:
         "qorLatencyCycles": qor_latency_cycles,
         "vivadoAttempted": vivado_attempted,
         "vivadoOk": vivado_ok,
+        "vivadoImplOk": vivado_impl_ok,
+        "vivadoWns": vivado_wns,
         "vivadoUtilizationPartial": vivado_utilization_partial,
         "vivadoTimingPresent": vivado_timing_present,
     }
@@ -198,6 +216,36 @@ def _is_b3_302_7500(summary: dict[str, Any]) -> bool:
     target_match = isinstance(target_id, str) and "302-7500" in target_id
     count_match = node_count == 302 and chemical_edge_count == 7500
     return bool(count_match or target_match)
+
+
+def _is_b2(summary: dict[str, Any]) -> bool:
+    model_id = summary.get("modelId")
+    target_id = summary.get("targetId")
+    path = summary.get("path")
+    blob = " ".join(
+        part
+        for part in (
+            model_id if isinstance(model_id, str) else "",
+            target_id if isinstance(target_id, str) else "",
+            path if isinstance(path, str) else "",
+        )
+    ).lower()
+    return "b2" in blob or "mid" in blob
+
+
+def _is_b4(summary: dict[str, Any]) -> bool:
+    model_id = summary.get("modelId")
+    target_id = summary.get("targetId")
+    path = summary.get("path")
+    blob = " ".join(
+        part
+        for part in (
+            model_id if isinstance(model_id, str) else "",
+            target_id if isinstance(target_id, str) else "",
+            path if isinstance(path, str) else "",
+        )
+    ).lower()
+    return "b4" in blob or "connectome" in blob
 
 
 def _is_b1(summary: dict[str, Any]) -> bool:
@@ -445,14 +493,14 @@ def _relevant_report_paths(
                     else:
                         warnings.append(f"dsl hwtest {key}: no bench_report.json under outdir {outdir}")
 
-    scanned_b1_b3 = [
+    scanned_bench_targets = [
         _normalize_path(item["path"], repo_root=repo_root)
         for item in summaries
-        if _is_b1(item) or _is_b3_302_7500(item)
+        if _is_b1(item) or _is_b2(item) or _is_b3_302_7500(item) or _is_b4(item)
     ]
-    relevant.update(scanned_b1_b3)
+    relevant.update(scanned_bench_targets)
     if not relevant:
-        warnings.append("No relevant B1/B3 bench reports resolved from audit runs or scan")
+        warnings.append("No relevant B1/B2/B3/B4 bench reports resolved from audit runs or scan")
 
     return relevant, warnings
 
@@ -469,54 +517,71 @@ def _cost_compare_sanity(
     summaries: list[dict[str, Any]],
     *,
     cost_max_ratio: float,
+    cost_min_points: int,
+    cost_mean_rel_error_max: float,
+    cost_split_by: str,
+    cost_test_fraction: float,
+    cost_split_seed: int,
 ) -> dict[str, Any]:
-    checks: list[dict[str, Any]] = []
+    g2_reports_present = any(_has_g2_reports_or_qor(item) for item in summaries)
+    report_paths: list[Path] = []
     for summary in summaries:
         if not _has_g2_reports_or_qor(summary):
             continue
-
         path_raw = summary.get("resolvedPath", summary.get("path"))
-        report_path = Path(str(path_raw)).resolve()
-        code, payload = run_cost_compare(report_path)
-        compare_ok = bool(code == 0 and isinstance(payload, dict) and payload.get("ok") is True)
+        if not isinstance(path_raw, str) or not path_raw:
+            continue
+        path_obj = Path(path_raw).resolve()
+        if path_obj.exists():
+            report_paths.append(path_obj)
 
-        comparison = payload.get("comparison") if compare_ok else {}
-        if not isinstance(comparison, dict):
-            comparison = {}
-        has_actual = bool(comparison.get("hasActualQor") is True)
-        max_ratio = comparison.get("maxRatio")
-        if not isinstance(max_ratio, (int, float)):
-            max_ratio = None
-        within_threshold = bool(has_actual and max_ratio is not None and float(max_ratio) < float(cost_max_ratio))
+    rows, row_errors = extract_rows_from_paths(sorted(set(report_paths)))
+    fit_payload = fit_cost_model(
+        rows,
+        min_points=cost_min_points,
+        mean_relative_error_max=cost_mean_rel_error_max,
+        split_by=cost_split_by,
+        test_fraction=cost_test_fraction,
+        split_seed=cost_split_seed,
+    )
+    checks = fit_payload.get("rows")
+    if not isinstance(checks, list):
+        checks = []
 
-        checks.append(
-            {
-                "path": str(report_path),
-                "modelId": summary.get("modelId"),
-                "targetId": summary.get("targetId"),
-                "costCompareOk": compare_ok,
-                "hasActualQor": has_actual,
-                "maxRatio": max_ratio,
-                "maxRelativeError": comparison.get("maxRelativeError") if isinstance(comparison, dict) else None,
-                "withinThreshold": within_threshold,
-                "thresholdRatio": cost_max_ratio,
-            }
-        )
-
-    g2_reports_present = any(_has_g2_reports_or_qor(item) for item in summaries)
-    comparable_entries = [item for item in checks if item.get("hasActualQor") is True]
-    comparable_present = len(comparable_entries) > 0
-    all_compare_ok = len(checks) > 0 and all(item.get("costCompareOk") is True for item in checks)
-    within_threshold = comparable_present and all(item.get("withinThreshold") is True for item in comparable_entries)
+    k_requirement_met = bool(fit_payload.get("kRequirementMet") is True)
+    mean_error_test = fit_payload.get("meanRelativeError_test")
+    if not isinstance(mean_error_test, (int, float)):
+        mean_error_test = fit_payload.get("meanRelativeError")
+    within_threshold = bool(
+        isinstance(mean_error_test, (int, float))
+        and float(mean_error_test) < float(cost_mean_rel_error_max)
+    )
+    comparable_present = int(fit_payload.get("pointsWithActualQor", 0) or 0) > 0
+    all_compare_ok = bool(fit_payload.get("fitSolved") is True)
 
     return {
         "thresholdRatio": cost_max_ratio,
+        "thresholdMeanRelativeError": cost_mean_rel_error_max,
+        "minPointsRequired": cost_min_points,
         "checks": checks,
+        "rowsTotal": fit_payload.get("pointsTotal"),
+        "rowsWithActualQor": fit_payload.get("pointsWithActualQor"),
         "g2ReportsOrQorPresent": g2_reports_present,
         "comparablePresent": comparable_present,
         "allCostCompareOk": all_compare_ok,
+        "kRequirementMet": k_requirement_met,
+        "fitSolved": bool(fit_payload.get("fitSolved") is True),
+        "meanRelativeError": fit_payload.get("meanRelativeError"),
+        "meanRelativeErrorTrain": fit_payload.get("meanRelativeError_train"),
+        "meanRelativeErrorTest": fit_payload.get("meanRelativeError_test"),
+        "maxRelativeErrorTrain": fit_payload.get("maxRelativeError_train"),
+        "maxRelativeErrorTest": fit_payload.get("maxRelativeError_test"),
+        "splitBy": fit_payload.get("splitBy"),
+        "split": fit_payload.get("split"),
         "withinThreshold": within_threshold,
-        "ok": bool(g2_reports_present and all_compare_ok and comparable_present and within_threshold),
+        "ok": bool(g2_reports_present and k_requirement_met and within_threshold),
+        "fit": fit_payload,
+        "datasetErrors": row_errors,
     }
 
 
@@ -532,6 +597,11 @@ def _evaluate_modes(
     toolchain_hw_available: bool,
     warnings: list[str],
     cost_max_ratio: float,
+    cost_min_points: int,
+    cost_mean_rel_error_max: float,
+    cost_split_by: str,
+    cost_test_fraction: float,
+    cost_split_seed: int,
 ) -> tuple[str, list[str], dict[str, bool], bool, bool, bool, bool, dict[str, Any]]:
     missing_normalized = [
         item
@@ -552,7 +622,18 @@ def _evaluate_modes(
     bench_verify_ok = bool(manifest_checks.get("verifyOk"))
 
     hardware_scope = relevant_summaries if relevant_summaries else summaries
-    cost_sanity = _cost_compare_sanity(hardware_scope, cost_max_ratio=cost_max_ratio)
+    cost_sanity = _cost_compare_sanity(
+        hardware_scope,
+        cost_max_ratio=cost_max_ratio,
+        cost_min_points=cost_min_points,
+        cost_mean_rel_error_max=cost_mean_rel_error_max,
+        cost_split_by=cost_split_by,
+        cost_test_fraction=cost_test_fraction,
+        cost_split_seed=cost_split_seed,
+    )
+    dataset_errors = cost_sanity.get("datasetErrors")
+    if isinstance(dataset_errors, list) and dataset_errors:
+        warnings.append(f"{len(dataset_errors)} QoR dataset rows could not be parsed")
     hardware_g0b = any(
         item.get("hardwareToolchainAvailable") is True
         and item.get("csimOk") is True
@@ -563,14 +644,17 @@ def _evaluate_modes(
         for item in hardware_scope
     )
     hardware_g2_reports = bool(cost_sanity.get("g2ReportsOrQorPresent") is True)
-    hardware_g2_cost_ok = bool(cost_sanity.get("ok") is True)
+    hardware_g2_min_points = bool(cost_sanity.get("kRequirementMet") is True)
+    hardware_g2_mean_error = bool(cost_sanity.get("withinThreshold") is True)
+    hardware_g2_cost_ok = bool(hardware_g2_min_points and hardware_g2_mean_error)
     hardware_g2 = bool(hardware_g2_reports and hardware_g2_cost_ok)
-    hardware_g3_vivado = any(
+    hardware_g3 = any(
         item.get("hardwareToolchainAvailable") is True
-        and item.get("vivadoOk") is True
+        and item.get("vivadoImplOk") is True
         and (
-            item.get("vivadoUtilizationPartial") is True
+            isinstance(item.get("vivadoWns"), (int, float))
             or item.get("vivadoTimingPresent") is True
+            or item.get("vivadoUtilizationPartial") is True
         )
         for item in hardware_scope
     )
@@ -591,9 +675,12 @@ def _evaluate_modes(
         "hardwareToolchainAvailable": toolchain_hw_available,
         "hardwareEvidenceG0b": hardware_g0b,
         "hardwareEvidenceG2Reports": hardware_g2_reports,
+        "hardwareCostModelMinPoints": hardware_g2_min_points,
+        "hardwareCostModelMeanErrorWithinThreshold": hardware_g2_mean_error,
         "hardwareCostCompareWithinThreshold": hardware_g2_cost_ok,
         "hardwareEvidenceG2": hardware_g2,
-        "hardwareEvidenceG3Vivado": hardware_g3_vivado,
+        "hardwareEvidenceG3": hardware_g3,
+        "hardwareEvidenceG3Vivado": hardware_g3,
     }
 
     software_ok = all(
@@ -612,6 +699,8 @@ def _evaluate_modes(
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
             "hardwareEvidenceG2Reports",
+            "hardwareCostModelMinPoints",
+            "hardwareCostModelMeanErrorWithinThreshold",
             "hardwareCostCompareWithinThreshold",
         )
     )
@@ -620,23 +709,32 @@ def _evaluate_modes(
         for key in (
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
-            "hardwareEvidenceG3Vivado",
+            "hardwareEvidenceG3",
         )
     )
     all_ok = software_ok and hardware_ok
 
     reason_map = {
         "dslReady": "DSL-ready failed (programs/check/hwtest)",
-        "digestMatchAll": "Digest match failed in relevant B1/B3 bench reports",
+        "digestMatchAll": "Digest match failed in relevant B1/B2/B3/B4 bench reports",
         "b3Evidence302_7500": "Missing B3 302/7500 evidence with digestMatch.ok=true in relevant bench reports",
         "benchVerifyOk": "Bench manifest verification failed for one or more manifests",
-        "graphCountsNormalized": "Missing normalized graph counts in relevant B1/B3 bench reports",
+        "graphCountsNormalized": "Missing normalized graph counts in relevant B1/B2/B3/B4 bench reports",
         "hardwareToolchainAvailable": "HW toolchain unavailable (vitis_hls/vivado not found)",
         "hardwareEvidenceG0b": "No hardware evidence for G0b (toolchain.available + csim.ok and cosim.ok if attempted)",
         "hardwareEvidenceG2Reports": "No hardware evidence for G2 (reports.files or qor.utilization)",
-        "hardwareCostCompareWithinThreshold": f"Cost compare sanity failed (max ratio must be < {cost_max_ratio}x)",
-        "hardwareEvidenceG2": f"G2 failed: reports/QoR evidence + cost compare < {cost_max_ratio}x required",
-        "hardwareEvidenceG3Vivado": "No Vivado batch QoR evidence (require hardware.vivado.ok=true with utilization or timing metrics)",
+        "hardwareCostModelMinPoints": f"Cost model sanity failed: need at least {cost_min_points} QoR points",
+        "hardwareCostModelMeanErrorWithinThreshold": (
+            f"Cost model sanity failed: mean relative error (test split) must be < {cost_mean_rel_error_max}"
+        ),
+        "hardwareCostCompareWithinThreshold": (
+            f"Cost model sanity failed: mean relative error (test split) < {cost_mean_rel_error_max} with >= {cost_min_points} points"
+        ),
+        "hardwareEvidenceG2": (
+            f"G2 failed: reports/QoR evidence + >= {cost_min_points} points + test mean relative error < {cost_mean_rel_error_max} required"
+        ),
+        "hardwareEvidenceG3": "No Vivado impl evidence (require hardware.vivado.implOk=true with non-null WNS/timing/utilization)",
+        "hardwareEvidenceG3Vivado": "No Vivado impl evidence (require hardware.vivado.implOk=true with non-null WNS/timing/utilization)",
     }
 
     mode_criteria = {
@@ -651,6 +749,8 @@ def _evaluate_modes(
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
             "hardwareEvidenceG2Reports",
+            "hardwareCostModelMinPoints",
+            "hardwareCostModelMeanErrorWithinThreshold",
             "hardwareCostCompareWithinThreshold",
         ),
         "all": (
@@ -662,12 +762,14 @@ def _evaluate_modes(
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
             "hardwareEvidenceG2Reports",
+            "hardwareCostModelMinPoints",
+            "hardwareCostModelMeanErrorWithinThreshold",
             "hardwareCostCompareWithinThreshold",
         ),
         "vivado": (
             "hardwareToolchainAvailable",
             "hardwareEvidenceG0b",
-            "hardwareEvidenceG3Vivado",
+            "hardwareEvidenceG3",
         ),
     }
 
@@ -675,8 +777,6 @@ def _evaluate_modes(
     reasons = [reason_map[key] for key in keys if not criteria.get(key, False)]
     if load_errors:
         warnings.append(f"{len(load_errors)} bench_report load errors observed outside required mode criteria")
-    if ignored_reports:
-        warnings.append(f"Ignored {len(ignored_reports)} non-relevant bench reports")
 
     if mode == "software":
         decision_ok = software_ok
@@ -701,7 +801,14 @@ def main(argv: list[str] | None = None) -> int:
         default="software",
         help="Gate mode to evaluate (default: software)",
     )
-    parser.add_argument("--path", type=Path, default=Path("build"), help="Root directory to scan")
+    parser.add_argument(
+        "--path",
+        "--scan",
+        dest="path",
+        type=Path,
+        default=Path("build"),
+        help="Root directory to scan (alias: --scan)",
+    )
     parser.add_argument(
         "--extra-scan-root",
         action="append",
@@ -730,12 +837,48 @@ def main(argv: list[str] | None = None) -> int:
         "--cost-max-ratio",
         type=float,
         default=3.0,
-        help="Maximum allowed ratio between estimated and measured cycles for G2 cost sanity (default: 3.0)",
+        help="Deprecated legacy ratio knob (kept for backward compatibility)",
+    )
+    parser.add_argument(
+        "--cost-min-points",
+        type=int,
+        default=3,
+        help="Minimum number of QoR points for G2 model sanity (default: 3)",
+    )
+    parser.add_argument(
+        "--cost-mean-rel-error-max",
+        type=float,
+        default=1.0,
+        help="Maximum mean relative error for G2 model sanity (default: 1.0)",
+    )
+    parser.add_argument(
+        "--cost-split-by",
+        choices=("none", "benchmark", "seed"),
+        default="benchmark",
+        help="Cross-validation split key for G2 sanity (default: benchmark)",
+    )
+    parser.add_argument(
+        "--cost-test-fraction",
+        type=float,
+        default=0.34,
+        help="Holdout fraction for G2 cross-validation split (default: 0.34)",
+    )
+    parser.add_argument(
+        "--cost-split-seed",
+        type=int,
+        default=0,
+        help="Deterministic seed for G2 cross-validation split (default: 0)",
     )
     parser.add_argument("--out", type=Path, default=None, help="Optional output JSON path")
     args = parser.parse_args(argv)
     if args.cost_max_ratio <= 1.0:
         parser.error("--cost-max-ratio must be > 1.0")
+    if args.cost_min_points < 3:
+        parser.error("--cost-min-points must be >= 3")
+    if args.cost_mean_rel_error_max <= 0.0:
+        parser.error("--cost-mean-rel-error-max must be > 0")
+    if args.cost_test_fraction <= 0.0 or args.cost_test_fraction >= 1.0:
+        parser.error("--cost-test-fraction must be in (0,1)")
 
     repo_root = args.repo_root.resolve()
     workdir = args.workdir if args.workdir.is_absolute() else (repo_root / args.workdir)
@@ -796,6 +939,7 @@ def main(argv: list[str] | None = None) -> int:
         item["path"] for item in summaries if _normalize_path(item["path"], repo_root=repo_root) not in relevant_paths
     )
     warnings: list[str] = list(relevance_warnings)
+    ignored_missing_normalized_counts: list[str] = []
     for item in summaries:
         path_obj = _normalize_path(item["path"], repo_root=repo_root)
         if path_obj in relevant_paths:
@@ -806,7 +950,7 @@ def main(argv: list[str] | None = None) -> int:
             or item.get("gapEdgeCount") is None
             or item.get("edgeCountTotal") is None
         ):
-            warnings.append(f"ignored report missing normalized counts: {item['path']}")
+            ignored_missing_normalized_counts.append(item["path"])
 
     toolchain_hw_available = bool(shutil.which("vitis_hls") or shutil.which("vivado"))
 
@@ -821,6 +965,11 @@ def main(argv: list[str] | None = None) -> int:
         toolchain_hw_available=toolchain_hw_available,
         warnings=warnings,
         cost_max_ratio=float(args.cost_max_ratio),
+        cost_min_points=int(args.cost_min_points),
+        cost_mean_rel_error_max=float(args.cost_mean_rel_error_max),
+        cost_split_by=str(args.cost_split_by),
+        cost_test_fraction=float(args.cost_test_fraction),
+        cost_split_seed=int(args.cost_split_seed),
     )
 
     dsl_ready = {
@@ -844,6 +993,7 @@ def main(argv: list[str] | None = None) -> int:
         "loadErrors": load_errors,
         "warnings": warnings,
         "ignoredReports": ignored_reports,
+        "ignoredReportsMissingNormalizedCounts": ignored_missing_normalized_counts,
         "reasons": reasons,
         "criteria": criteria,
         "dsl": dsl_ready,
@@ -851,6 +1001,13 @@ def main(argv: list[str] | None = None) -> int:
         "toolchainHwAvailable": toolchain_hw_available,
         "hwReportFiles": [str(path) for path in hw_reports],
         "costModel": cost_sanity,
+        "costModelConfig": {
+            "splitBy": args.cost_split_by,
+            "testFraction": args.cost_test_fraction,
+            "splitSeed": args.cost_split_seed,
+            "minPoints": args.cost_min_points,
+            "meanRelativeErrorMax": args.cost_mean_rel_error_max,
+        },
         "reports": summaries,
         "relevantReports": relevant_summaries,
         "relevantReportPaths": [str(path) for path in sorted(relevant_paths)],

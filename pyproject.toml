@@ -18,4 +18,8 @@ include = ["nema*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m \"not hw and not integration\""
+markers = [
+  "hw: tests that require hardware toolchain or long HW flows",
+  "integration: slow integration tests excluded from default quick suite",
+]

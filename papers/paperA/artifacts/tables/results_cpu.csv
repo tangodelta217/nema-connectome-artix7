@@ -1,0 +1,4 @@
+benchmarkId,irPath,ticks,goldenTicksPerSecond,cppRefTicksPerSecond,cpuTicksPerSecondSelected,goldenElapsedSeconds,cppRefElapsedSeconds,benchReportPath,hwtestOk,hwtestExitCode,error
+B1,example_b1_small_subgraph.json,1000,76404.752951,495514.358427,495514.358427,0.013088,0.002018,paper_cpu_runs/b1/example_b1_small_subgraph/bench_report.json,true,0,-
+B2,example_b2_mid_scale.json,1000,907.026567,162602.683651,162602.683651,1.102504,0.006150,paper_cpu_runs/b2/B2_mid_64_1024/bench_report.json,true,0,-
+B3,example_b3_kernel_302.json,1000,119.919545,44480.467700,44480.467700,8.338924,0.022482,paper_cpu_runs/b3/B3_kernel_302_7500/bench_report.json,true,0,-

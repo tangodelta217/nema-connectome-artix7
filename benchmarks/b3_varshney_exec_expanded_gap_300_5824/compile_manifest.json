@@ -1,0 +1,21 @@
+{
+  "artifacts": {
+    "chemical_edge_count": 3638,
+    "cpp_ref_main": "/home/tangodelta/Escritorio/NEMA/benchmarks/b3_varshney_exec_expanded_gap_300_5824/compile_out/B3_varshney_exec_expanded_gap_300_5824/cpp_ref/main.cpp",
+    "gap_edge_count": 1093,
+    "hls_cpp": "/home/tangodelta/Escritorio/NEMA/benchmarks/b3_varshney_exec_expanded_gap_300_5824/compile_out/B3_varshney_exec_expanded_gap_300_5824/hls/nema_kernel.cpp",
+    "hls_header": "/home/tangodelta/Escritorio/NEMA/benchmarks/b3_varshney_exec_expanded_gap_300_5824/compile_out/B3_varshney_exec_expanded_gap_300_5824/hls/nema_kernel.h",
+    "ir_sha256": "1877b3dc76f1786143709c543d70df175d44fe78509f4e4064b497734d71f542",
+    "lut_path": "/home/tangodelta/Escritorio/NEMA/artifacts/luts/tanh_q8_8.bin",
+    "model_id": "B3_varshney_exec_expanded_gap_300_5824",
+    "model_root": "/home/tangodelta/Escritorio/NEMA/benchmarks/b3_varshney_exec_expanded_gap_300_5824/compile_out/B3_varshney_exec_expanded_gap_300_5824",
+    "node_count": 300,
+    "ok": true,
+    "policy": "nema.codegen.hls.v0.1"
+  },
+  "generator": "nema compile",
+  "ir_sha256": "1877b3dc76f1786143709c543d70df175d44fe78509f4e4064b497734d71f542",
+  "mode": "hls_codegen",
+  "model_id": "B3_varshney_exec_expanded_gap_300_5824",
+  "ok": true
+}

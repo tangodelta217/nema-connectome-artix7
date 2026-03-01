@@ -1,0 +1,18 @@
+{
+  "fit": {
+    "coefficients": {
+      "bias": 20.0,
+      "e_over_ps": 1.0,
+      "n_over_pn": 2.0
+    },
+    "kRequirementMet": true,
+    "maxRelativeError": 0.0,
+    "meanRelativeError": 0.0,
+    "minPointsRequired": 3,
+    "modelVersion": "nema.cost.fit.v0",
+    "ok": true,
+    "pointsWithActualQor": 4,
+    "withinThreshold": true
+  },
+  "ok": true
+}

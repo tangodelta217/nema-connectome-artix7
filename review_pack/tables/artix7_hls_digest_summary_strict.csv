@@ -1,0 +1,3 @@
+benchmark,manifestName,ticksExpected,goldenTickCount,csimTickCount,cosimTickCount,goldenEqCsim,goldenEqCosim,csimEqCosim,runnerExitCode,runnerOk,canonicalIdentityOk,g1bEligibleBench
+b1_small,B1_small,20,20,20,20,True,True,True,0,True,True,True
+b3_canonical,B3_varshney_exec_expanded_gap_300_5824,20,20,20,20,True,True,True,1,False,True,False

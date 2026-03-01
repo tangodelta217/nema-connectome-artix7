@@ -38,3 +38,38 @@ def test_parse_vivado_qor_empty_when_missing() -> None:
     }
     assert payload["sourceReports"] == []
 
+
+def test_parse_vivado_qor_post_route_fixture() -> None:
+    hw_reports_dir = Path("tests/fixtures/hw_reports/vivado/impl")
+    payload = parse_vivado_qor(hw_reports_dir)
+
+    assert payload["utilization"]["lut"] == 2222
+    assert payload["utilization"]["ff"] == 4444
+    assert payload["utilization"]["bram"] == 12
+    assert payload["utilization"]["dsp"] == 55
+
+    assert payload["timing"]["wns"] == 0.245
+    assert payload["timing"]["tns"] == 0
+    assert payload["timing"]["failingEndpoints"] == 0
+    assert payload["sourceReports"] == [
+        "hw_reports/post_route_timing_summary.rpt",
+        "hw_reports/post_route_utilization.rpt",
+    ]
+
+
+def test_parse_vivado_qor_design_timing_summary_table_fixture() -> None:
+    hw_reports_dir = Path("tests/fixtures/hw_reports/vivado/table")
+    payload = parse_vivado_qor(hw_reports_dir)
+
+    assert payload["utilization"]["lut"] == 398
+    assert payload["utilization"]["ff"] == 410
+    assert payload["utilization"]["bram"] == 0
+    assert payload["utilization"]["dsp"] == 0
+
+    assert payload["timing"]["wns"] == 1.359
+    assert payload["timing"]["tns"] == 0
+    assert payload["timing"]["failingEndpoints"] == 0
+    assert payload["sourceReports"] == [
+        "hw_reports/vivado_timing_summary.rpt",
+        "hw_reports/vivado_utilization.rpt",
+    ]

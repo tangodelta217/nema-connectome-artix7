@@ -285,8 +285,13 @@ def run_cost_compare(bench_report_path: Path) -> tuple[int, dict[str, Any]]:
         "maxRelativeError": max(rel_err_values) if rel_err_values else None,
     }
 
-    reports = bench_report.get("hardware", {}).get("reports", {}).get("files", [])
-    util = bench_report.get("hardware", {}).get("qor", {}).get("utilization", {})
+    hardware = bench_report.get("hardware")
+    if not isinstance(hardware, dict):
+        hardware = {}
+    reports_obj = hardware.get("reports")
+    reports_files = reports_obj.get("files") if isinstance(reports_obj, dict) else []
+    util_obj = hardware.get("qor")
+    util = util_obj.get("utilization") if isinstance(util_obj, dict) else {}
     util_non_null = False
     if isinstance(util, dict):
         util_non_null = any(value is not None for value in util.values())
@@ -301,8 +306,8 @@ def run_cost_compare(bench_report_path: Path) -> tuple[int, dict[str, Any]]:
         "estimate": estimate,
         "comparison": compare,
         "g2Evidence": {
-            "reportsFilesNonEmpty": isinstance(reports, list) and len(reports) > 0,
+            "reportsFilesNonEmpty": isinstance(reports_files, list) and len(reports_files) > 0,
             "qorUtilizationNonNull": util_non_null,
-            "meetsG2": bool((isinstance(reports, list) and len(reports) > 0) or util_non_null),
+            "meetsG2": bool((isinstance(reports_files, list) and len(reports_files) > 0) or util_non_null),
         },
     }

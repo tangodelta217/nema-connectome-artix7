@@ -1,0 +1,19 @@
+{
+  "expectedDigests": [
+    "6aec6ce493b18c5b295952ba307d2e5f30324c474c6ce588f8a49f86f7227ca4",
+    "95eff0b5ee5594f2de5a05c4c7a17800808d230eabdc76de7845df7a170a31fb"
+  ],
+  "expectedGraphCounts": {
+    "chemical": 1000,
+    "gap": 0,
+    "nodeCount": 64,
+    "total": 1000
+  },
+  "expectedProvenance": {
+    "externalVerified": false,
+    "syntheticUsed": false
+  },
+  "irPath": "example_b2_mid_scale_n64_e1000.json",
+  "name": "B2_mid_scale_n64_e1000",
+  "ticks": 2
+}

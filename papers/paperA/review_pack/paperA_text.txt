@@ -1,0 +1,2197 @@
+1
+2
+3
+
+Paper A: Deterministic Toolchain and Reproducible
+Artifacts for NEMA
+
+4
+
+Anonymous Author(s)
+
+6
+
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+
+57
+58
+59
+
+5
+
+7
+
+56
+
+60
+61
+
+Abstract
+
+62
+guarantees order-independent results with respect to update
+63
+ordering, while still evaluating nodes in a well-defined index
+Neural-graph programs intended for hardware require se64
+order. The numeric model is fixed-point: saturating overflow
+mantics that are deterministic and testable across multiple
+65
+is the only permitted overflow behavior, and rounding is
+implementations and tool flows. NEMA defines a tick-based
+66
+restricted to round-to-nearest ties-to-even (RNE). Nonlinexecution model for sparse neural graphs with an explicit
+67
+earities are mediated by a fixed tanh lookup-table policy
+snapshot rule, a fixed-point numeric model (RNE rounding
+68
+(nema.tanh_lut.v0.1). These choices reduce the semantic
+and saturating overflow), and a bit-exact equivalence cri69
+surface area of implementation-defined behavior and allow
+terion based on per-tick SHA-256 digests of packed Q8.8
+70
+NEMA to define bit-exactness in terms of a canonical digest.
+voltages. NEMA programs compile through a validated IR
+71
+Bit-exactness is defined over per-tick state digests. For
+(mirrored by a proto schema) and can be exercised end-to72
+each tick, NEMA collects node voltages V in node-index orend via scripts that emit machine-readable reports.
+73
+der, packs each raw voltage as a signed int16 little-endian
+We validate bit-exactness on two core benchmarks (B1
+74
+value (Q8.8), and computes SHA-256 over the packed byte
+and B3) by running nema bench verify, which reports
+75
+array. Two executions are bit-exact equal when all per-tick diok=true and mismatches=[] (mismatch=0) for both. We ad76
+gests match. This definition is independent of any particular
+ditionally exercise an external connectome-bundle workflow
+77
+simulator backend and yields a simple, stable contract that
+(B4) through the same manifest-driven interface. We pro78
+can be applied uniformly to software runners and hardwarevide hardware evidence through a self-audit gate: audit_min
+79
+oriented flows.
+–mode hardware returns decision=GO, indicating toolchain
+80
+NEMA programs are represented in a validated IR (JSON
+detection, HLS execution and QoR capture, and Vivado imple81
+shape mirrored by nema_ir.proto), with an explicit validamentation timing with non-null WNS recorded in bench_report.json.
+82
+tor enforcing structural invariants (e.g., unique node/edge
+The artifact pack includes stable scripts, report paths, and a
+83
+IDs, edge references to existing nodes, chemical edges dihashed manifest for reproducibility.
+84
+rected, gap edges symmetric, non-negative conductances)
+ACM Reference Format:
+85
+and integrity constraints for external references. In particular,
+Anonymous Author(s). 2026. Paper A: Deterministic Toolchain and
+86
+IR graphs may be inlined or referenced via graph.external;
+Reproducible Artifacts for NEMA. In Proceedings of NEMA Paper A
+87
+referenced
+bundles
+must
+exist
+on
+disk,
+and
+if
+a
+sha256
+is
+proDraft (Paper A). ACM, New York, NY, USA, 10 pages.
+88
+vided (not a placeholder token) it must match the file digest.
+89
+This
+makes
+“what
+graph
+did
+you
+actually
+run?”
+part
+of
+the
+1 Introduction
+90
+executable contract rather than an implicit assumption.
+NEMA targets a narrow but recurrent problem in hardware91
+The repository provides an end-to-end toolchain around
+oriented compilation: how to specify, implement, and vali92
+this contract: a textual DSL front-end that lowers determindate neural-graph computations such that (i) executions are
+93
+istically to the IR, a reference simulator (nema/sim.py) and
+deterministic by construction and (ii) equivalence across im94
+fixed-point library (nema/fixed.py), a hardware test harplementations can be checked mechanically. In this project,
+95
+ness (nema/hwtest.py), an HLS code generator (nema/codegen/hls_gen.
+the computational model is a sparse directed graph of neu96
+and a report schema (tools/bench_report_schema.json).
+rons and synapses evaluated in discrete ticks. Without an
+97
+The primary entrypoint for reproducibility is the self-audit
+explicit contract, two implementations can diverge silently
+98
+gate tools/audit_min.py, which evaluates software and
+due to update-order effects, floating-point drift, or “almost
+99
+hardware modes and emits a JSON decision together with
+the same” numerics inside different toolchains. NEMA’s de100
+criteria that must hold (e.g., digest stability, bench verificasign centers on making these failure modes observable and
+101
+tion success, toolchain availability, and presence of hardware
+rejectable through a small set of gates that operate on stable,
+102
+report evidence).
+machine-readable artifacts, in line with broader observa103
+Our minimal evaluation is defined as a set of benchmark
+tions on reproducibility variance in modern ML systems
+104
+manifests and machine-checkable metrics. The paper core in[5, 19, 24, 32].
+cludes B1 (a micro-graph sanity benchmark), B3 (a connectome- 105
+At the semantic level, NEMA v0.1 defines a deterministic
+106
+sized kernel with targetId “CE/302-7500”), and B4 (an extertick semantics (nema.tick.v0.1) with a snapshot rule that
+107
+nal connectome-bundle workflow with targetId “CE/8-12”).
+108
+Correctness
+is
+evaluated
+by
+nema
+bench
+verify,
+which
+Paper A, 2026,
+109
+reports ok=true and mismatches=[] (mismatch=0) for B1
+2026.
+
+1
+
+110
+
+Paper A, 2026,
+
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+
+Anon.
+
+166
+and B3 on the traces evaluated by their manifests. Hardware
+alone or by re-running scripts. (Artifact: papers/paperA/artifacts
+167
+evidence is evaluated through audit_min –mode hardware,
++ recorded SHA-256; Table: gates_summary.*; Fig:
+168
+which must return decision=G̈O¨ and, by construction of
+papers/paperA/artifacts/figures/gates_status.txt)
+169
+the gate, implies toolchain detection, successful execution of
+170
+the hardware pipeline (G0b), capture of QoR/report evidence
+2 Semantics
+171
+(G2), and presence of Vivado implementation timing with
+172
+2.1 Tick Semantics (nema.tick.v0.1)
+non-null WNS (G3) in the generated bench_report.json ar173
+tifacts. Table-style summaries of these gate outcomes are inNEMA v0.1 defines a discrete-time, deterministic operational
+174
+cluded in the artifact pack (e.g., papers/paperA/artifacts/tables/gates_summary.*).
+semantics over a fixed neural graph, identified in the spec as
+175
+Finally, NEMA’s artifact story is intentionally operational:
+nema.tick.v0.1 (spec.md:141). The tick is the single state176
+the paper’s claims correspond to scripts that produce stable
+transition step that all backends (software reference, gener177
+outputs in stable paths. The artifact pack records toolchain
+ated C++, and hardware flows) are required to implement
+178
+versions (Vivado/Vitis HLS), hashes the artifact manifest, and
+consistently under the fixed-point contract (§3.2) and deter179
+provides precomputed gate evidence (software and hardware
+minism requirements (§3.4).
+180
+audit JSON). The project’s current scope explicitly excludes
+State. The spec fixes the observable state used for confor181
+claims of ML accuracy advantages, biological fidelity, or onmance to per-node voltage and activation in signed fixed182
+board power/latency measurements; those are out of scope
+point: voltage V is signed Q8.8 stored as raw int16, and
+183
+for the verified contract presented here.
+activation A is signed Q8.8 (spec.md:143–145). The tick oper184
+ates over a graph-level timestep dt (optional; defaults to 1.0)
+1.1 Contributions
+185
+and a membrane time constant tauM that must be positive
+186
+• Deterministic semantics + numeric contract: We
+(node-level if present, else graph-level default) (spec.md:133–
+187
+specify a deterministic tick semantics (snapshot rule
+134).
+188
++ index-ordered iteration) and a fixed-point numeric
+Operational structure and snapshot rule. The tick
+189
+model (SATURATE overflow, RNE rounding), together
+semantics is structured around a snapshot-style update dis190
+with a bit-exact definition based on per-tick SHA-256
+cipline (as referenced by the spec’s “snapshot rule”) to en191
+digests of packed Q8.8 voltages. (Artifact: spec.md
+sure deterministic results independent of update ordering
+192
+extracts; Artifact: nema_ir.proto)
+(spec.md:169–171). Concretely, each tick is defined as a pure
+193
+• Script-verifiable bit-exactness on core benches:
+function from the prior tick’s state snapshot to the next
+194
+We provide a manifest-driven verification command
+tick’s state: all reads of per-node state that influence the tick
+195
+(nema bench verify) that reports mismatches=[]
+are conceptually taken from a single consistent snapshot,
+196
+(mismatch=0) for B1 and B3 on the evaluated traces,
+and the next-state values are written only after the tick’s
+197
+making cross-implementation equivalence machinecomputations are complete.
+198
+checkable. (Artifact: build/paper_verify/b1/* and
+The spec explicitly requires that simulation node iteration
+199
+build/paper_verify/b3/* produced by the commands) is index-ordered (spec.md:170). Combined with the snapshot
+200
+• Hardware evidence captured and gated: We inrule (spec.md:171), this yields a deterministic evaluation for
+201
+tegrate HLS execution + QoR capture (G0b/G2) and
+each tick even in the presence of graph structures where
+202
+Vivado implementation timing capture with non-null
+naive in-place updates could introduce order dependence.
+203
+WNS (G3) into the same reporting pipeline, and expose
+Normative reference. The reference implementation for
+204
+a single gate (audit_min –mode hardware) that must
+the tick semantics is nema/sim.py (spec.md:173). The spec
+205
+return decision=GO. (Table: papers/paperA/artifacts/tables/gates_summary.md;
+additionally states a maintenance constraint: if the implemen206
+Artifact: papers/paperA/artifacts/evidence/audit_hardware.json;
+tation and the spec disagree, both must be updated together
+207
+Artifact: build_hw/**/bench_report.json)
+along with regression tests in the same change (spec.md:9).
+208
+• External bundle workflow as a first-class conThis makes the semantics executable and keeps the oper209
+tract: We support IR graphs referenced via graph.externalational definition aligned with the conformance tests that
+210
+with file-existence and optional SHA-256 verification,
+underpin the artifact.
+211
+and include a benchmark (B4) that exercises this exter212
+nal connectome-bundle path through the same mani2.2 Fixed-Point Contract (RNE + SATURATE)
+213
+fest/report interface. (Artifact: benches/B4_real_connectome/manifest.json;
+
+Artifact: build/bench_verify_eqlozbf7/B4_celegans_external_bundle/bench_report.json)
+NEMA v0.1 fixes the numeric model to a restricted, deter• Reproducible artifact packaging with hashes and
+ministic fixed-point contract. The spec states that overflow
+versions: We package gate evidence and provenance
+behavior is SATURATE only and rounding behavior is RNE
+metadata (git hash, toolchain versions, SHA-256 of
+(round-to-nearest, ties-to-even) only (spec.md:23–27). These
+artifact_manifest.json, and counts of tables/figures/evidence)
+are not configurable in v0.1 and form part of the language’s
+to make the verification story auditable from files
+semantic contract.
+2
+
+214
+215
+216
+217
+218
+219
+220
+
+Paper A: Deterministic Toolchain and Reproducible Artifacts for NEMA
+
+221
+222
+223
+224
+225
+226
+227
+
+Paper A, 2026,
+
+2.4
+
+This explicit choice avoids floating-point execution variance that has been widely reported in both HPC and ML
+contexts [1, 4, 24] and is intentionally stricter than generic
+IEEE-754 portability expectations [12].
+Raw domains. For a signed fixed-point value with total
+bitwidth T, the raw integer range is bounded by (spec.md:31–
+33):
+
+Determinism Threat Model and Mitigations
+
+276
+
+NEMA’s determinism goal in v0.1 is narrow and explicit:
+eliminate nondeterminism in the semantics and in the conformance checks that validate backends against the reference.
+Threat model. The primary threats addressed by the v0.1
+contract are:
+
+277
+
+228
+229
+230
+
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+250
+251
+252
+253
+254
+255
+256
+257
+258
+259
+260
+261
+262
+263
+264
+265
+266
+267
+268
+269
+270
+271
+272
+273
+274
+275
+
+279
+280
+281
+282
+283
+
+• raw min: -(2ˆ(T-1))
+• raw max: (2ˆ(T-1)) - 1
+
+284
+
+• Numeric nondeterminism from floating-point behavior differences across compilers, platforms, or optimization levels.
+• Order-dependent updates in graph computations (e.g.,
+in-place state updates that depend on visitation order).
+• Implementation drift between the executable reference and the written specification.
+• Silent input drift from external graph/bundle references changing without detection.
+
+231
+232
+
+278
+
+285
+286
+
+This raw-domain definition is used to define saturation
+287
+and to constrain behaviors at representational limits. The
+288
+contract additionally constrains several primitive operations
+289
+to be deterministic in edge cases, including shifts (logical
+290
+right shift is defined as a bit-pattern shift), abs (saturates
+291
+when applied to the signed minimum), and comparisons/mux/clip
+292
+(deterministic with explicit ordering) (spec.md:56–58).
+293
+Normative reference. The spec identifies nema/fixed.py
+294
+as the reference implementation of the fixed-point behavior
+295
+Mitigations (spec-driven). The spec provides concrete
+(spec.md:60). In v0.1, conformance to the tick semantics is
+296
+mitigations that are required for conformance:
+defined relative to this fixed-point contract: any backend
+297
+that claims to implement nema.tick.v0.1 must implement
+298
+1. Fixed-point only + fixed rounding/overflow. By
+its arithmetic such that all observable per-tick outputs (as
+299
+mandating SATURATE overflow and RNE rounding (spec.md:23–
+defined by §3.3) are bit-identical under the stated rounding
+300
+27), and by specifying deterministic behaviors for
+and saturation rules.
+301
+edge-case primitives (spec.md:56–58), NEMA removes
+302
+floating-point variability from the semantic core.
+303
+2.3 Bit-Exactness Definition (digests)
+2. Canonical iteration and snapshot rule. The seman304
+NEMA v0.1 defines bit-exact equivalence between executions
+tics requires index-ordered node iteration (spec.md:170)
+305
+through a per-tick digest contract. The spec states:
+and uses a snapshot rule to guarantee order-independent 306
+results with respect to update ordering (spec.md:171).
+307
+• “Two executions are bit-exact equal when all per-tick
+This directly targets graph-order nondeterminism.
+308
+digests match.” (spec.md:177)
+3. Executable reference implementation. The tick se309
+mantics is tied to a reference implementation (nema/sim.py)310
+The digest is computed deterministically as follows (spec.md:179–
+(spec.md:173), and the spec mandates synchronized
+311
+182):
+updates to implementation + spec + regression tests
+312
+when inconsistencies are discovered (spec.md:9). This
+313
+1. Collect V in node index order.
+is a process-level mitigation against spec/implementation 314
+2. Pack each raw voltage as signed int16 little-endian.
+divergence that would otherwise undermine repro315
+3. Compute SHA-256 over the packed byte array.
+ducibility.
+316
+4. Integrity checks for external references. For ex317
+This digest definition makes the correctness criterion external graph references, the spec requires that refer318
+plicit and machine-checkable. It also makes the comparison
+enced paths exist and that, when a sha256 value is
+319
+backend-agnostic: as long as an execution can produce the
+not a placeholder token, it must match the file digest
+320
+same ordered sequence of raw int16 voltages per tick, it
+(spec.md:136–139). This provides a deterministic input
+321
+can be validated against another execution (e.g., reference vs
+identity and prevents “same IR, different underlying
+322
+generated code, or software vs hardware flow) without relybundle” situations from passing silently.
+323
+ing on floating-point tolerances or implementation-specific
+324
+traces.
+325
+Notably, the spec’s digest definition is stated over V (spec.md:180– Together, these measures define a concrete determinism
+326
+182). In v0.1, this makes voltage the primary observable for
+envelope: within the v0.1 semantics (nema.tick.v0.1) and
+327
+bit-exact equivalence, with activation A treated as internal
+fixed-point contract, executions are considered equivalent
+328
+to the tick computation but constrained indirectly through
+precisely when the per-tick SHA-256 digests match under
+329
+the same fixed-point and determinism requirements.
+the specified byte-level packing (spec.md:177–182).
+3
+
+330
+
+Paper A, 2026,
+
+331
+332
+
+3
+
+Anon.
+
+Implementation and Artifact
+Reproducibility
+
+hwtest / hardware compilation pipeline (evidenceproducing path). The repo includes the pipeline components needed to compile and record evidence across stages:
+
+333
+334
+335
+336
+337
+338
+339
+340
+341
+342
+343
+344
+345
+346
+347
+348
+349
+350
+351
+352
+353
+354
+355
+356
+357
+
+360
+361
+362
+363
+364
+365
+366
+367
+
+370
+371
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383
+384
+385
+
+388
+
+413
+
+• uniqueness of node/edge identities,
+• edges reference existing nodes,
+• CHEMICAL edges are directed; GAP edges are symmetric,
+• non-negative conductance,
+• canonicalOrderId required,
+• license.spdx must be in an allowed list,
+• graph.external references must exist and (when
+non-placeholder) match the referenced file’s SHA-256.
+
+1. Semantic/source contracts
+414
+• spec.md (semantic contract) and nema_ir.proto
+415
+(schema mirror).
+416
+• Benchmark manifests for core evaluation: benches/B1_small/m
+417
+benches/B3_kernel_302_7500/manifest.json,
+418
+benches/B4_real_connectome/manifest.json.
+419
+• Core IR exemplars referenced by those manifests
+420
+(e.g., example_b1_small_subgraph.json, example_b3_kerne
+421
+and B4 external bundle IR when applicable).
+422
+2. Generated evidence contracts
+423
+• A hardware build directory build_hw/ that con424
+tains, at minimum, **/bench_report.json and
+425
+**/hw_reports/**/*.(rpt|xml|log) (or what426
+ever the parser consumes).
+427
+3. Paper-facing artifact index and summary
+428
+• Tables: papers/paperA/artifacts/tables/gates_summary.
+429
+and papers/paperA/artifacts/tables/gates_summary.md
+430
+(software/hardware gate status summary).
+431
+• Figures: papers/paperA/artifacts/figures/gates_status.
+432
+(caption currently marked missing in the index).
+433
+• Evidence pointers: papers/paperA/artifacts/evidence/aud
+434
+and papers/paperA/artifacts/evidence/audit_hardware.
+435
+referenced by the artifact index.
+436
+• Manifest summary metadata (git HEAD, tool ver437
+sions, artifact manifest SHA-256, and counts of
+438
+tables/figures/evidence).
+439
+
+368
+369
+
+387
+
+3.1 Implementation
+389
+• simulation/reference execution (nema/sim.py),
+NEMA v0.1 is implemented as a layered toolchain that makes
+390
+• HLS code generation (nema/codegen/hls_gen.py),
+the semantics and the evidence machine-checkable end-to391
+• a hwtest runner (nema/hwtest.py),
+end: a deterministic tick semantics, a fixed-point contract,
+392
+• a schema for the resulting report (tools/bench_report_schema.js
+an IR validator, reference execution, and optional hardware
+393
+• and a gate script (tools/audit_min.py) that turns
+compilation stages that emit a uniform bench_report.json
+394
+these artifacts into pass/fail criteria.
+and auxiliary artifacts.
+395
+The intended evidence outputs follow repo conventions
+Methodologically, this positions NEMA closer to executable
+396
+and include:
+conformance and translation-validation style workflows [15,
+397
+20] than to fully mechanized end-to-end verified compilers,
+398
+• **/bench_report.json,
+while remaining comparable to verified-HLS efforts in intent
+399
+• golden/digest.json,
+[10, 11].
+400
+• golden/trace.jsonl,
+DSL v0.1/v0.2 (supporting tech only). The repository
+401
+• generated HLS sources under hls/*,
+contains a textual DSL front-end with a conventional com402
+• and toolchain reports under hw_reports/*.
+piler structure: lexer/parser, static checking, lowering, and
+403
+At the paper-claim level, the hardware pipeline is treated
+structured diagnostics, exposed via a CLI. The DSL is treated
+404
+as verified only when the hardware audit gate returns decision=G̈O¨
+as an authoring convenience; the paper’s core claims are
+405
+(see Claim C2 verification path) and includes evidence of
+verified via IR-level bench verification and hardware audits
+406
+toolchain availability, HLS execution/report capture, and
+rather than via DSL-specific novelty.
+407
+Vivado implementation timing parse (G3).
+IR + MUST invariants (validation contract). The IR
+408
+contract is defined as a JSON shape mirrored by nema_ir.proto,
+409
+3.2 Artifact and Reproducibility
+and the implementation includes an IR validator (nema/ir_validate.py)
+410
+Artifact contract (what must exist / what can be regenthat enforces invariants before execution/compilation. The
+411
+erated). The artifact pack is organized around a small set of
+validator invariants evidenced in the current state include:
+412
+contracts that reviewers can re-run and/or inspect:
+
+358
+359
+
+386
+
+This validation layer is part of the bit-exactness threat
+model: it removes ambiguous or under-specified inputs before they can introduce divergence.
+Deterministic execution and bit-exact instrumentation (software reference path). The determinism model
+is explicit in the spec extracts included in the input: node
+iteration is index-ordered and the snapshot rule is intended
+to make updates order-independent for a tick. The reference
+implementation is nema/sim.py. Bit-exactness is defined operationally: two executions are bit-exact if and only if all
+per-tick digests match; digests are computed by collecting
+V in node-index order, packing each raw voltage as signed
+int16 little-endian, and hashing the packed byte array with
+SHA-256. The numeric contract is fixed-point with RNE +
+saturation, and overflow behavior is SATURATE-only (no
+wrap).
+4
+
+440
+
+Paper A: Deterministic Toolchain and Reproducible Artifacts for NEMA
+
+441
+442
+443
+444
+445
+446
+447
+448
+449
+450
+451
+452
+453
+454
+455
+456
+457
+458
+459
+460
+461
+462
+463
+464
+465
+466
+467
+468
+469
+470
+471
+472
+473
+474
+475
+476
+477
+478
+479
+480
+481
+482
+483
+484
+485
+486
+487
+488
+489
+490
+491
+492
+493
+494
+495
+
+Paper A, 2026,
+
+496
+Gates (software/hardware) and what GO means. The
+gate outcomes in a compact summary table (papers/paperA/artifacts/t
+497
+artifact index records both software and hardware audits as
+and in the full audit JSON outputs (papers/paperA/artifacts/evidence
+decision=GO and highlights the key criteria that are treated
+papers/paperA/artifacts/evidence/audit_hardware.json).498
+499
+as gate-defining:
+Primary commands (repro contract):
+500
+• software GO includes dslReady, digestMatchAll, benchVerifyOk,
+• python -m pytest -q (regression suite)
+501
+b3Evidence302_7500, and graphCountsNormalized.
+• python tools/audit_min.py –mode software ⇒
+502
+• hardware GO includes hardwareToolchainAvailable,
+decision=G̈O¨
+503
+hardwareEvidenceG0b, hardwareEvidenceG2, hardwareEvidenceG3,
+• python tools/audit_min.py –mode hardware ⇒
+504
+and digestMatchAll. A compact snapshot of both
+decision=G̈O¨
+505
+gates is also included as gates_status.txt.
+506
+Benchmark-level correctness gate (bit-exactness):
+How to reproduce (reviewer-facing commands, rela507
+tive to the repo). The paper’s current claims are designed
+• python -m nema bench verify . . . for manifest508
+to be verified via the following scripts/commands:
+driven verification.
+509
+Bit-exactness on core benches (Claim C1):
+510
+The current artifact summary reports decision=GO for
+python -m nema bench verify benches/B1_small/manifest.json
+build/paper_verify/b1
+511
+both --outdir
+software and
+hardware audits.
+python -m nema bench verify benches/B3_kernel_302_7500/manifest.json --outdir build/paper_verify/b3
+512
+PASS criterion: ok == true and mismatches == [] in
+513
+4.2 Correctness / Bit-Exact
+the verify JSON output.
+514
+We evaluate correctness using bit-exactness checks exposed
+Hardware evidence gate (Claim C2):
+515
+by the repository’s verification tooling. The paper’s correct516
+python tools/audit_min.py --mode hardware
+ness metrics are strictly those produced by scripts:
+517
+PASS criterion: exit code 0, decision == G̈O¨, and the rele• mismatch == 0, operationalized as mismatches=[]
+518
+vant criteria.* flags are true (toolchain available, G0b/G2,
+in nema bench verify
+519
+and Vivado implementation evidence as tracked by the gate).
+• digestMatchOk == true (or equivalent field, if ex520
+Full reproducibility gate bundle (Claim C3):
+posed)
+521
+python -m pytest -q
+• bench_report.ok == true
+522
+python tools/audit_min.py --mode software
+523
+Core
+correctness
+claim
+(C1).
+For
+the
+base
+benchmarks
+python tools/audit_min.py --mode hardware
+524
+B1
+and
+B3,
+the
+verification
+command
+python
+-m
+nema
+bench
+# optional:
+525
+verify
+.
+.
+.
+must
+return
+ok=true
+and
+mismatches=[]
+bash tools/checkpoint_full.sh
+526
+(mismatch=0), establishing bit-exact agreement between the
+PASS criterion: pytest exit 0, both audits exit 0 with
+527
+golden path and the C++ reference runner for the evaluated
+decision=G̈O¨, and the optional checkpoint bundle exists
+528
+trace.
+(when used) and references reproducibility evidence.
+Audit corroboration. The software audit summary records 529
+One-shot script (recommended ergonomics, not a
+530
+benchVerifyOk=True and digestMatchAll=True, and the
+claim). The input proposes a reviewer-friendly wrapper
+531
+artifact index lists successful bench_report.json outputs
+script tools/reproduce_paper_a.sh that runs pytest, both
+532
+for B1 and B3 (ok=True).
+audits, hardware gates, and bench verify for B1/B3/B4, writ533
+Reproducibility aspect. In addition to per-run correcting all outputs under build/paper_a/. This is explicitly de534
+ness, Claim C3 states that the repo’s reproducible routine
+scribed as artifact ergonomics rather than a scientific claim.
+535
+includes evidence that repeated runs produce identical diLimitations explicitly carried into the artifact story.
+536
+gests for the B1/B3 baseline (run1==run2), stored as artifact
+The current artifact-based no-claims include no on-board
+537
+evidence (e.g., a repro_summary.json-style reference in the
+(measured) power/latency results in the artifact at this stage.
+538
+bundle).
+Additionally, the artifact index notes a missing manifest for
+539
+benches/B5_synthetic_family/manifest.json in the cur540
+4.3 Hardware Evidence (boardless)
+rent state, which should be treated as an incompleteness in
+541
+We explicitly treat hardware evidence as toolchain evidence
+benchmark packaging rather than as a semantic limitation.
+542
+rather than physical-board measurement. The hardware pipeline
+543
+4 Evaluation
+is considered supported when the hardware audit gate passes:
+544
+4.1 Setup and Methodology (gates)
+545
+• python tools/audit_min.py –mode hardware must
+
+return decision=G̈O¨ and satisfy:
+– hardwareToolchainAvailable == true
+– hardwareEvidenceG0b == true
+– hardwareEvidenceG2 == true
+
+Our evaluation is defined as a set of machine-checkable gates
+(exit code + JSON contract) that collectively establish (i)
+software correctness and determinism, and (ii) boardless
+hardware-toolchain evidence. The artifact pack records the
+5
+
+546
+547
+548
+549
+550
+
+Paper A, 2026,
+
+551
+552
+553
+
+Anon.
+
+– hardwareEvidenceG3 == true (Vivado implementation evidence with timing parsed; WNS nonnull in the intended contract)
+
+hardware evidence here is derived from tool outputs
+captured in bench_report.json and audited by gates.
+
+The hardware metrics we rely on are those recorded in
+bench_report.json and named in the evaluation contract:
+
+558
+559
+560
+561
+562
+563
+564
+565
+566
+567
+568
+569
+570
+571
+572
+573
+574
+575
+576
+577
+578
+579
+580
+581
+582
+583
+584
+585
+586
+587
+588
+589
+590
+591
+592
+593
+594
+595
+596
+597
+598
+599
+600
+601
+602
+603
+604
+605
+
+5
+
+Related Work
+
+5.1
+
+Determinism and Bit-Exact Reproducibility in
+Numerical and ML Systems
+
+609
+610
+
+556
+557
+
+607
+608
+
+554
+555
+
+606
+
+611
+
+• hardware.qor.ii
+612
+Recent software-engineering and ML-systems work shows
+• hardware.qor.latencyCycles
+613
+• hardware.qor.utilization.{lut,ff,bram,dsp} (when that “same code + same seed” is often insufficient for repeata614
+bility because of hidden variance sources in kernels, reducpresent)
+615
+tion order, scheduling, and floating-point non-associativity
+• hardware.vivado.wns (when implementation exists)
+616
+[5, 19, 24, 32]. Follow-on work proposes mitigation mecha617
+The artifact summary table indicates the hardware mode
+nisms such as controlling hardware nondeterminism or track618
+is ok=true with decision=GO.
+ing residual stochastic behavior in ostensibly deterministic
+619
+settings [2, 23, 25]. A complementary numerical-analysis
+620
+4.4 Benchmark Coverage (B1/B3/B4/B2/B6 + note B5)
+line focuses on reproducible summation to recover bitwise
+621
+We report coverage using the manifest presence and the
+stability under ordering changes [1, 4, 6].
+622
+existence of a corresponding bench_report.json marked
+623
+Positioning relative to NEMA.. Most of this bucket eiok=True, as recorded in the artifact index.
+624
+ther measures nondeterminism or reduces it under floatingIncluded in this evaluation section:
+625
+point semantics. NEMA instead defines determinism and
+• B1 (manifest present): benches/B1_small/manifest.json;bit-exactness as a semantic contract for a fixed-point tick
+626
+latest report . . . /example_b1_small_subgraph/CE/2-1 model and validates that contract through reproducible arti627
+(ok=True).
+628
+fact gates.
+• B3 (manifest present): benches/B3_kernel_302_7500/manifest.json;
+629
+latest report . . . /B3_kernel_302_7500/CE/302-7500 5.2 Operational Semantics, Numeric Contracts, and
+630
+(ok=True).
+631
+Conformance Testing
+• B4 (manifest present; external bundle workflow): benches/B4_real_connectome/manifest.json;
+632
+In PL and compiler-correctness literature, one strand emphalatest report . . . /B4_celegans_external_bundle/CE/8-12
+633
+sizes explicit operational semantics and mechanization (e.g.,
+(ok=True).
+634
+WebAssembly mechanizations and spec tooling) [22, 27, 31].
+• B2 (manifest present; mid-scale diversity): benches/B2_mid/manifest.json;
+635
+Another emphasizes semantic refinement and translation
+latest report . . . /B2_mid_64_1024/CE/64-1024 (ok=True).
+636
+validation at IR boundaries, notably for LLVM [15]. Verified
+• B6 (manifest present; delay-focused benchmark): benches/B6_delay_small/manifest.json;
+637
+compilation lines for floating-point programs (e.g., RealCake)
+latest report build_hw/b6/B6_delay_small/bench_report.json
+638
+show how correctness arguments can be structured around
+with target CE/3-2 (ok=True).
+639
+constrained numeric semantics [3]. Foundational precedents
+640
+Note on B5. A B5-family bench_report.json exists and
+include translation validation and verified-compilation tra641
+is marked ok=True, but the benchmark manifest is recorded
+ditions [14, 20, 28].
+642
+as missing (manifest=NO for benches/B5_synthetic_family/manifest.json).
+643
+Positioning relative to NEMA.. NEMA adopts a specAs a result, B5 can be discussed only as a supplementary data
+644
+first, conformance-driven stance with executable references
+point unless/until the manifest-based verification path is part
+645
+and regression gates, but does not claim end-to-end mechaof the artifact contract for B5.
+646
+nized proof of the full toolchain.
+647
+4.5 What is NOT claimed
+648
+5.3 HLS/FPGA Compilation Correctness and QoR
+We explicitly scope the evaluation to determinism/bit-exactness
+649
+Evidence
+and boardless toolchain evidence. The paper makes the folHardware compilation work spans new accelerator IR/compiler 650
+lowing no-claims:
+infrastructures (e.g., Calyx, ScaleHLS) [16, 29, 30], formal/validated651
+652
+1. No ML superiority claim: no statement that NEMA
+compilation paths (e.g., Vericert, verified scheduling, veri653
+(or connectome-derived structures) outperforms other
+fied source-to-source HLS rewrites) [10, 11, 21], and QoR
+654
+ML models or achieves SOTA accuracy/sample-efficiency. prediction/design-space exploration via ML surrogates [8, 9,
+655
+2. No biological fidelity claim: no statement of biolog26].
+656
+ical realism; the guarantee is determinism + bit-exact
+657
+execution under the spec/IR contract.
+Positioning relative to NEMA.. NEMA is complemen658
+3. No on-board power/latency claim: hardware retary: it does not present a new HLS optimizer or proof659
+sults are not presented as measured-on-board power/latency;producing HLS compiler; it provides a deterministic DSL/IR
+6
+
+660
+
+Paper A: Deterministic Toolchain and Reproducible Artifacts for NEMA
+
+661
+662
+663
+664
+665
+666
+667
+668
+669
+670
+671
+672
+673
+674
+675
+676
+677
+678
+679
+680
+681
+682
+683
+684
+685
+686
+687
+688
+689
+690
+691
+692
+693
+694
+695
+696
+697
+698
+699
+700
+701
+702
+703
+704
+705
+706
+707
+708
+709
+710
+711
+712
+713
+714
+715
+
+Paper A, 2026,
+
+716
+Impact: Any implementation that violates ordering
+717
+could reintroduce nondeterminism, especially if par718
+allelization is introduced later.
+5.4 Neuromorphic and Spiking Compilation Flows
+719
+Mitigation (or residual risk): Determinism requirements
+720
+are specified (simulation node iteration is index-ordered;
+Neuromorphic toolchains increasingly emphasize portable
+721
+snapshot rule guarantees order-independent
+intermediate representations and multi-backend execution,
+722
+results for update ordering) and a reference imincluding NIR-style interoperability goals and framework723
+plementation is named (nema/sim.py). Divergence is
+driven backend portability [7, 17, 18]. FPGA SNN surveys
+724
+detected by the bit-exact verifier (bench verify) on
+summarize deployment bottlenecks and implementation di725
+B1/B3 for the evaluated trace.
+versity [13].
+• T5. Hardware evidence is tool-report-based (board- 726
+Positioning relative to NEMA.. NEMA overlaps at the
+727
+less), not on-board measurement.
+level of graph-structured neural workloads but differs in
+728
+Impact: QoR/timing evidence may not match physical
+objective: the core claim is deterministic, bit-exact, artifact729
+board measurements; power/latency on silicon is not
+auditable execution across a fixed-point tick contract rather
+730
+established.
+than biological fidelity or broad simulator portability.
+731
+Mitigation (or residual risk): This is an explicit no-claim
+732
+(“No on-board power/latency measurement claim in
+6 Threats to Validity and Limitations
+733
+current artifact”). Hardware claims are limited to what
+6.1 Threats to Validity
+audit_min –mode hardware machine-checks (toolchain 734
+735
+• T1. Scope of benchmarks is intentionally narrow
+detectable, G0b/G2 evidence present, and G3 timing
+736
+(core: B1/B3/B4; B2/B6 optional; B5 manifest missing).
+parse with non-null WNS when available).
+737
+Impact: Claims may not generalize to other graphs,
+• T6. Toolchain-version sensitivity (Vivado/Vitis
+738
+schedules, or workloads beyond the included maniHLS).
+739
+fests.
+Impact: Different Vivado/Vitis versions could change
+740
+Mitigation (or residual risk): The paper’s claims are
+II/latency/utilization/timing or even fail flows, harm741
+scoped to machine-checkable commands over explicit
+ing reproducibility on other setups.
+742
+manifests (e.g., benches/B1_small/manifest.json,
+Mitigation (or residual risk): Toolchain versions are
+743
+benches/B3_kernel_302_7500/manifest.json, benches/B4_real_connectome/manifest.json)
+recorded (Vivado v2025.2; Vitis HLS v2025.2) and the
+744
+and the gates (python tools/audit_min.py ...).
+artifact contract relies on gates (hardware audit_min
+745
+Residual risk: generalization is not claimed.
+must return decision=G̈O¨ with hardwareToolchainAvailable==
+746
+• T2. Bit-exactness definition is digest-based and
+and evidence flags). Residual risk: reproducibility across
+747
+only hashes per-tick V.
+versions is not claimed.
+748
+Impact: Two executions could differ in other internal
+• T7. Report parsing / schema drift risk (QoR + Vi749
+quantities (e.g., A) yet still match digests, depending
+vado timing).
+750
+on what is hashed.
+Impact: If tool output formats change, the parser might
+751
+Mitigation (or residual risk): The definition is explicit:
+mis-parse or miss fields (e.g., WNS), weakening evi752
+“bit-exact equal when all per-tick digests match”, and
+dence.
+753
+digest computation is specified (collect V in node index
+Mitigation (or residual risk): Hardware gate requires ev754
+order, pack int16 LE, SHA-256). The claim is stated
+idence (hardwareEvidenceG2==true and hardwareEvidenceG3==t
+755
+exactly in those terms, and verified via python -m
+and the pipeline is contractually captured in bench_report.json
+756
+nema bench verify ... on B1/B3. Residual risk:
+with a schema (tools/bench_report_schema.json)
+757
+any state not included in the digest is out of the bitand audited via python tools/audit_min.py –mode
+758
+exact contract as currently defined.
+hardware.
+759
+• T3. Bit-exactness is proven only for the evaluated
+• T8. External bundle workflow depends on file
+760
+trace (“traza evaluada”).
+availability + sha256 discipline.
+761
+Impact: Longer horizons or different inputs/ticks could
+Impact: If external bundle files are not packaged, moved,
+762
+expose divergences not covered by the verified trace.
+or hashed inconsistently, B4 may not reproduce.
+763
+Mitigation (or residual risk): The claim is explicitly
+Mitigation (or residual risk): IR validation requires ex764
+bounded to the evaluated trace returned by bench
+ternal references to exist and (when sha256 is not a
+765
+verify (PASS iff ok=true and mismatches=[]). Residplaceholder token) to match the file digest; B4 is in766
+ual risk: the paper does not claim bit-exactness beyond
+cluded specifically to exercise this workflow. Residual
+767
+what the verifier executes.
+risk: if a placeholder is used, integrity is weaker by
+768
+• T4. Determinism depends on explicit ordering
+design; the paper should state this clearly.
+769
+rules (index-ordered iteration + snapshotRule).
+
+contract plus an evidence-producing software/hardware pipeline
+with machine-checkable outputs.
+
+7
+
+770
+
+Paper A, 2026,
+
+Anon.
+
+826
+A Artifact Appendix
+• T9. Numeric model restrictions (RNE + SATU827
+RATE; simulator path requires Q8.8 -> Q8.8).
+Checklist: commands are run from the repo root. Each step
+828
+Impact: Limits applicability to other fixed-point forhas a machine-checkable PASS condition.
+829
+mats or overflow/rounding modes; may not cover
+1. Unit/regression suite
+830
+broader numeric regimes.
+python -m pytest -q
+831
+Mitigation (or residual risk): This is a deliberate con832
+tract: only SATURATE overflow and RNE rounding are
+Expected: exit code 0 (PASS).
+833
+allowed, and current simulator path requires Q8.8 ->
+2. Software gate (self-audit)
+834
+Q8.8. Type/IR validation is expected to reject invalid
+python tools/audit_min.py --mode software
+835
+configurations; correctness claims are made only unExpected (PASS):
+836
+der this contract.
+• exit code 0
+837
+• T10. Artifact pack is minimal (few pre-generated
+• JSON contains decision == G̈O¨
+838
+tables/figures); most results are script-generated.
+• criteria include (as documented in the artifact in839
+Impact: Reviewers may question whether enough evidex):
+840
+dence is precomputed, or whether scripts are easy to
+– dslReady: True
+841
+run.
+– digestMatchAll: True
+842
+Mitigation (or residual risk): The artifact story explic– benchVerifyOk: True
+843
+itly centers on gates + stable paths (e.g., tools/audit_min.py,
+– b3Evidence302_7500: True
+844
+tools/run_hw_gates.sh, python -m nema bench
+– graphCountsNormalized: True
+845
+verify ...) and includes a recommended one-shot
+3. Bit-exactness verifier for core benchmarks (golden 846
+script (tools/reproduce_paper_a.sh) as ergonomics
+847
+(not a claim). Residual risk: ease-of-use depends on
+𝑙𝑒 𝑓 𝑡𝑟𝑖𝑔ℎ𝑡𝑎𝑟𝑟𝑜𝑤 C++ reference)
+848
+evaluator environment.
+849
+python -m nema bench verify benches/B1_small/manifest.js
+850
+python -m nema bench verify benches/B3_kernel_302_7500/m
+
+771
+772
+773
+774
+775
+776
+777
+778
+779
+780
+781
+782
+783
+784
+785
+786
+787
+788
+789
+790
+791
+792
+793
+794
+795
+796
+
+Expected (PASS) for each run:
+• the verifier JSON reports:
+– ok == true
+– mismatches == [] (mismatch = 0)
+– (if exposed) digestMatchOk == true or equivalent
+4. External bundle workflow (B4)
+
+797
+798
+799
+800
+801
+802
+803
+804
+805
+806
+807
+808
+809
+810
+811
+812
+813
+814
+815
+816
+817
+818
+819
+820
+821
+822
+823
+824
+825
+
+6.2
+
+Limitations
+
+851
+852
+853
+
+854
+• No ML/accuracy superiority claims (no SOTA com855
+parisons, no accuracy/sample-efficiency statements).
+856
+• No biological fidelity claims (no claim that dynamics
+857
+match real electrophysiology/plasticity).
+858
+• No on-board power/latency measurements are included
+python -m nema bench verify benches/B4_real_connectome/m
+859
+in the current artifact; hardware evidence is tool-reportExpected
+(PASS):
+860
+based.
+•
+verifier
+completes
+with
+ok
+==
+true
+861
+• Numeric contract is deliberately narrow: overflow is
+•
+workflow
+expectation
+consistent
+with
+the
+spec
+862
+SATURATE only; rounding is RNE only; current simulacontract:
+external
+referenced
+files
+must
+exist;
+if
+863
+tor path requires Q8.8 -> Q8.8.
+sha256
+is
+not
+a
+placeholder
+token,
+it
+must
+match
+864
+• Bit-exactness contract is digest-based and defined over
+the
+file
+digest.
+865
+per-tick digests (digest is over packed V in node index
+5.
+Hardware
+pipeline
+generation
+(HLS
++
+Vivado
+ev866
+order).
+idence
+capture)
+867
+• B5 is not a reproducible bench manifest in the current
+868
+pack (benches/B5_synthetic_family/manifest.json
+bash tools/run_hw_gates.sh
+869
+is marked MISSING), so B5 cannot be part of the core
+Expected (PASS by artifact contract):
+870
+claimed evaluation.
+• build_hw/ contains at least one **/bench_report.json
+871
+• B4 exercises the external bundle workflow, but in the
+• build_hw/ contains **/hw_reports/**/*.(rpt|xml|log)
+872
+current artifact index it is represented as B4_celegans_external_bundle/CE/8-12,
+(or the equivalent set consumed by the report
+873
+so it validates the workflow rather than claiming fullparser)
+874
+scale connectome coverage by itself.
+6. Hardware gate (self-audit)
+875
+• The paper’s pre-generated artifact tables/figures are
+python tools/audit_min.py --mode hardware
+876
+currently limited (2 tables, 1 figure, 2 evidence JSONs);
+
+Expected (PASS):
+• exit code 0
+• JSON contains decision == G̈O¨
+
+additional result tables should be generated via the
+provided commands rather than assumed to be prebundled.
+8
+
+877
+878
+879
+880
+
+Paper A: Deterministic Toolchain and Reproducible Artifacts for NEMA
+
+881
+882
+883
+884
+885
+886
+887
+888
+889
+890
+891
+892
+893
+894
+895
+896
+897
+898
+899
+900
+901
+902
+903
+904
+905
+906
+907
+908
+909
+910
+911
+912
+913
+914
+915
+916
+917
+918
+919
+920
+921
+922
+923
+924
+925
+926
+927
+928
+929
+930
+931
+932
+933
+934
+935
+
+Paper A, 2026,
+
+[2] Berk Atil, Sarp Aykent, Alexa Chittams, Lisheng Fu, Rebecca J. Passon• criteria include (as documented in the artifact inneau, et al. 2024. Non-Determinism of “Deterministic” LLM Settings.
+dex):
+https://doi.org/10.48550/arXiv.2408.04667 arXiv:2408.04667 [cs.CL]
+– hardwareToolchainAvailable: True
+[3] Heiko Becker, Robert Rabe, Eva Darulova, Magnus O. Myreen, Zachary
+– hardwareEvidenceG0b: True
+Tatlock, Ramana Kumar, Yong Kiam Tan, and Anthony Fox. 2022.
+– hardwareEvidenceG2: True
+Verified Compilation and Optimization of Floating-Point Programs in
+CakeML. In ECOOP 2022. https://doi.org/10.4230/LIPIcs.ECOOP.2022.
+– hardwareEvidenceG3: True
+1
+– digestMatchAll: True
+7. Paper artifact pack sanity (pre-generated table/figure [4] Pierre Blanchard, Nicholas J. Higham, and Théo Mary. 2020. A Class of
+Fast and Accurate Summation Algorithms. SIAM Journal on Scientific
++ evidence)
+Computing (2020). https://doi.org/10.1137/19M1257780
+[5] Boyuan Chen, Mingzhi Wen, Yong Shi, Dayi Lin, Gopi Krishnan Racat papers/paperA/artifacts/tables/gates_summary.md
+cat papers/paperA/artifacts/figures/gates_status.txtjbahadur, and Zhen Ming Jiang. 2022. Towards Training Reproducible
+Deep Learning Models. In 44th IEEE/ACM International Conference
+Expected (PASS):
+on Software Engineering (ICSE 2022). https://doi.org/10.1145/3510003.
+• gates_summary.md shows both software and hard3510163
+[6] Yu-Hsin Chou et al. 2020. Deterministic Atomic Buffering. In 53rd Anware with decision = GO (as in the artifact index
+nual IEEE/ACM International Symposium on Microarchitecture (MICROpreview).
+53). https://doi.org/10.1109/MICRO50266.2020.00083
+• gates_status.txt exists (caption noted as miss[7] Travis DeWolf, Pawel Jaworski, and Chris Eliasmith. 2020. Nengo and
+ing in the artifact index; this does not affect corlow-power AI hardware for robust, embedded neurorobotics. https:
+rectness gates).
+//doi.org/10.48550/arXiv.2007.10227 arXiv:2007.10227 [cs.RO]
+[8] Mingzhe Gao, Jieru Zhao, Zhe Lin, and Minyi Guo. 2024. Hier8. Optional: checkpoint/bundle regeneration (erarchical Source-to-Post-Route QoR Prediction in High-Level Syngonomics; not a claim)
+thesis with GNNs.
+https://doi.org/10.48550/arXiv.2401.08696
+bash tools/checkpoint_full.sh
+arXiv:2401.08696 [cs.AR]
+[9] Pingakshya Goswami, Benjamin Carrion Schaefer, and Dinesh Bhatia.
+Expected: produces an evidence bundle and/or updated
+2023. Machine learning based fast and accurate High Level Synthesis
+evidence directory consistent with the repository’s
+design space exploration: From graph to synthesis. Integration (2023).
+checkpoint conventions (used to package reproducibilhttps://doi.org/10.1016/j.vlsi.2022.09.006
+ity evidence).
+[10] Yann Herklotz, James D. Pollard, Nadesh Ramanathan, and John
+Wickerson. 2021. Formal Verification of High-Level Synthesis. Proceedings of the ACM on Programming Languages (2021). https:
+A.1 Artifact Snapshot (pre-generated assets)
+//doi.org/10.1145/3485494
+The appendix directly references the current artifact files in
+[11] Yann Herklotz and John Wickerson. 2024. Hyperblock Scheduling for
+papers/paperA/artifacts/.
+Verified High-Level Synthesis. Proceedings of the ACM on Programming
+Languages (2024). https://doi.org/10.1145/3656455
+[12] IEEE. 2019. IEEE Standard for Floating-Point Arithmetic (IEEE Std
+754-2019). https://doi.org/10.1109/IEEESTD.2019.8766229
+[13] Mehrzad Karamimanesh, Ebrahim Abiri, Mahyar Shahsavari, Kourosh
+Hassanli, André van Schaik, and Jason Eshraghian. 2025. Spiking
+neural networks on FPGA: A survey of methodologies and recent
+advancements. Neural Networks (2025). https://doi.org/10.1016/j.
+Figure 1. Gate status snapshot rendered from
+neunet.2025.107256
+papers/paperA/artifacts/figures/gates_status.txt.
+[14] Xavier Leroy. 2009. Formal Verification of a Realistic Compiler. Commun. ACM (2009). https://doi.org/10.1145/1538788.1538814
+[15] Nuno P. Lopes, Juneyoung Lee, Chung-Kil Hur, Zhengyang Liu, and
+John Regehr. 2021. Alive2: Bounded Translation Validation for LLVM.
+Table snapshot ( gates_summary.csv).
+Proceedings of the ACM on Programming Languages (2021). https:
+mode,ok,decision,toolchainHwAvailable,software_ok,hardware_ok,all_ok
+//doi.org/10.1145/3453483.3454030
+software,true,GO,True,True,True,True
+[16] Rachit Nigam, Samuel Thomas, Zhijing Li, and Adrian Sampson. 2021.
+hardware,true,GO,True,True,True,True
+A Compiler Infrastructure for Accelerator Generators. In ASPLOS ’21.
+https://doi.org/10.1145/3445814.3446712
+Table snapshot ( gates_summary.md).
+[17] Jens E. Pedersen et al. 2023. Neuromorphic Intermediate RepA Unified
+Instruction
+| mode | ok | decision | toolchainHwAvailable | software_ok resentation:
+| hardware_ok
+| all_ok
+| Set for Interoperable BrainInspired Computing.
+https://doi.org/10.48550/arXiv.2311.14641
+|---|---|---|---|---|---|---|
+arXiv:2311.14641 [cs.NE]
+| software | true | GO | True | True | True | True |
+[18] Jens E. Pedersen et al. 2024. Neuromorphic intermediate representa| hardware | true | GO | True | True | True | True |
+tion: A unified instruction set for interoperable brain-inspired computing. Nature Communications (2024). https://doi.org/10.1038/s41467024-52259-9
+References
+[19] Hung Viet Pham, Shangshu Qian, Jiannan Wang, Thibaud Lutellier,
+[1] Willow Ahrens, James Demmel, and Hong Diep Nguyen. 2020. AlJonathan Rosenthal, et al. 2020. Problems and Opportunities in Traingorithms for Efficient Reproducible Floating Point Summation. ACM
+ing Deep Learning Software Systems: An Analysis of Variance. In
+Trans. Math. Software (2020). https://doi.org/10.1145/3389360
+9
+
+936
+937
+938
+939
+940
+941
+942
+943
+944
+945
+946
+947
+948
+949
+950
+951
+952
+953
+954
+955
+956
+957
+958
+959
+960
+961
+962
+963
+964
+965
+966
+967
+968
+969
+970
+971
+972
+973
+974
+975
+976
+977
+978
+979
+980
+981
+982
+983
+984
+985
+986
+987
+988
+989
+990
+
+Paper A, 2026,
+
+991
+992
+993
+994
+995
+996
+997
+998
+999
+1000
+1001
+1002
+1003
+1004
+1005
+1006
+1007
+1008
+1009
+1010
+1011
+
+Anon.
+
+Proceedings of the 35th IEEE/ACM International Conference on Automated Software Engineering (ASE ’20). https://doi.org/10.1145/3324884.
+3416545
+[20] Amir Pnueli, Michael Siegel, and Eli Singerman. 1998. Translation
+Validation. In Tools and Algorithms for the Construction and Analysis
+of Systems (TACAS ’98). https://doi.org/10.1007/BFb0054170
+[21] Louis-Noël Pouchet, Emily Tucker, Niansong Zhang, Hongzheng Chen,
+Debjit Pal, Gabriel Rodríguez, and Zhiru Zhang. 2024. Formal Verification of Source-to-Source Transformations for HLS. In FPGA ’24.
+https://doi.org/10.1145/3626202.3637563
+[22] Xiaojia Rao, S. Radziuk, Conrad Watt, and Philippa Gardner. 2025.
+Progressful Interpreters for Efficient WebAssembly Mechanisation.
+Proceedings of the ACM on Programming Languages (2025). https:
+//doi.org/10.1145/3704858
+[23] Aysha Ravi et al. 2025. Improving the Reproducibility of Deep Learning
+Software: An Initial Investigation through a Case Study Analysis.
+https://doi.org/10.48550/arXiv.2505.03165 arXiv:2505.03165 [cs.SE]
+[24] Shanmugavelu et al. 2024. Impacts of floating-point non-associativity
+on reproducibility for HPC and deep learning applications. https:
+//doi.org/10.48550/arXiv.2408.05148 arXiv:2408.05148 [cs.DC]
+[25] Megha Srivastava, Simran Arora, and Dan Boneh. 2024. Optimistic
+Verifiable Training by Controlling Hardware Nondeterminism. https:
+//doi.org/10.48550/arXiv.2403.09603 arXiv:2403.09603 [cs.CR]
+[26] Zi Wang and Benjamin Carrion Schafer. 2022. Learning from the Past:
+Efficient High-level Synthesis Design Space Exploration for FPGAs.
+
+ACM Transactions on Design Automation of Electronic Systems (2022).
+https://doi.org/10.1145/3495531
+[27] Conrad Watt, Xiaojia Rao, Jean Pichon-Pharabod, Martin Bodin, and
+Philippa Gardner. 2021. Two Mechanisations of WebAssembly 1.0. In
+Formal Methods (FM 2021). https://doi.org/10.1007/978-3-030-908706_4
+[28] Xuejun Yang, Yang Chen, Eric Eide, and John Regehr. 2011. Finding
+and Understanding Bugs in C Compilers. In PLDI ’11. https://doi.org/
+10.1145/1993316.1993532
+[29] Hanchen Ye et al. 2022. ScaleHLS: a Scalable High-Level Synthesis
+Framework with Multi-level Transformations and Optimizations. In
+DAC ’22. https://doi.org/10.1145/3489517.3530631
+[30] Hanchen Ye, Cong Hao, Jianyi Cheng, Hyunmin Jeong, Jack Huang,
+Stephen Neuendorffer, and Deming Chen. 2021. ScaleHLS: A New
+Scalable High-Level Synthesis Framework on Multi-Level Intermediate Representation.
+https://doi.org/10.48550/arXiv.2107.11673
+arXiv:2107.11673 [cs.AR]
+[31] D. Youn et al. 2024. Bringing the WebAssembly Standard up to Speed
+with SpecTec. Proceedings of the ACM on Programming Languages
+(2024). https://doi.org/10.1145/3656440
+[32] Donglin Zhuang, Xingyao Zhang, Shuaiwen Leon Song, and Sara
+Hooker. 2021. Randomness In Neural Network Training: Characterizing The Impact of Tooling. https://doi.org/10.48550/arXiv.2106.11872
+arXiv:2106.11872 [cs.LG]
+
+1046
+1047
+1048
+1049
+1050
+1051
+1052
+1053
+1054
+1055
+1056
+1057
+1058
+1059
+1060
+1061
+1062
+1063
+1064
+1065
+1066
+
+1012
+
+1067
+
+1013
+
+1068
+
+1014
+
+1069
+
+1015
+
+1070
+
+1016
+
+1071
+
+1017
+
+1072
+
+1018
+
+1073
+
+1019
+
+1074
+
+1020
+
+1075
+
+1021
+
+1076
+
+1022
+
+1077
+
+1023
+
+1078
+
+1024
+
+1079
+
+1025
+
+1080
+
+1026
+
+1081
+
+1027
+
+1082
+
+1028
+
+1083
+
+1029
+
+1084
+
+1030
+
+1085
+
+1031
+
+1086
+
+1032
+
+1087
+
+1033
+
+1088
+
+1034
+
+1089
+
+1035
+
+1090
+
+1036
+
+1091
+
+1037
+
+1092
+
+1038
+
+1093
+
+1039
+
+1094
+
+1040
+
+1095
+
+1041
+
+1096
+
+1042
+
+1097
+
+1043
+
+1098
+
+1044
+1045
+
+1099
+
+10
+
+1100
+
+

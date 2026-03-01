@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 def _write_report(
     path: Path,
@@ -158,43 +160,98 @@ def test_audit_min_ignores_legacy_non_relevant_reports(tmp_path: Path) -> None:
     assert payload["criteria"]["graphCountsNormalized"] is True
 
 
-def test_audit_min_hardware_g2_true_with_qor_or_report_listed(tmp_path: Path) -> None:
-    if shutil.which("g++") is None:
-        pytest.skip("g++ not available")
-
+def test_audit_min_marks_b4_report_as_relevant(tmp_path: Path) -> None:
     root = tmp_path / "build"
-    report_path = root / "B3" / "bench_report.json"
+    report_path = root / "B4" / "bench_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "modelId": "B3_kernel_302_7500",
-        "bench": {"targetId": "B3/CE/302-7500"},
+        "modelId": "B4_celegans_external_bundle",
+        "bench": {"targetId": "B4/CE/8-12"},
         "ok": True,
         "correctness": {"digestMatch": {"ok": True}},
         "config": {
             "graph": {
-                "nodeCount": 302,
-                "chemicalEdgeCount": 7500,
+                "nodeCount": 8,
+                "chemicalEdgeCount": 12,
                 "gapEdgeCount": 0,
-                "edgeCountTotal": 7500,
+                "edgeCountTotal": 12,
             }
         },
         "provenance": {"syntheticUsed": False, "externalVerified": True},
-        "hardware": {
-            "toolchain": {"available": True},
-            "csim": {"ok": True},
-            "csynth": {"ok": True},
-            "cosim": {"attempted": False, "ok": None},
-            "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
-            "qor": {
-                "utilization": {"lut": 10, "ff": None, "bram": None, "dsp": None},
-                "ii": 3000,
-                "latencyCycles": 2800,
-                "timingOrLatency": {"ii": 3000, "latencyCycles": 2800},
-                "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
-            },
-        },
     }
     report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    isolated_repo = tmp_path / "repo_root_empty"
+    isolated_repo.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "tools/audit_min.py",
+            "--path",
+            str(root),
+            "--mode",
+            "software",
+            "--repo-root",
+            str(isolated_repo),
+            "--workdir",
+            str(tmp_path / "audit_work"),
+        ],
+        cwd=repo_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    parsed = json.loads(proc.stdout)
+    relevant_paths = [Path(item["path"]).resolve() for item in parsed.get("relevantReports", [])]
+    assert report_path.resolve() in relevant_paths
+
+
+def test_audit_min_hardware_g2_true_with_min_points_and_low_mean_error(tmp_path: Path) -> None:
+    if shutil.which("g++") is None:
+        pytest.skip("g++ not available")
+
+    root = tmp_path / "build"
+    samples = [
+        ("B1", "fixture_b1", "B1/CE/10-100", 10, 100, 140),
+        ("B2", "fixture_b2", "B2/CE/40-80", 40, 80, 140),
+        ("B3", "B3_kernel_302_7500", "B3/CE/302-7500", 302, 7500, 7644),
+    ]
+    for folder, model_id, target_id, n_count, e_count, cycles in samples:
+        report_path = root / folder / "bench_report.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "modelId": model_id,
+            "bench": {"targetId": target_id},
+            "ok": True,
+            "correctness": {"digestMatch": {"ok": True}},
+            "config": {
+                "graph": {
+                    "nodeCount": n_count,
+                    "chemicalEdgeCount": e_count,
+                    "gapEdgeCount": 0,
+                    "edgeCountTotal": e_count,
+                },
+                "schedule": {"synapseLanes": 1, "neuronLanes": 1},
+                "qformats": {"voltage": "Q8.8"},
+            },
+            "provenance": {"syntheticUsed": False, "externalVerified": True},
+            "hardware": {
+                "toolchain": {"available": True},
+                "csim": {"ok": True},
+                "csynth": {"ok": True},
+                "cosim": {"attempted": False, "ok": None},
+                "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
+                "qor": {
+                    "utilization": {"lut": 10, "ff": 20, "bram": 1, "dsp": 1},
+                    "ii": cycles,
+                    "latencyCycles": cycles,
+                    "timingOrLatency": {"ii": cycles, "latencyCycles": cycles},
+                    "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
+                },
+            },
+        }
+        report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     repo_root = Path(__file__).resolve().parents[1]
     isolated_repo = tmp_path / "repo_root_empty"
@@ -211,6 +268,8 @@ def test_audit_min_hardware_g2_true_with_qor_or_report_listed(tmp_path: Path) ->
             str(isolated_repo),
             "--workdir",
             str(tmp_path / "audit_work"),
+            "--cost-split-by",
+            "none",
         ],
         cwd=repo_root,
         check=False,
@@ -219,48 +278,59 @@ def test_audit_min_hardware_g2_true_with_qor_or_report_listed(tmp_path: Path) ->
     )
     parsed = json.loads(proc.stdout)
     assert parsed["criteria"]["hardwareEvidenceG2Reports"] is True
+    assert parsed["criteria"]["hardwareCostModelMinPoints"] is True
+    assert parsed["criteria"]["hardwareCostModelMeanErrorWithinThreshold"] is True
     assert parsed["criteria"]["hardwareCostCompareWithinThreshold"] is True
     assert parsed["criteria"]["hardwareEvidenceG2"] is True
     assert parsed["costModel"]["ok"] is True
 
 
-def test_audit_min_hardware_g2_fails_when_cost_ratio_exceeds_threshold(tmp_path: Path) -> None:
+def test_audit_min_hardware_g2_fails_when_mean_error_exceeds_threshold(tmp_path: Path) -> None:
     if shutil.which("g++") is None:
         pytest.skip("g++ not available")
 
     root = tmp_path / "build"
-    report_path = root / "B3" / "bench_report.json"
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "modelId": "B3_kernel_302_7500",
-        "bench": {"targetId": "B3/CE/302-7500"},
-        "ok": True,
-        "correctness": {"digestMatch": {"ok": True}},
-        "config": {
-            "graph": {
-                "nodeCount": 302,
-                "chemicalEdgeCount": 7500,
-                "gapEdgeCount": 0,
-                "edgeCountTotal": 7500,
-            }
-        },
-        "provenance": {"syntheticUsed": False, "externalVerified": True},
-        "hardware": {
-            "toolchain": {"available": True},
-            "csim": {"ok": True},
-            "csynth": {"ok": True},
-            "cosim": {"attempted": False, "ok": None},
-            "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
-            "qor": {
-                "utilization": {"lut": 10, "ff": None, "bram": None, "dsp": None},
-                "ii": 12000,
-                "latencyCycles": 12000,
-                "timingOrLatency": {"ii": 12000, "latencyCycles": 12000},
-                "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
+    samples = [
+        ("B1", "fixture_b1", "B1/CE/10-100", 10, 100, 140),
+        ("B2", "fixture_b2", "B2/CE/40-80", 40, 80, 140),
+        ("B2_alt", "fixture_b2_alt", "B2/CE/20-60", 20, 60, 120),
+        ("B3", "B3_kernel_302_7500", "B3/CE/302-7500", 302, 7500, 20000),
+    ]
+    for folder, model_id, target_id, n_count, e_count, cycles in samples:
+        report_path = root / folder / "bench_report.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "modelId": model_id,
+            "bench": {"targetId": target_id},
+            "ok": True,
+            "correctness": {"digestMatch": {"ok": True}},
+            "config": {
+                "graph": {
+                    "nodeCount": n_count,
+                    "chemicalEdgeCount": e_count,
+                    "gapEdgeCount": 0,
+                    "edgeCountTotal": e_count,
+                },
+                "schedule": {"synapseLanes": 1, "neuronLanes": 1},
+                "qformats": {"voltage": "Q8.8"},
             },
-        },
-    }
-    report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            "provenance": {"syntheticUsed": False, "externalVerified": True},
+            "hardware": {
+                "toolchain": {"available": True},
+                "csim": {"ok": True},
+                "csynth": {"ok": True},
+                "cosim": {"attempted": False, "ok": None},
+                "reports": {"files": ["hw_reports/syn/report/csynth.rpt"]},
+                "qor": {
+                    "utilization": {"lut": 10, "ff": 20, "bram": 1, "dsp": 1},
+                    "ii": cycles,
+                    "latencyCycles": cycles,
+                    "timingOrLatency": {"ii": cycles, "latencyCycles": cycles},
+                    "sourceReports": ["hw_reports/syn/report/csynth.rpt"],
+                },
+            },
+        }
+        report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     repo_root = Path(__file__).resolve().parents[1]
     isolated_repo = tmp_path / "repo_root_empty"
@@ -277,8 +347,10 @@ def test_audit_min_hardware_g2_fails_when_cost_ratio_exceeds_threshold(tmp_path:
             str(isolated_repo),
             "--workdir",
             str(tmp_path / "audit_work"),
-            "--cost-max-ratio",
-            "3.0",
+            "--cost-mean-rel-error-max",
+            "0.05",
+            "--cost-split-by",
+            "none",
         ],
         cwd=repo_root,
         check=False,
@@ -287,6 +359,8 @@ def test_audit_min_hardware_g2_fails_when_cost_ratio_exceeds_threshold(tmp_path:
     )
     parsed = json.loads(proc.stdout)
     assert parsed["criteria"]["hardwareEvidenceG2Reports"] is True
+    assert parsed["criteria"]["hardwareCostModelMinPoints"] is True
+    assert parsed["criteria"]["hardwareCostModelMeanErrorWithinThreshold"] is False
     assert parsed["criteria"]["hardwareCostCompareWithinThreshold"] is False
     assert parsed["criteria"]["hardwareEvidenceG2"] is False
     assert parsed["costModel"]["ok"] is False
@@ -455,6 +529,7 @@ def test_audit_min_vivado_mode_go_with_vivado_evidence(tmp_path: Path) -> None:
             "vivado": {
                 "attempted": True,
                 "ok": True,
+                "implOk": True,
                 "skipped": False,
                 "reason": None,
                 "returncode": 0,
@@ -464,6 +539,11 @@ def test_audit_min_vivado_mode_go_with_vivado_evidence(tmp_path: Path) -> None:
                 "utilizationReport": "build/B3/hls_proj/vivado_batch/vivado_utilization.rpt",
                 "timingReport": "build/B3/hls_proj/vivado_batch/vivado_timing_summary.rpt",
                 "rtlSourceCount": 1,
+                "part": "xc7z020clg400-1",
+                "clk_ns": 5.0,
+                "wns": -0.1,
+                "tns": -1.0,
+                "util": {"lut": 1000, "ff": 2000, "bram": 10.5, "dsp": 30},
                 "utilization": {"lut": 1000, "ff": 2000, "bram": 10.5, "dsp": 30},
                 "timing": {"wns": -0.1, "tns": -1.0, "whs": 0.0, "ths": 0.0, "failingEndpoints": 2},
                 "sourceReports": [
@@ -510,5 +590,6 @@ def test_audit_min_vivado_mode_go_with_vivado_evidence(tmp_path: Path) -> None:
     parsed = json.loads(proc.stdout)
     assert parsed["mode"] == "vivado"
     assert parsed["decision"] == "GO"
+    assert parsed["criteria"]["hardwareEvidenceG3"] is True
     assert parsed["criteria"]["hardwareEvidenceG3Vivado"] is True
     assert parsed["vivado_ok"] is True

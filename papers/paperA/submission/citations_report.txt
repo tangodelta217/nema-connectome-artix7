@@ -1,0 +1,105 @@
+Citations Build Report
+======================
+
+Undefined citations
+-------------------
+(none)
+
+Unused bib entries
+------------------
+- ChenArxiv2202.02326
+- KahanCACM1965Truncation
+
+BibTeX/biber warnings
+---------------------
+- Warning--no number and no volume in AhrensTOMS2020ReproSum
+- Warning--page numbers missing in both pages and numpages fields in AhrensTOMS2020ReproSum
+- Warning--empty publisher in BeckerECOOP2022RealCake
+- Warning--empty address in BeckerECOOP2022RealCake
+- Warning--page numbers missing in both pages and numpages fields in BeckerECOOP2022RealCake
+- Warning--no number and no volume in BlanchardSIAM2020FABsum
+- Warning--page numbers missing in both pages and numpages fields in BlanchardSIAM2020FABsum
+- Warning--empty publisher in ChenICSE2022ReproDL
+- Warning--empty address in ChenICSE2022ReproDL
+- Warning--page numbers missing in both pages and numpages fields in ChenICSE2022ReproDL
+- Warning--empty publisher in ChouMICRO2020DAB
+- Warning--empty address in ChouMICRO2020DAB
+- Warning--page numbers missing in both pages and numpages fields in ChouMICRO2020DAB
+- Warning--no number and no volume in GoswamiIntegration2023MLDSE
+- Warning--page numbers missing in both pages and numpages fields in GoswamiIntegration2023MLDSE
+- Warning--no number and no volume in HerklotzOOPSLA2021Vericert
+- Warning--page numbers missing in both pages and numpages fields in HerklotzOOPSLA2021Vericert
+- Warning--no number and no volume in HerklotzPLDI2024Hyperblock
+- Warning--page numbers missing in both pages and numpages fields in HerklotzPLDI2024Hyperblock
+- Warning--no number and no volume in KaramimaneshNeuralNetworks2025SNNFPGA
+- Warning--page numbers missing in both pages and numpages fields in KaramimaneshNeuralNetworks2025SNNFPGA
+- Warning--no number and no volume in LeroyCACM2009CompCert
+- Warning--page numbers missing in both pages and numpages fields in LeroyCACM2009CompCert
+- Warning--no number and no volume in LopesPLDI2021Alive2
+- Warning--page numbers missing in both pages and numpages fields in LopesPLDI2021Alive2
+- Warning--empty publisher in NigamASPLOS2021Calyx
+- Warning--empty address in NigamASPLOS2021Calyx
+- Warning--page numbers missing in both pages and numpages fields in NigamASPLOS2021Calyx
+- Warning--no number and no volume in PedersenNatComm2024NIR
+- Warning--page numbers missing in both pages and numpages fields in PedersenNatComm2024NIR
+- Warning--empty publisher in PhamASE2020Variance
+- Warning--empty address in PhamASE2020Variance
+- Warning--page numbers missing in both pages and numpages fields in PhamASE2020Variance
+- Warning--empty publisher in PnueliTACAS1998TranslationValidation
+- Warning--empty address in PnueliTACAS1998TranslationValidation
+- Warning--page numbers missing in both pages and numpages fields in PnueliTACAS1998TranslationValidation
+- Warning--empty publisher in PouchetFPGA2024HLSVerify
+- Warning--empty address in PouchetFPGA2024HLSVerify
+- Warning--page numbers missing in both pages and numpages fields in PouchetFPGA2024HLSVerify
+- Warning--no number and no volume in RaoPOPL2025Progressful
+- Warning--page numbers missing in both pages and numpages fields in RaoPOPL2025Progressful
+- Warning--no number and no volume in WangTODAES2022DSE
+- Warning--page numbers missing in both pages and numpages fields in WangTODAES2022DSE
+- Warning--empty publisher in WattFM2021WasmCert
+- Warning--empty address in WattFM2021WasmCert
+- Warning--page numbers missing in both pages and numpages fields in WattFM2021WasmCert
+- Warning--empty publisher in YangPLDI2011Csmith
+- Warning--empty address in YangPLDI2011Csmith
+- Warning--page numbers missing in both pages and numpages fields in YangPLDI2011Csmith
+- Warning--empty publisher in YeDAC2022ScaleHLS
+- Warning--empty address in YeDAC2022ScaleHLS
+- Warning--page numbers missing in both pages and numpages fields in YeDAC2022ScaleHLS
+- Warning--no number and no volume in YounPLDI2024SpecTec
+- Warning--page numbers missing in both pages and numpages fields in YounPLDI2024SpecTec
+- warning$ -- 54
+- (There were 54 warnings)
+
+Final references (keys)
+-----------------------
+- AhrensTOMS2020ReproSum
+- AtilArxiv2408.04667
+- BeckerECOOP2022RealCake
+- BlanchardSIAM2020FABsum
+- ChenICSE2022ReproDL
+- ChouMICRO2020DAB
+- DeWolfArxiv2007.10227
+- GaoArxiv2401.08696
+- GoswamiIntegration2023MLDSE
+- HerklotzOOPSLA2021Vericert
+- HerklotzPLDI2024Hyperblock
+- IEEE754_2019
+- KaramimaneshNeuralNetworks2025SNNFPGA
+- LeroyCACM2009CompCert
+- LopesPLDI2021Alive2
+- NigamASPLOS2021Calyx
+- PedersenArxiv2311.14641
+- PedersenNatComm2024NIR
+- PhamASE2020Variance
+- PnueliTACAS1998TranslationValidation
+- PouchetFPGA2024HLSVerify
+- RaoPOPL2025Progressful
+- RaviArxiv2505.03165
+- ShanmugaveluArxiv2408.05148
+- SrivastavaArxiv2403.09603
+- WangTODAES2022DSE
+- WattFM2021WasmCert
+- YangPLDI2011Csmith
+- YeDAC2022ScaleHLS
+- YeArxiv2107.11673
+- YounPLDI2024SpecTec
+- ZhuangArxiv2106.11872

@@ -1,0 +1,154 @@
+{
+  "generatedAtUtc": "2026-02-28T15:18:58.848654+00:00",
+  "git": {
+    "head": "bb17ac319debc7ee40a28f4502fe4189f0795ac5"
+  },
+  "artifactsRoot": "papers/paperA/artifacts",
+  "files": [
+    {
+      "path": "papers/paperA/artifacts/ARTIFACT_README.md",
+      "bytes": 2782,
+      "sha256": "21f3cff8cb545107ddff206843e217429231f653fdc941087b5a3bd85f3ca9ca"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_hardware.exitcode.txt",
+      "bytes": 3,
+      "sha256": "d6f0c71ef0c88e45e4b3a2118fcb83b0def392d759c901e9d755d0e879028727"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_hardware.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_hardware.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_min_hardware.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_min_software.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_software.exitcode.txt",
+      "bytes": 3,
+      "sha256": "d6f0c71ef0c88e45e4b3a2118fcb83b0def392d759c901e9d755d0e879028727"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_software.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/audit_software.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/checksums.sha256",
+      "bytes": 459,
+      "sha256": "83b133488da3b2d1ad08f9131bbf9064783e9512e0e76ee4b0e53f086b34886e"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/routeA_summary.md",
+      "bytes": 779,
+      "sha256": "55a7f7af78da31d22f8f19a9d09fab05cfc89974f3024a060312e90e6cfaad12"
+    },
+    {
+      "path": "papers/paperA/artifacts/evidence/vivado_coverage_report.md",
+      "bytes": 1469,
+      "sha256": "6042b1142328d9dd6c31101bb1cf63fcfc0d90b92a7af9ec10ebfa3354bd957a"
+    },
+    {
+      "path": "papers/paperA/artifacts/figures/fig_pipeline_gates.png",
+      "bytes": 194473,
+      "sha256": "ca1a6ae269e95344fb16acf0707fdb57dbfacb54c934a3058a02c0c355e46a2d"
+    },
+    {
+      "path": "papers/paperA/artifacts/figures/gates_status.png",
+      "bytes": 3380,
+      "sha256": "0af4d3d6d78ac3418c5cc81c31fbc55575d63dcecea36bd0924537cd628f840a"
+    },
+    {
+      "path": "papers/paperA/artifacts/review_pack_v3.md",
+      "bytes": 7489,
+      "sha256": "58af37bffc934e5fad0f0bb857d56fb367c2d5b962c2cd158a2c13033827b7f3"
+    },
+    {
+      "path": "papers/paperA/artifacts/review_pack_v4.md",
+      "bytes": 4158,
+      "sha256": "2b45dfa6f169ea0e79377787025454f658694781946070ce2954aad459274057"
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/build_tables.py",
+      "bytes": 2492,
+      "sha256": "dce823749c51efd08a8889737fe7893f8cfa8eab0dc23d04b5eecb9bba2897f3"
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/make_table_bitexact.py",
+      "bytes": 12000,
+      "sha256": "d95e45c7457409d8f0eebddb0faa5394a86334da7e8dc6522786ff0d23d5f7f4"
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/make_table_qor.py",
+      "bytes": 15393,
+      "sha256": "43f43f62e7f9695d5922b87dda3fa30d6d4aae7cd1315176179c20523a97715b"
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/make_table_throughput.py",
+      "bytes": 13782,
+      "sha256": "2a315f515a1f6ac50b37e0c3e693211f23483cc1d85d2d6ba8f42d43e7a33ad6"
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/regenerate_artifacts.sh",
+      "bytes": 790,
+      "sha256": "50a56422d8841569a225110398da31c233148234f559722f148d037286ea2599"
+    },
+    {
+      "path": "papers/paperA/artifacts/scripts/validate_artifacts.sh",
+      "bytes": 908,
+      "sha256": "91f1ccbe3d19437a524ec15567331018f33230f1d5d5d02fc51e4e53940d4121"
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/results_bitexact.csv",
+      "bytes": 691,
+      "sha256": "8ccba0e7c1912f7b5c2feeec7df604f5e07dbb1d9b7601853d638b1dbf08e081"
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/results_bitexact.tex",
+      "bytes": 1122,
+      "sha256": "6f069a9ddd546ed09af99ed15bc9e4b092870b7375a17fa35151c33b3594126d"
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/results_cpu.csv",
+      "bytes": 659,
+      "sha256": "3e07a4258a13630ba4cd61ceb9575351b34151e2b96dfb4e912f79dbb1e63893"
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/results_qor.csv",
+      "bytes": 862,
+      "sha256": "575f69d24139088e45fd9c932a7e802201830a308546cf5978e9202ad8570b88"
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/results_qor.tex",
+      "bytes": 655,
+      "sha256": "38c63368a644f85528947d591c57b205f2079c65e50254797d41d7a605ca0acc"
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/results_throughput.csv",
+      "bytes": 839,
+      "sha256": "326b78df41171cf0b0be43ece4534daaf713bb62cfe644e429fa201efd33427f"
+    },
+    {
+      "path": "papers/paperA/artifacts/tables/results_throughput.tex",
+      "bytes": 425,
+      "sha256": "242681ceb95c1b140b41d259799b035e00162d529500611811e197ca6453c3b4"
+    }
+  ]
+}

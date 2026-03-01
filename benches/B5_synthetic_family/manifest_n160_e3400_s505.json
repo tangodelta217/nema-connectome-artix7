@@ -1,0 +1,19 @@
+{
+  "expectedDigests": [
+    "844a0ed81310f1e2a51a9316599dac799ff22c8ef895227aeed490aa8738229b",
+    "dbd421d7e2adb7c60b16edfb08c4a49a95a20df10aa239d163eb24c2d920fe3c"
+  ],
+  "expectedGraphCounts": {
+    "chemical": 3400,
+    "gap": 0,
+    "nodeCount": 160,
+    "total": 3400
+  },
+  "expectedProvenance": {
+    "externalVerified": false,
+    "syntheticUsed": false
+  },
+  "irPath": "example_b5_synth_n160_e3400_s505.json",
+  "name": "B5_synthetic_family_n160_e3400_s505",
+  "ticks": 2
+}

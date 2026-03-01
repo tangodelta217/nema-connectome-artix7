@@ -1,0 +1,31 @@
+\documentclass[sigplan,review,anonymous]{acmart}
+
+\settopmatter{printfolios=true}
+\setcopyright{none}
+\acmConference[Paper A]{NEMA Paper A Draft}{2026}{}
+\acmYear{2026}
+\acmDOI{}
+\acmISBN{}
+
+\newcommand{\toolname}[1]{\textsc{#1}}
+
+\begin{document}
+
+\title{Paper A: Deterministic Toolchain and Reproducible Artifacts for \toolname{NEMA}}
+
+\input{sections/00_abstract}
+
+\maketitle
+
+\input{sections/01_intro}
+\input{sections/02_semantics}
+\input{sections/03_impl}
+\input{sections/04_eval}
+\input{sections/07_related_work}
+\input{sections/05_threats}
+\input{sections/06_appendix_artifacts}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{refs}
+
+\end{document}

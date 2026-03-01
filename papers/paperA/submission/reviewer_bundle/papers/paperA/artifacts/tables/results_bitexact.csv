@@ -1,0 +1,6 @@
+benchmarkId,modelId,verify_ok,mismatches_len,digestMatchOk,ticks,ir_sha256,bench_report_path
+B1,example_b1_small_subgraph,true,0,true,20,31b5a208c287eaec92e2e39f4f19442a7c080a2ff000c0f667cd984b7e1e8286,build/audit_min/bench_verify/b1/example_b1_small_subgraph/bench_report.json
+B2,B2_mid_64_1024,true,0,true,20,61d1c9b1b97d3d8509c59349445472ed8cf76bf0205e560a1cacffd21509e98b,build/audit_min/bench_verify/b2/B2_mid_64_1024/bench_report.json
+B3,B3_kernel_302_7500,true,0,true,20,05ce6de59b1518129c3d690c5fca81e507dd8c109193fd83b2ae1301e8447080,build/audit_min/bench_verify/b3/B3_kernel_302_7500/bench_report.json
+B4,B4_celegans_external_bundle,-,-,true,2,5b21d1db4975db16c02802eaba409f4ac194535880a15b215f7bd02d01071473,build/bench_verify_eqlozbf7/B4_celegans_external_bundle/bench_report.json
+B6,B6_delay_small,-,-,true,2,ab9f80fb981df0f73b1bcd925a962c71feece6fb4d0f731479024997be935c34,build_hw/b6/B6_delay_small/bench_report.json

@@ -1,0 +1,5 @@
+id,name,role,index,canonicalOrderId,vInitRaw,tauM
+n0,ADAL,sensory,0,0,-64,2
+n1,ADAR,sensory,1,1,-32,2
+n2,ADEL,inter,2,2,0,3
+n3,ADER,motor,3,3,16,4

@@ -1,0 +1,18 @@
+\begin{thebibliography}{1}
+
+\bibitem{xilinx_vitis_hls_2025_2}
+{Advanced Micro Devices}.
+\newblock Vitis hls 2025.2 documentation, 2025.
+\newblock Toolchain used for HLS synthesis/cosim evidence.
+
+\bibitem{xilinx_vivado_2025_2}
+{Advanced Micro Devices}.
+\newblock Vivado design suite 2025.2 documentation, 2025.
+\newblock Toolchain used for implementation and report\_power evidence.
+
+\bibitem{nema_spec_v01}
+{NEMA Project}.
+\newblock Nema v0.1 spec and ir contract, 2026.
+\newblock Repository-local normative files: spec.md and nema\_ir.proto.
+
+\end{thebibliography}
