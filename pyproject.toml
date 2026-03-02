@@ -7,7 +7,7 @@ name = "nema"
 version = "0.1.0"
 description = "NEMA v0.1 scaffold CLI and toolchain stubs"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
