@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from nema.hwtest import CmdResult, _empty_vivado_result, _run_vitis_hls
 
 
@@ -185,3 +187,151 @@ def test_run_vitis_hls_forces_b3_export_retry_when_impl_ip_missing(tmp_path: Pat
     assert len(calls) >= 2
     assert str(calls[0][-1]).endswith("run_hls.tcl")
     assert str(calls[1][-1]).endswith("run_hls_export_retry.tcl")
+
+
+def test_run_vitis_hls_part_unavailable_without_fallback_marks_hls_and_vivado_skipped(
+    tmp_path: Path, monkeypatch
+) -> None:
+    model_root = tmp_path / "model"
+    hls_cpp = model_root / "hls" / "nema_kernel.cpp"
+    cpp_ref_main = model_root / "cpp_ref" / "main.cpp"
+    hls_cpp.parent.mkdir(parents=True, exist_ok=True)
+    cpp_ref_main.parent.mkdir(parents=True, exist_ok=True)
+    hls_cpp.write_text("// hls kernel\n", encoding="utf-8")
+    cpp_ref_main.write_text("// tb\n", encoding="utf-8")
+
+    called_vivado = {"value": False}
+
+    def fake_cmd(cmd: list[str], *, cwd: Path) -> CmdResult:
+        return CmdResult(
+            cmd=cmd,
+            cwd=str(cwd),
+            returncode=42,
+            stdout="NEMA_HLS_ERROR: requested_part_unavailable requested=xc7a200tsbg484-1 fallback=0\n",
+            stderr="",
+            elapsed_s=0.01,
+        )
+
+    def fake_run_vivado_batch(**kwargs):
+        called_vivado["value"] = True
+        return _empty_vivado_result("unexpected")
+
+    monkeypatch.setattr("nema.hwtest._cmd", fake_cmd)
+    monkeypatch.setattr(
+        "nema.hwtest._detect_vitis_hls",
+        lambda: {"available": True, "binary": "/tools/vitis_hls", "version": "Vitis HLS 2025.1"},
+    )
+    monkeypatch.setattr("nema.hwtest._run_vivado_batch", fake_run_vivado_batch)
+
+    hardware = _run_vitis_hls(
+        vitis_binary="/tools/vitis_hls",
+        vivado_info={
+            "available": True,
+            "binary": "/tools/vivado",
+            "version": "Vivado 2025.2",
+        },
+        hls_cpp=hls_cpp,
+        cpp_ref_main=cpp_ref_main,
+        model_root=model_root,
+        run_cosim=False,
+        allow_part_fallback=False,
+    )
+
+    assert called_vivado["value"] is False
+    assert hardware["csim"]["attempted"] is False
+    assert hardware["csim"]["skipped"] is True
+    assert hardware["csynth"]["attempted"] is False
+    assert hardware["csynth"]["skipped"] is True
+    assert hardware["vivado"]["skipped"] is True
+    assert hardware["vivado"]["reason"] == "requested_part_unavailable"
+
+
+@pytest.mark.parametrize(
+    "bad_part",
+    [
+        "xc7a200tsbg484-1}; puts HACKED",
+        "xc7a200tsbg484-1; puts HACKED",
+        "xc7a200tsbg484-1\nputs HACKED",
+    ],
+)
+def test_run_vitis_hls_rejects_malicious_part_literal(
+    tmp_path: Path, monkeypatch, bad_part: str
+) -> None:
+    model_root = tmp_path / "model"
+    hls_cpp = model_root / "hls" / "nema_kernel.cpp"
+    cpp_ref_main = model_root / "cpp_ref" / "main.cpp"
+    hls_cpp.parent.mkdir(parents=True, exist_ok=True)
+    cpp_ref_main.parent.mkdir(parents=True, exist_ok=True)
+    hls_cpp.write_text("// hls kernel\n", encoding="utf-8")
+    cpp_ref_main.write_text("// tb\n", encoding="utf-8")
+
+    called = {"cmd": False}
+
+    def fake_cmd(cmd: list[str], *, cwd: Path) -> CmdResult:
+        called["cmd"] = True
+        return CmdResult(cmd=cmd, cwd=str(cwd), returncode=0, stdout="", stderr="", elapsed_s=0.01)
+
+    monkeypatch.setattr("nema.hwtest._cmd", fake_cmd)
+    monkeypatch.setenv("NEMA_VITIS_PART", bad_part)
+
+    with pytest.raises(ValueError):
+        _run_vitis_hls(
+            vitis_binary="/tools/vitis_hls",
+            vivado_info={
+                "available": False,
+                "binary": None,
+                "version": None,
+            },
+            hls_cpp=hls_cpp,
+            cpp_ref_main=cpp_ref_main,
+            model_root=model_root,
+            run_cosim=False,
+        )
+
+    assert called["cmd"] is False
+
+
+@pytest.mark.parametrize(
+    "bad_clock",
+    [
+        "5.0}; puts HACKED",
+        "5.0; puts HACKED",
+        "5.0\nputs HACKED",
+    ],
+)
+def test_run_vitis_hls_rejects_malicious_clock_literal(
+    tmp_path: Path, monkeypatch, bad_clock: str
+) -> None:
+    model_root = tmp_path / "model"
+    hls_cpp = model_root / "hls" / "nema_kernel.cpp"
+    cpp_ref_main = model_root / "cpp_ref" / "main.cpp"
+    hls_cpp.parent.mkdir(parents=True, exist_ok=True)
+    cpp_ref_main.parent.mkdir(parents=True, exist_ok=True)
+    hls_cpp.write_text("// hls kernel\n", encoding="utf-8")
+    cpp_ref_main.write_text("// tb\n", encoding="utf-8")
+
+    called = {"cmd": False}
+
+    def fake_cmd(cmd: list[str], *, cwd: Path) -> CmdResult:
+        called["cmd"] = True
+        return CmdResult(cmd=cmd, cwd=str(cwd), returncode=0, stdout="", stderr="", elapsed_s=0.01)
+
+    monkeypatch.setattr("nema.hwtest._cmd", fake_cmd)
+    monkeypatch.setenv("NEMA_VITIS_PART", "xc7a200tsbg484-1")
+    monkeypatch.setenv("NEMA_VITIS_CLOCK_NS", bad_clock)
+
+    with pytest.raises(ValueError):
+        _run_vitis_hls(
+            vitis_binary="/tools/vitis_hls",
+            vivado_info={
+                "available": False,
+                "binary": None,
+                "version": None,
+            },
+            hls_cpp=hls_cpp,
+            cpp_ref_main=cpp_ref_main,
+            model_root=model_root,
+            run_cosim=False,
+        )
+
+    assert called["cmd"] is False

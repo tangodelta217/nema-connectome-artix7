@@ -59,6 +59,12 @@ Hash verification for release assets:
 sha256sum -c release/SHA256SUMS.txt
 ```
 
+Paper input wiring verification:
+
+```bash
+python tools/verify_paper_inputs.py
+```
+
 ## Artifacts / Releases
 
 - Repository: `https://github.com/tangodelta217/nema-connectome-artix7`
@@ -66,6 +72,24 @@ sha256sum -c release/SHA256SUMS.txt
 - v0.1.0 paper asset (release): `https://github.com/tangodelta217/nema-connectome-artix7/releases/download/v0.1.0/paper.pdf`
 
 Large generated evidence bundles belong in GitHub Releases assets, not git history.
+
+## arXiv Submission
+
+Canonical arXiv paper source in this repo is `paper/paper.tex`.
+
+Build and validate a source-only submission bundle:
+
+```bash
+bash tools/build_arxiv_bundle.sh
+```
+
+Outputs:
+
+- `build/arxiv_bundle.tar.gz`
+- `build/arxiv_bundle.required_files.txt`
+- `build/arxiv_bundle.contents.txt`
+
+The bundle build fails if it finds stale `release_round10b` references, local absolute paths, missing `\input`/`\include` dependencies, or generated LaTeX byproducts (`.aux`, `.log`, etc.).
 
 ## Limitations
 

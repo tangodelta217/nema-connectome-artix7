@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
@@ -22,6 +23,11 @@ from .hw_reports.parse_vivado import parse_vivado_qor
 from .ir_resolve import resolve_ir_for_execution
 from .ir_validate import IRValidationError, validate_ir
 from .sim import simulate
+
+DEFAULT_FPGA_PART = "xc7a200tsbg484-1"
+_PART_LITERAL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+_TOP_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_CLOCK_NS_RE = re.compile(r"^(?:\d+)(?:\.\d+)?$")
 
 
 @dataclass(frozen=True)
@@ -87,6 +93,79 @@ def _git_commit() -> str | None:
         return None
     commit = proc.stdout.strip()
     return commit or None
+
+
+def _env_flag(name: str) -> bool:
+    value = os.environ.get(name, "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _contains_requested_part_unavailable(*texts: str | None) -> bool:
+    for text in texts:
+        if isinstance(text, str) and "requested_part_unavailable" in text:
+            return True
+    return False
+
+
+def escape_tcl_literal(value: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError("Tcl literal must be a string")
+    if "\x00" in value:
+        raise ValueError("NUL byte is not allowed in Tcl literal")
+
+    out: list[str] = []
+    for ch in value:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == "\"":
+            out.append("\\\"")
+        elif ch == "$":
+            out.append("\\$")
+        elif ch == "[":
+            out.append("\\[")
+        elif ch == "]":
+            out.append("\\]")
+        elif ch == ";":
+            out.append("\\;")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _tcl_quote(value: str) -> str:
+    return f"\"{escape_tcl_literal(value)}\""
+
+
+def _validate_part_literal(value: str, *, field: str) -> str:
+    text = value.strip()
+    if not text:
+        raise ValueError(f"{field} must not be empty")
+    if not _PART_LITERAL_RE.fullmatch(text):
+        raise ValueError(f"invalid {field}: {value!r}")
+    return text
+
+
+def _validate_top_name(value: str) -> str:
+    text = value.strip()
+    if not text:
+        raise ValueError("top_name must not be empty")
+    if not _TOP_NAME_RE.fullmatch(text):
+        raise ValueError(f"invalid top_name: {value!r}")
+    return text
+
+
+def _validate_clock_ns_literal(value: str) -> tuple[str, float]:
+    text = value.strip()
+    if not _CLOCK_NS_RE.fullmatch(text):
+        raise ValueError(f"invalid clock_ns literal: {value!r}")
+    parsed = float(text)
+    if not math.isfinite(parsed) or parsed <= 0.0:
+        raise ValueError(f"clock_ns must be finite and > 0, got {value!r}")
+    return text, parsed
 
 
 def _tool_versions(vitis_binary: str | None, vivado_binary: str | None) -> dict[str, Any]:
@@ -701,6 +780,7 @@ def _copy_hw_reports(*, report_files: list[str], project_dir: Path, model_root: 
 
 
 def _empty_vivado_result(reason: str, *, requested_part: str | None = None) -> dict[str, Any]:
+    requested = requested_part.strip() if isinstance(requested_part, str) and requested_part.strip() else None
     return {
         "attempted": False,
         "ok": None,
@@ -716,7 +796,10 @@ def _empty_vivado_result(reason: str, *, requested_part: str | None = None) -> d
         "bitstreamPath": None,
         "bitstreamPlaceholder": False,
         "rtlSourceCount": 0,
-        "part": requested_part,
+        "part": requested,
+        "requested_part": requested,
+        "selected_part": None,
+        "part_match_requested": False,
         "clk_ns": None,
         "wns": None,
         "tns": None,
@@ -818,6 +901,7 @@ def _run_vivado_batch(
     solution_dir: Path,
     part: str,
     clock_ns: str,
+    allow_part_fallback: bool = False,
     write_bitstream: bool = False,
     top_name: str = "nema_kernel",
 ) -> dict[str, Any]:
@@ -839,7 +923,10 @@ def _run_vivado_batch(
     versal_image_path = vivado_dir / f"{top_name}.pdi"
     part_report = vivado_dir / "vivado_selected_part.txt"
     run_log = vivado_dir / "run_vivado.log"
-    clk_value = _as_float(clock_ns)
+    requested_part = _validate_part_literal(part, field="requested_part")
+    requested_clock_ns, clk_value = _validate_clock_ns_literal(clock_ns)
+    top_name = _validate_top_name(top_name)
+    fallback_int = 1 if allow_part_fallback else 0
 
     precond_error = _check_vivado_export_precondition(solution_dir, rtl_files, ip_xci_files)
     if precond_error is not None:
@@ -854,20 +941,24 @@ def _run_vivado_batch(
         return payload
 
     tcl_lines = [
-        f"set requested_part {{{part}}}",
+        f"set requested_part {_tcl_quote(requested_part)}",
+        f"set nema_allow_part_fallback {fallback_int}",
         "set available_parts [get_parts]",
         "if {[lsearch -exact $available_parts $requested_part] >= 0} {",
         "  set selected_part $requested_part",
-        "} elseif {[llength $available_parts] > 0} {",
+        "} elseif {$nema_allow_part_fallback && [llength $available_parts] > 0} {",
         "  set selected_part [lindex $available_parts 0]",
-        "  puts \"NEMA_VIVADO_INFO: requested_part_unavailable requested=$requested_part selected=$selected_part\"",
+        "  puts \"NEMA_VIVADO_INFO: requested_part_unavailable requested=$requested_part selected=$selected_part fallback=1\"",
+        "} elseif {[llength $available_parts] > 0} {",
+        "  puts \"NEMA_VIVADO_ERROR: requested_part_unavailable requested=$requested_part fallback=0\"",
+        "  exit 42",
         "} else {",
         "  error \"NEMA_VIVADO_ERROR: no available parts in this Vivado install\"",
         "}",
         "set_part $selected_part",
         "set_property part $selected_part [current_project]",
         "set part_lc [string tolower $selected_part]",
-        f"set fp [open {{{part_report}}} w]",
+        f"set fp [open {_tcl_quote(str(part_report))} w]",
         "puts $fp $selected_part",
         "close $fp",
     ]
@@ -877,8 +968,8 @@ def _run_vivado_batch(
     ip_glob_root_dir = str(ip_glob_root)
     tcl_lines.extend(
         [
-            f"set ip_xci [glob -nocomplain -types f {{{ip_glob_pattern}}}]",
-            f"set ip_repo_dirs [glob -nocomplain -types d {{{ip_glob_root_dir}}}]",
+            f"set ip_xci [glob -nocomplain -types f {_tcl_quote(ip_glob_pattern)}]",
+            f"set ip_repo_dirs [glob -nocomplain -types d {_tcl_quote(ip_glob_root_dir)}]",
             "if {[llength $ip_repo_dirs] > 0} {",
             "  set_property ip_repo_paths $ip_repo_dirs [current_project]",
             "  update_ip_catalog -rebuild",
@@ -889,7 +980,7 @@ def _run_vivado_batch(
         tcl_lines.append("if {[llength $ip_xci] == 0} {")
         tcl_lines.append("  set ip_xci [list]")
         for xci in ip_xci_files:
-            tcl_lines.append(f"  lappend ip_xci {{{xci}}}")
+            tcl_lines.append(f"  lappend ip_xci {_tcl_quote(str(xci))}")
         tcl_lines.append("}")
     tcl_lines.extend(
         [
@@ -903,7 +994,7 @@ def _run_vivado_batch(
         ]
     )
     for rtl in rtl_files:
-        tcl_lines.append(f"lappend rtl_scan_files {{{rtl}}}")
+        tcl_lines.append(f"lappend rtl_scan_files {_tcl_quote(str(rtl))}")
     tcl_lines.extend(
         [
             "foreach rtl $rtl_scan_files {",
@@ -922,18 +1013,18 @@ def _run_vivado_batch(
         ]
     )
     for rtl in rtl_files:
-        tcl_lines.append(f"read_verilog {{{rtl}}}")
+        tcl_lines.append(f"read_verilog {_tcl_quote(str(rtl))}")
     tcl_lines.extend(
         [
             f"synth_design -top {top_name} -part $selected_part",
             "if {[llength [get_ports -quiet ap_clk]] > 0} {",
-            f"  create_clock -name ap_clk -period {clock_ns} [get_ports ap_clk]",
+            f"  create_clock -name ap_clk -period {requested_clock_ns} [get_ports ap_clk]",
             "}",
             "opt_design",
             "place_design",
             "route_design",
-            f"report_utilization -file {{{util_report}}}",
-            f"report_timing_summary -file {{{timing_report}}} -delay_type max -max_paths 10",
+            f"report_utilization -file {_tcl_quote(str(util_report))}",
+            f"report_timing_summary -file {_tcl_quote(str(timing_report))} -delay_type max -max_paths 10",
         ]
     )
     if write_bitstream:
@@ -945,9 +1036,9 @@ def _run_vivado_batch(
                 "catch {set_property SEVERITY {Warning} [get_drc_checks UCIO-1]}",
                 "catch {set_property SEVERITY {Warning} [get_drc_checks CIPS-2]}",
                 "if {[string match xcv* $part_lc]} {",
-                f"  write_device_image -force {{{versal_image_path}}}",
+                f"  write_device_image -force {_tcl_quote(str(versal_image_path))}",
                 "} else {",
-                f"  write_bitstream -force {{{bitstream_path}}}",
+                f"  write_bitstream -force {_tcl_quote(str(bitstream_path))}",
                 "}",
             ]
         )
@@ -988,18 +1079,31 @@ def _run_vivado_batch(
             selected_part = part_report.read_text(encoding="utf-8").strip() or None
         except OSError:
             selected_part = None
+    report_files = [
+        str(path)
+        for path in (util_report, timing_report, run_log, part_report, versal_image_path, bitstream_path)
+        if path.exists()
+    ]
+    part_match_requested = bool(selected_part is not None and selected_part == requested_part)
     reason: str | None = None
+    if not proc.ok and _contains_requested_part_unavailable(proc.stdout, proc.stderr):
+        payload = _empty_vivado_result("requested_part_unavailable", requested_part=requested_part)
+        payload["projectDir"] = str(vivado_dir)
+        payload["runLog"] = str(run_log)
+        payload["elapsedSeconds"] = proc.elapsed_s
+        payload["returncode"] = proc.returncode
+        payload["rtlSourceCount"] = len(rtl_files)
+        payload["selected_part"] = selected_part
+        payload["part"] = selected_part or requested_part
+        payload["part_match_requested"] = part_match_requested
+        payload["reportFiles"] = report_files
+        return payload
     if not proc.ok:
         reason = "vivado impl failed"
     elif not util_exists or not timing_exists:
         reason = "vivado impl reports missing"
     elif write_bitstream and not bitstream_exists:
         reason = "vivado bitstream missing"
-    report_files = [
-        str(path)
-        for path in (util_report, timing_report, run_log, part_report, versal_image_path, bitstream_path)
-        if path.exists()
-    ]
 
     return {
         "attempted": True,
@@ -1017,7 +1121,10 @@ def _run_vivado_batch(
         "bitstreamPath": str(bitstream_path) if bitstream_exists else None,
         "bitstreamPlaceholder": bitstream_placeholder,
         "rtlSourceCount": len(rtl_files),
-        "part": selected_part or part,
+        "part": selected_part or requested_part,
+        "requested_part": requested_part,
+        "selected_part": selected_part,
+        "part_match_requested": part_match_requested,
         "clk_ns": clk_value,
         "wns": None,
         "tns": None,
@@ -1040,6 +1147,7 @@ def _run_vitis_hls(
     model_root: Path,
     run_cosim: bool,
     vivado_part_override: str | None = None,
+    allow_part_fallback: bool = False,
     write_bitstream: bool = False,
 ) -> dict[str, Any]:
     # Use absolute paths because local wrappers may change cwd before invoking Vitis.
@@ -1049,27 +1157,39 @@ def _run_vitis_hls(
     project_name = (project_dir / "nema_hwtest").resolve()
     hls_cpp_abs = hls_cpp.resolve()
     cpp_ref_main_abs = cpp_ref_main.resolve()
-    part = os.environ.get("NEMA_VITIS_PART", "xc7z020clg400-1")
-    vivado_part = vivado_part_override or os.environ.get("NEMA_VIVADO_PART", part)
-    clock_ns = os.environ.get("NEMA_VITIS_CLOCK_NS", "5.0")
+    part = _validate_part_literal(os.environ.get("NEMA_VITIS_PART", DEFAULT_FPGA_PART), field="NEMA_VITIS_PART")
+    vivado_part = _validate_part_literal(
+        vivado_part_override or os.environ.get("NEMA_VIVADO_PART", part),
+        field="NEMA_VIVADO_PART",
+    )
+    requested_clock_ns, _ = _validate_clock_ns_literal(os.environ.get("NEMA_VITIS_CLOCK_NS", "5.0"))
+    fallback_int = 1 if allow_part_fallback else 0
+    hls_selected_part_report = (project_dir / "hls_selected_part.txt").resolve()
     tcl_lines = [
-        f"open_project -reset {{{project_name}}}",
+        f"open_project -reset {_tcl_quote(str(project_name))}",
         "set_top nema_kernel",
-        f"add_files {{{hls_cpp_abs}}}",
-        f"add_files -tb {{{cpp_ref_main_abs}}}",
+        f"add_files {_tcl_quote(str(hls_cpp_abs))}",
+        f"add_files -tb {_tcl_quote(str(cpp_ref_main_abs))}",
         "open_solution -reset sol1",
-        f"set requested_part {{{part}}}",
+        f"set requested_part {_tcl_quote(part)}",
+        f"set nema_allow_part_fallback {fallback_int}",
         "set available_parts [list_part]",
         "if {[lsearch -exact $available_parts $requested_part] >= 0} {",
         "  set selected_part $requested_part",
-        "} elseif {[llength $available_parts] > 0} {",
+        "} elseif {$nema_allow_part_fallback && [llength $available_parts] > 0} {",
         "  set selected_part [lindex $available_parts 0]",
-        "  puts \"NEMA_HLS_INFO: requested_part_unavailable requested=$requested_part selected=$selected_part\"",
+        "  puts \"NEMA_HLS_INFO: requested_part_unavailable requested=$requested_part selected=$selected_part fallback=1\"",
+        "} elseif {[llength $available_parts] > 0} {",
+        "  puts \"NEMA_HLS_ERROR: requested_part_unavailable requested=$requested_part fallback=0\"",
+        "  exit 42",
         "} else {",
         "  error \"NEMA_HLS_ERROR: no installed parts available in Vitis HLS\"",
         "}",
         "set_part $selected_part",
-        f"create_clock -period {clock_ns}",
+        f"set fp [open {_tcl_quote(str(hls_selected_part_report))} w]",
+        "puts $fp $selected_part",
+        "close $fp",
+        f"create_clock -period {requested_clock_ns}",
         "csim_design",
         "csynth_design",
         "export_design -rtl verilog",
@@ -1084,17 +1204,78 @@ def _run_vitis_hls(
     solution_dir = project_dir / "nema_hwtest" / "sol1"
 
     hls_logs: list[tuple[str, CmdResult]] = [("primary", proc)]
+    hls_selected_part: str | None = None
+    if hls_selected_part_report.exists():
+        try:
+            hls_selected_part = hls_selected_part_report.read_text(encoding="utf-8").strip() or None
+        except OSError:
+            hls_selected_part = None
+    hls_part_match_requested = bool(hls_selected_part is not None and hls_selected_part == part)
+    hls_requested_part_unavailable = (not proc.ok) and _contains_requested_part_unavailable(proc.stdout, proc.stderr)
+
+    if hls_requested_part_unavailable and not allow_part_fallback:
+        run_log_path.write_text((proc.stdout or "") + ("\n" if proc.stdout else "") + (proc.stderr or ""), encoding="utf-8")
+        return {
+            "toolchain": _toolchain_descriptor(
+                {
+                    "available": True,
+                    "binary": vitis_binary,
+                    "version": _detect_vitis_hls().get("version"),
+                },
+                vivado_info,
+            ),
+            "project": str(project_dir),
+            "csim": {
+                "attempted": False,
+                "ok": None,
+                "skipped": True,
+                "reason": "requested_part_unavailable",
+                "returncode": None,
+                "elapsedSeconds": None,
+                "logTail": (proc.stdout + "\n" + proc.stderr)[-4000:],
+            },
+            "csynth": {
+                "attempted": False,
+                "ok": None,
+                "skipped": True,
+                "reason": "requested_part_unavailable",
+                "returncode": None,
+                "elapsedSeconds": None,
+                "logTail": (proc.stdout + "\n" + proc.stderr)[-4000:],
+            },
+            "cosim": {
+                "attempted": False,
+                "ok": None,
+                "skipped": True,
+            },
+            "vivado": _empty_vivado_result("requested_part_unavailable", requested_part=vivado_part),
+            "reports": {
+                "directory": "hw_reports",
+                "files": [],
+                "csynthXml": None,
+                "csynthRpt": None,
+                "utilizationReport": None,
+                "timingReport": None,
+                "parsed": None,
+            },
+            "partSelection": {
+                "requested_part": part,
+                "selected_part": hls_selected_part,
+                "part_match_requested": hls_part_match_requested,
+            },
+        }
 
     model_id_lc = model_root.name.lower()
     b3_needs_export_retry = (
-        bool(vivado_info.get("available"))
+        proc.ok
+        and bool(vivado_info.get("available"))
         and "b3" in model_id_lc
         and not (solution_dir / "impl" / "ip").exists()
     )
     if b3_needs_export_retry:
         retry_tcl = (project_dir / "run_hls_export_retry.tcl").resolve()
         retry_lines = [
-            f"open_project {{{project_name}}}",
+            f"open_project {_tcl_quote(str(project_name))}",
             "open_solution sol1",
             "export_design -rtl verilog",
             "exit",
@@ -1117,7 +1298,8 @@ def _run_vitis_hls(
         project_dir=project_dir,
         solution_dir=solution_dir,
         part=vivado_part,
-        clock_ns=clock_ns,
+        clock_ns=requested_clock_ns,
+        allow_part_fallback=allow_part_fallback,
         write_bitstream=write_bitstream,
         top_name="nema_kernel",
     )
@@ -1204,6 +1386,11 @@ def _run_vitis_hls(
         "cosim": cosim_result,
         "vivado": vivado,
         "reports": reports,
+        "partSelection": {
+            "requested_part": part,
+            "selected_part": hls_selected_part,
+            "part_match_requested": hls_part_match_requested,
+        },
     }
 
 
@@ -1230,6 +1417,7 @@ def run_hwtest_pipeline(
     hw_mode: str = "auto",
     cosim_mode: str = "auto",
     vivado_part: str | None = None,
+    allow_part_fallback: bool = False,
     write_bitstream: bool = False,
 ) -> tuple[int, dict[str, Any]]:
     """Run golden sim + C++ reference (+ optional Vitis HLS) and emit bench_report.json."""
@@ -1240,6 +1428,13 @@ def run_hwtest_pipeline(
     if cosim_mode not in {"auto", "on", "off"}:
         return 1, {"ok": False, "error": f"invalid --cosim mode '{cosim_mode}' (expected auto|on|off)"}
     requested_vivado_part = (vivado_part.strip() if isinstance(vivado_part, str) else "") or None
+    if requested_vivado_part is None:
+        requested_vivado_part = (
+            os.environ.get("NEMA_VIVADO_PART", "").strip()
+            or os.environ.get("NEMA_VITIS_PART", "").strip()
+            or DEFAULT_FPGA_PART
+        )
+    allow_part_fallback = bool(allow_part_fallback or _env_flag("NEMA_ALLOW_PART_FALLBACK"))
 
     try:
         ir_validation = validate_ir(ir_path, allow_external_smoke=True)
@@ -1336,16 +1531,20 @@ def run_hwtest_pipeline(
         }
     run_cosim = _resolve_run_cosim(cosim_mode)
     if vitis_info["available"]:
-        hardware = _run_vitis_hls(
-            vitis_binary=str(vitis_info["binary"]),
-            vivado_info=vivado_info,
-            hls_cpp=hls_cpp,
-            cpp_ref_main=cpp_ref_main,
-            model_root=model_root,
-            run_cosim=run_cosim,
-            vivado_part_override=requested_vivado_part,
-            write_bitstream=write_bitstream,
-        )
+        try:
+            hardware = _run_vitis_hls(
+                vitis_binary=str(vitis_info["binary"]),
+                vivado_info=vivado_info,
+                hls_cpp=hls_cpp,
+                cpp_ref_main=cpp_ref_main,
+                model_root=model_root,
+                run_cosim=run_cosim,
+                vivado_part_override=requested_vivado_part,
+                allow_part_fallback=allow_part_fallback,
+                write_bitstream=write_bitstream,
+            )
+        except ValueError as exc:
+            return 1, {"ok": False, "error": str(exc)}
     else:
         hardware = {
             "toolchain": _toolchain_descriptor(vitis_info, vivado_info),
@@ -1426,6 +1625,9 @@ def run_hwtest_pipeline(
         cosim = hardware.get("cosim")
         if cosim and cosim.get("attempted"):
             hardware_ok = hardware_ok and bool(cosim.get("ok"))
+        vivado_stage = hardware.get("vivado")
+        if isinstance(vivado_stage, dict) and vivado_stage.get("reason") == "requested_part_unavailable":
+            hardware_ok = False
 
     bench_report = {
         "ok": bool(golden_ok and cpp_report["ok"] and digests_match and hardware_ok),
