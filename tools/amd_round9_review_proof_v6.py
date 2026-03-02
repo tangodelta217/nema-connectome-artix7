@@ -391,9 +391,9 @@ def _parse_power_report(path: Path) -> dict[str, float | None]:
             return None
         return _parse_num(m.group(1))
 
-    out["totalOnChipPowerW"] = grab(r"Total On-Chip Power\s*\(W\)\s*\|\s*([0-9.+-Ee]+)")
-    out["dynamicPowerW"] = grab(r"Dynamic\s*\(W\)\s*\|\s*([0-9.+-Ee]+)")
-    out["deviceStaticPowerW"] = grab(r"Device Static\s*\(W\)\s*\|\s*([0-9.+-Ee]+)")
+    out["totalOnChipPowerW"] = grab(r"Total On-Chip Power\s*\(W\)\s*\|\s*([0-9.+Ee-]+)")
+    out["dynamicPowerW"] = grab(r"Dynamic\s*\(W\)\s*\|\s*([0-9.+Ee-]+)")
+    out["deviceStaticPowerW"] = grab(r"Device Static\s*\(W\)\s*\|\s*([0-9.+Ee-]+)")
     return out
 
 

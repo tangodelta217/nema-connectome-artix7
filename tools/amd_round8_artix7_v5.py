@@ -696,9 +696,9 @@ def _parse_power_report(path: Path) -> dict[str, float | None]:
         except ValueError:
             return None
 
-    out["totalOnChipPowerW"] = _grab(r"Total On-Chip Power\s*\(W\)\s*\|\s*([0-9.+-Ee]+)")
-    out["dynamicPowerW"] = _grab(r"Dynamic\s*\(W\)\s*\|\s*([0-9.+-Ee]+)")
-    out["deviceStaticPowerW"] = _grab(r"Device Static\s*\(W\)\s*\|\s*([0-9.+-Ee]+)")
+    out["totalOnChipPowerW"] = _grab(r"Total On-Chip Power\s*\(W\)\s*\|\s*([0-9.+Ee-]+)")
+    out["dynamicPowerW"] = _grab(r"Dynamic\s*\(W\)\s*\|\s*([0-9.+Ee-]+)")
+    out["deviceStaticPowerW"] = _grab(r"Device Static\s*\(W\)\s*\|\s*([0-9.+Ee-]+)")
     return out
 
 
