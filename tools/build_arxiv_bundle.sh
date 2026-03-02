@@ -219,7 +219,7 @@ if grep -RInE 'release_round10b|/home/|/Users/|file://|~/' \
   echo "ERROR: forbidden path pattern found in staged arXiv sources."
   exit 1
 fi
-if grep -RInE '[A-Za-z]:\\\\' \
+if grep -RInE '(^|[^A-Za-z])[A-Za-z]:\\\\' \
   --include='*.tex' --include='*.bib' --include='*.bbl' --include='*.sty' "$STAGE_DIR"; then
   echo "ERROR: Windows local absolute path found in staged arXiv sources."
   exit 1
