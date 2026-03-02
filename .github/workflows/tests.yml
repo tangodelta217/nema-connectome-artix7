@@ -5,7 +5,6 @@ on:
   pull_request:
 
 env:
-  # Set repository variable CI_HW=1 to force hardware-gates job in CI.
   CI_HW: ${{ vars.CI_HW || '0' }}
 
 jobs:
@@ -72,4 +71,5 @@ jobs:
 
       - name: Hardware Gate Skipped
         if: steps.detect_hw.outputs.available != 'true' && env.CI_HW != '1'
-        run: echo "Skipping hardware-gates: no vitis_hls/vivado in PATH and CI_HW!=1"
+        run: |
+          echo "Skipping hardware-gates: no vitis_hls/vivado in PATH and CI_HW!=1"
