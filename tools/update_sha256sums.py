@@ -15,9 +15,11 @@ SHA_FILE = ROOT / "release" / "SHA256SUMS.txt"
 CONTROLLED_ALLOWLIST = (
     "paper/paper.pdf",
     "release/artifact_bundle_final.tar.gz",
+    "release/profiles/round10b_funcsaif/profile.json",
     "review_pack/tables/artix7_hls_digest_summary.csv",
     "review_pack/tables/artix7_hls_digest_summary_strict.csv",
     "review_pack/tables/artix7_hls_digest_summary_strict_v2.csv",
+    "review_pack/tables/artix7_hls_digest_summary_strict_v2.tex",
     "review_pack/tables/artix7_metrics_final.csv",
     "review_pack/tables/artix7_metrics_v1.csv",
     "review_pack/tables/artix7_power.csv",
@@ -30,6 +32,7 @@ CONTROLLED_ALLOWLIST = (
     "review_pack/tables/artix7_qor_v4.csv",
     "review_pack/tables/artix7_qor_v5.csv",
     "review_pack/tables/artix7_qor_v6.csv",
+    "review_pack/tables/artix7_qor_v6.tex",
     "review_pack/tables/artix7_metrics_final.tex",
 )
 

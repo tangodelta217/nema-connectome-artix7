@@ -6,7 +6,7 @@ Do not edit manually. Regenerate with `python tools/sync_status_docs.py`.
 ## Canonical Source
 
 - File: `release/FINAL_STATUS.json`
-- Synced-at (UTC): `2026-03-02T19:32:24+00:00`
+- Synced-at (UTC): `2026-03-02T20:56:50+00:00`
 
 ## Canonical Gate Snapshot
 

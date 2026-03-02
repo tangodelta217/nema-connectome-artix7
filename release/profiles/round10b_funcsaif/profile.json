@@ -1,0 +1,23 @@
+{
+  "id": "round10b_funcsaif",
+  "canonical": true,
+  "description": "Canonical Round10b functional-SAIF release profile used by paper Tables 1-4.",
+  "tables": {
+    "table1_hls_digest": {
+      "csv": "review_pack/tables/artix7_hls_digest_summary_strict_v2.csv",
+      "tex": "review_pack/tables/artix7_hls_digest_summary_strict_v2.tex"
+    },
+    "table2_qor": {
+      "csv": "review_pack/tables/artix7_qor_v6.csv",
+      "tex": "review_pack/tables/artix7_qor_v6.tex"
+    },
+    "table3_power": {
+      "csv": "review_pack/tables/artix7_power_v7_funcsaif.csv",
+      "tex": "review_pack/tables/artix7_power_v7_funcsaif.tex"
+    },
+    "table4_metrics": {
+      "csv": "review_pack/tables/artix7_metrics_final.csv",
+      "tex": "review_pack/tables/artix7_metrics_final.tex"
+    }
+  }
+}

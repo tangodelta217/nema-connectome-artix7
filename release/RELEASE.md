@@ -20,6 +20,7 @@ Keep small, reviewable metadata in git:
 
 ```bash
 sha256sum -c release/SHA256SUMS.txt
+python tools/check_release_integrity.py
 ```
 
 To hash a new bundle before publishing:
