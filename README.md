@@ -39,6 +39,28 @@ pip install pytest
 python -m pytest -q
 ```
 
+## Calidad y seguridad
+
+Instala dependencias de desarrollo:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements-dev.txt
+```
+
+Ejecuta checks locales (no requieren Vivado/Vitis):
+
+```bash
+ruff check . --config ruff.toml
+mypy --config-file mypy.ini
+bandit -q -r nema tools/verify_paper_inputs.py tools/update_sha256sums.py -lll
+pytest -q -m "not hw and not integration"
+```
+
+Nota: el comando de `pytest` excluye tests marcados como `hw` e `integration`, por lo que no dispara flujos de toolchain de FPGA.
+
 ## Reproducibility
 
 Core benchmark commands:
@@ -83,6 +105,17 @@ Build and validate a source-only submission bundle:
 bash tools/build_arxiv_bundle.sh
 ```
 
+### Flujo arXiv bundle
+
+`tools/build_arxiv_bundle.sh` ejecuta este flujo antes de empaquetar:
+
+1. `python tools/verify_paper_inputs.py` para detectar drift de tablas/artefactos esperados.
+2. Resolución y staging determinista de dependencias TeX/Bib/Figures.
+3. Preflight de LaTeX con `bash tools/latex_preflight.sh`:
+   - si `latexmk` está disponible, compila en modo no interactivo (`-interaction=nonstopmode -halt-on-error`);
+   - si no está disponible, al menos valida `00README.XXX` y `\documentclass` en el main TeX.
+4. Empaquetado source-only (`build/arxiv_bundle.tar.gz`) y validación de contenido.
+
 Outputs:
 
 - `build/arxiv_bundle.tar.gz`
@@ -90,6 +123,13 @@ Outputs:
 - `build/arxiv_bundle.contents.txt`
 
 The bundle build fails if it finds stale `release_round10b` references, local absolute paths, missing `\input`/`\include` dependencies, or generated LaTeX byproducts (`.aux`, `.log`, etc.).
+
+### Advertencias AutoTeX
+
+- AutoTeX en arXiv puede usar un entorno TeX distinto al local; evita depender de rutas locales o paquetes no estándar.
+- Mantén `00README.XXX` con `toplevelfile` correcto para que arXiv detecte el archivo principal.
+- Asegura que el main TeX tenga `\documentclass` y que todas las dependencias estén dentro del tarball.
+- El bundle es source-only: no incluir PDFs generados ni subproductos (`.aux`, `.log`, `.fls`, `.fdb_latexmk`, etc.).
 
 ## Limitations
 

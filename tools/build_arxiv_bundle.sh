@@ -13,6 +13,9 @@ mkdir -p "$ROOT/build"
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 
+echo "Running paper input drift check (tools/verify_paper_inputs.py)."
+python3 "$ROOT/tools/verify_paper_inputs.py"
+
 python3 - "$ROOT" "$MAIN_REL" "$STAGE_DIR" "$REQ_LIST" <<'PY'
 from __future__ import annotations
 
@@ -277,24 +280,7 @@ while stack:
 print(f"dependency closure check OK ({len(seen)} TeX files)")
 PY
 
-if command -v latexmk >/dev/null 2>&1; then
-  echo "Running optional local compile preflight (latexmk)."
-  if ! (cd "$STAGE_DIR" && latexmk -cd -pdf -interaction=nonstopmode -halt-on-error "$MAIN_REL" > "$LATEX_LOG" 2>&1); then
-    echo "ERROR: latexmk preflight failed. See $LATEX_LOG"
-    exit 1
-  fi
-  # Keep bundle source-only: remove generated LaTeX products from staging.
-  find "$STAGE_DIR" -type f \( \
-    -name '*.aux' -o \
-    -name '*.log' -o \
-    -name '*.out' -o \
-    -name '*.fls' -o \
-    -name '*.fdb_latexmk' -o \
-    -name '*.blg' -o \
-    -name '*.synctex.gz' -o \
-    -name '*.pdf' \
-  \) -delete
-fi
+bash "$ROOT/tools/latex_preflight.sh" "$STAGE_DIR" "$MAIN_REL" "$LATEX_LOG"
 
 tar -czf "$OUT_TAR" -C "$STAGE_DIR" .
 tar -tzf "$OUT_TAR" | sed 's#^\./##' | sed '/^$/d' | sed '/\/$/d' | sort -u > "$CONTENTS_LIST"

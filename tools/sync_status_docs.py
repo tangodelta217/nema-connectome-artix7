@@ -121,6 +121,9 @@ def _render_claims_md(data: dict[str, Any], gates: dict[str, str], synced_at: st
     if not cannot_claim:
         cannot_claim.append("- No additional claim restrictions were declared.")
 
+    can_claim_md = "\n".join(can_claim)
+    cannot_claim_md = "\n".join(cannot_claim)
+
     return (
         "# Claims Ledger (Canonical)\n\n"
         "This file is generated from `release/FINAL_STATUS.json`.\n"
@@ -133,9 +136,9 @@ def _render_claims_md(data: dict[str, Any], gates: dict[str, str], synced_at: st
         f"{_snapshot_block(gates)}\n"
         "```\n\n"
         "## Claims We Can Make\n\n"
-        f"{'\n'.join(can_claim)}\n\n"
+        f"{can_claim_md}\n\n"
         "## Claims We Cannot Make\n\n"
-        f"{'\n'.join(cannot_claim)}\n"
+        f"{cannot_claim_md}\n"
     )
 
 
