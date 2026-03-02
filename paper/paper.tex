@@ -11,8 +11,6 @@
 
 \begin{document}
 \maketitle
-\newcommand{\TableRoot}{../release_round10b/tables}
-\IfFileExists{../tables/artix7_power.tex}{\renewcommand{\TableRoot}{../tables}}{}
 
 \begin{abstract}
 This release documents deterministic NEMA v0.1 evidence from IR through HLS, Vivado post-route QoR, and SAIF-guided power estimates. 
@@ -22,7 +20,7 @@ Power and energy are explicitly \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}; no board m
 
 \section{Semantics and Contract}
 Numerics and tick semantics follow repository-normative artifacts (\texttt{spec.md}, \texttt{nema\_ir.proto}) \cite{nema_spec_v01}. 
-Conformance claims in this release are bounded by those contracts and by generated evidence paths listed in \texttt{release\_round10b/FINAL\_STATUS.json}.
+Conformance claims in this release are bounded by those contracts and by generated evidence paths listed in \texttt{release/FINAL\_STATUS.json}.
 
 \section{Compiler and Deterministic Toolchain}
 The pipeline is deterministic by construction: IR $\rightarrow$ golden CPU simulator $\rightarrow$ HLS kernel $\rightarrow$ Vivado post-route reports. 
@@ -37,13 +35,13 @@ Gate status and closure rationale are synchronized in \texttt{docs/GATE\_STATUS.
 Canonical B3 identity is traced via \texttt{build/codex\_handoff/B3\_CANONICAL\_STATUS.json}.
 
 \section{Evaluation (Pre-Board)}
-Tables below are generated from release-selected CSV artifacts (Round10b functional-SAIF finals when present).
+Tables below are sourced through repository-local inputs under \texttt{paper/tables/}, which map to checked-in review-pack table variants.
 
 \subsection{HLS Digest Parity}
 \begin{table}[h]
 \centering
 \small
-\input{\TableRoot/artix7_hls_digest_summary.tex}
+\input{tables/artix7_hls_digest_summary.tex}
 \caption{Generated from strict digest summary CSV.}
 \end{table}
 
@@ -51,7 +49,7 @@ Tables below are generated from release-selected CSV artifacts (Round10b functio
 \begin{table}[h]
 \centering
 \small
-\input{\TableRoot/artix7_qor.tex}
+\input{tables/artix7_qor.tex}
 \caption{Generated from release-selected QoR CSV.}
 \end{table}
 
@@ -59,7 +57,7 @@ Tables below are generated from release-selected CSV artifacts (Round10b functio
 \begin{table}[h]
 \centering
 \small
-\input{\TableRoot/artix7_power.tex}
+\input{tables/artix7_power.tex}
 \caption{Generated from release-selected power CSV.}
 \end{table}
 
@@ -67,7 +65,7 @@ Tables below are generated from release-selected CSV artifacts (Round10b functio
 \begin{table}[h]
 \centering
 \small
-\input{\TableRoot/artix7_metrics.tex}
+\input{tables/artix7_metrics.tex}
 \caption{Generated from release-selected metrics CSV.}
 \end{table}
 
@@ -86,9 +84,17 @@ Reproduction entry points:
 \begin{itemize}
 \item Repository source: \url{https://github.com/tangodelta217/nema-connectome-artix7}
 \item Release artifacts: \url{https://github.com/tangodelta217/nema-connectome-artix7/releases}
-\item Verify hashes: \texttt{sha256sum -c release\_round10b/SHA256SUMS.txt}
-\item Evidence navigation: \texttt{release\_round10b/evidence/}
-\item Gate/status machine-readable manifest: \texttt{release\_round10b/FINAL\_STATUS.json}
+\item Verify hashes: \texttt{sha256sum -c release/SHA256SUMS.txt}
+\item Gate/status machine-readable manifest: \texttt{release/FINAL\_STATUS.json}
+\item Paper input verification: \texttt{python tools/verify\_paper\_inputs.py}
+\end{itemize}
+
+\paragraph{Artifact locations in this repository.}
+\begin{itemize}
+\item Release checksums: \texttt{release/SHA256SUMS.txt}
+\item Final release status: \texttt{release/FINAL\_STATUS.json}
+\item Paper table CSV sources: \texttt{review\_pack/tables/artix7\_*.csv}
+\item Paper TeX table entry points: \texttt{paper/tables/*.tex}
 \end{itemize}
 
 \bibliographystyle{plain}

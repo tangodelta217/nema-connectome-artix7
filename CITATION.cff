@@ -19,6 +19,7 @@ preferred-citation:
   journal: "arXiv"
   year: 2026
   identifiers:
+    # Update this identifier after arXiv assigns a permanent ID.
     - type: other
       value: "arXiv:XXXX.XXXXX"
       description: "arXiv preprint placeholder"

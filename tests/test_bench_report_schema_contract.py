@@ -24,12 +24,15 @@ def test_bench_report_schema_defines_vivado_impl_contract() -> None:
 
     vivado = schema["properties"]["hardware"]["properties"]["vivado"]
     required = set(vivado["required"])
-    for key in ("implOk", "part", "clk_ns", "wns", "tns", "util"):
+    for key in ("implOk", "part", "requested_part", "selected_part", "part_match_requested", "clk_ns", "wns", "tns", "util"):
         assert key in required
 
     props = vivado["properties"]
     assert sorted(props["implOk"]["type"]) == ["boolean", "null"]
     assert sorted(props["part"]["type"]) == ["null", "string"]
+    assert sorted(props["requested_part"]["type"]) == ["null", "string"]
+    assert sorted(props["selected_part"]["type"]) == ["null", "string"]
+    assert props["part_match_requested"]["type"] == "boolean"
     assert sorted(props["clk_ns"]["type"]) == ["null", "number"]
     assert sorted(props["wns"]["type"]) == ["null", "number"]
     assert sorted(props["tns"]["type"]) == ["null", "number"]

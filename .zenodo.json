@@ -1,0 +1,23 @@
+{
+  "title": "NEMA v0.1: Deterministic Connectome Toolchain for Artix-7",
+  "description": "Deterministic NEMA v0.1 toolchain: validated IR, bit-exact fixed-point golden simulator, HLS/Vivado flow, and reproducible artifact bundles for reviewer-facing pre-board evidence.",
+  "upload_type": "software",
+  "license": "Apache-2.0",
+  "access_right": "open",
+  "keywords": [
+    "fpga",
+    "artix7",
+    "connectome",
+    "celegans",
+    "hls",
+    "vivado",
+    "reproducibility",
+    "formal-verification"
+  ],
+  "creators": [
+    {
+      "name": "Millañanco Fernandez, Mariano",
+      "affiliation": "University of Seville, Seville, Spain"
+    }
+  ]
+}
