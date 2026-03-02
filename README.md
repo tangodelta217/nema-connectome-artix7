@@ -1,7 +1,7 @@
 # NEMA v0.1
 
 [![Quality](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/quality.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/quality.yml)
-[![arXiv Build](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/arxiv-build.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/arxiv-build.yml)
+[![arXiv Build](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/arxiv.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/arxiv.yml)
 [![Scorecard](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/scorecard.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/scorecard.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/badge/release-v0.1.0-informational.svg)](https://github.com/tangodelta217/nema-connectome-artix7/releases)
@@ -71,6 +71,19 @@ pytest -q -m "not hw and not integration"
 
 Nota: el comando de `pytest` excluye tests marcados como `hw` e `integration`, por lo que no dispara flujos de toolchain de FPGA.
 
+## Supply-chain security
+
+Este repositorio usa dos workflows dedicados en GitHub Actions:
+
+- `dependency-review.yml` (PR): ejecuta `actions/dependency-review-action` y falla si detecta vulnerabilidades nuevas de severidad `high` o `critical` en dependencias introducidas por el cambio.
+- `scorecard.yml` (main + schedule): ejecuta OpenSSF Scorecard y publica resultados SARIF para code scanning.
+
+Cómo interpretar resultados:
+
+- Dependency Review en rojo: el PR introduce una dependencia con riesgo alto; se debe actualizar, reemplazar o justificar explícitamente antes de merge.
+- Scorecard bajo o con checks fallidos: hay debilidades de supply chain (por ejemplo pinning insuficiente, permisos amplios, ramas sin protección); tratarlo como deuda de seguridad prioritaria.
+- SARIF en code scanning: cada hallazgo incluye regla y ubicación; usarlo como lista accionable para endurecimiento continuo.
+
 ## Reproducibility
 
 Core benchmark commands:
@@ -122,16 +135,27 @@ Two-pass `pdflatex` local validation of the staged bundle:
 make arxiv-pdflatex-2pass
 ```
 
-### Flujo arXiv bundle
+### Cómo generar y verificar el bundle arXiv
 
 `tools/build_arxiv_bundle.sh` ejecuta este flujo antes de empaquetar:
 
 1. `python tools/verify_paper_inputs.py` para detectar drift de tablas/artefactos esperados.
 2. Resolución y staging determinista de dependencias TeX/Bib/Figures.
-3. Preflight de LaTeX con `bash tools/latex_preflight.sh`:
+3. Preflight estructural con `python tools/arxiv_preflight.py --bundle-dir build/arxiv_bundle_stage --main-rel paper/paper.tex`:
+   - valida `\documentclass` en el main TeX;
+   - valida `00README.XXX` y `toplevelfile` correcto;
+   - valida cierre de dependencias `\input`/`\include` dentro del bundle.
+4. Preflight de LaTeX con `bash tools/latex_preflight.sh`:
    - si `latexmk` está disponible, compila en modo no interactivo (`-interaction=nonstopmode -halt-on-error`);
    - si no está disponible, al menos valida `00README.XXX` y `\documentclass` en el main TeX.
-4. Empaquetado source-only (`build/arxiv_bundle.tar.gz`) y validación de contenido.
+5. Empaquetado source-only (`build/arxiv_bundle.tar.gz`) y validación de contenido.
+
+Comando recomendado local:
+
+```bash
+bash tools/build_arxiv_bundle.sh
+python tools/arxiv_preflight.py --bundle-dir build/arxiv_bundle_stage --main-rel paper/paper.tex
+```
 
 Outputs:
 

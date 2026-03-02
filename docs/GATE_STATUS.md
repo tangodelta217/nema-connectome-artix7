@@ -6,8 +6,8 @@ Do not edit manually. Regenerate with `python tools/sync_status_docs.py`.
 ## Canonical Source
 
 - File: `release/FINAL_STATUS.json`
-- Canonical generated-at: `2026-03-02T19:31:22+00:00`
-- Synced-at (UTC): `2026-03-02T19:32:24+00:00`
+- Canonical generated-at: `2026-03-02T20:53:20+00:00`
+- Synced-at (UTC): `2026-03-02T20:56:50+00:00`
 - Target part: `xc7a200tsbg484-1`
 
 ## Gate Summary
@@ -32,6 +32,8 @@ Do not edit manually. Regenerate with `python tools/sync_status_docs.py`.
 
 - `b3CanonicalStatus`: `build/handoff/B3_CANONICAL_STATUS.json`
 - `gateStatusDoc`: `docs/GATE_STATUS.md`
+- `hlsDigestCsv`: `review_pack/tables/artix7_hls_digest_summary_strict_v2.csv`
+- `hlsDigestTex`: `review_pack/tables/artix7_hls_digest_summary_strict_v2.tex`
 - `metricsCsv`: `review_pack/tables/artix7_metrics_final.csv`
 - `metricsTex`: `review_pack/tables/artix7_metrics_final.tex`
 - `postRouteTimingReports`: `build/amd_vivado_artix7_v5/b1_small/post_route_timing.rpt`, `build/amd_vivado_artix7_v5/b3_varshney_exec_expanded_gap_300_5824/post_route_timing.rpt`
@@ -42,6 +44,7 @@ Do not edit manually. Regenerate with `python tools/sync_status_docs.py`.
 - `powerSummary`: `build/amd_power_artix7_v7_funcsaif/summary.json`
 - `powerTex`: `review_pack/tables/artix7_power_v7_funcsaif.tex`
 - `qorCsv`: `review_pack/tables/artix7_qor_v6.csv`
+- `qorTex`: `review_pack/tables/artix7_qor_v6.tex`
 - `saifFunctional`: `build/amd_power_artix7_v7_funcsaif/b1_small/activity_func.saif`, `build/amd_power_artix7_v7_funcsaif/b3_varshney_exec_expanded_gap_300_5824/activity_func.saif`
 - `vivadoSummary`: `build/amd_vivado_artix7_v5/summary.json`
 

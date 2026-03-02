@@ -11,7 +11,7 @@ This repository is prepared for Zenodo DOI minting via GitHub releases.
 
 ## 1) Connect Zenodo to GitHub (UI steps)
 
-Codex cannot perform UI clicks. Follow these exact steps manually:
+The automation assistant cannot perform UI clicks. Follow these exact steps manually:
 
 1. Open `https://zenodo.org` and sign in (or create account).
 2. In Zenodo, open profile menu -> `GitHub`.

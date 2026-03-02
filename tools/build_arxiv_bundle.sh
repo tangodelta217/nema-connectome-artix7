@@ -225,60 +225,7 @@ if grep -RInE '[A-Za-z]:\\\\' \
   exit 1
 fi
 
-# Dependency closure check inside staged tree.
-python3 - "$STAGE_DIR" "$MAIN_REL" <<'PY'
-from __future__ import annotations
-
-import re
-import sys
-from pathlib import Path
-
-stage = Path(sys.argv[1]).resolve()
-main_rel = Path(sys.argv[2])
-main_path = stage / main_rel
-main_dir = main_path.parent
-
-if not main_path.exists():
-    raise SystemExit(f"missing top-level file in stage: {main_rel}")
-
-input_re = re.compile(r"\\(?:input|include)\{([^}]+)\}")
-seen: set[Path] = set()
-stack: list[Path] = [main_path]
-
-def strip_comments(text: str) -> str:
-    out: list[str] = []
-    for line in text.splitlines():
-        i = 0
-        while i < len(line):
-            if line[i] == "%" and (i == 0 or line[i - 1] != "\\"):
-                line = line[:i]
-                break
-            i += 1
-        out.append(line)
-    return "\n".join(out)
-
-while stack:
-    tex = stack.pop()
-    if tex in seen:
-        continue
-    seen.add(tex)
-    text = strip_comments(tex.read_text(encoding="utf-8", errors="replace"))
-    for group in input_re.findall(text):
-        for raw in [x.strip() for x in group.split(",") if x.strip()]:
-            candidates = []
-            for anchor in (tex.parent, main_dir):
-                dep = (anchor / raw).resolve()
-                if dep.suffix == "":
-                    dep = dep.with_suffix(".tex")
-                if dep not in candidates:
-                    candidates.append(dep)
-            found = next((c for c in candidates if c.exists()), None)
-            if found is None:
-                raise SystemExit(f"staged dependency missing for {tex.relative_to(stage)}: {raw}")
-            stack.append(found)
-
-print(f"dependency closure check OK ({len(seen)} TeX files)")
-PY
+python3 "$ROOT/tools/arxiv_preflight.py" --bundle-dir "$STAGE_DIR" --main-rel "$MAIN_REL"
 
 bash "$ROOT/tools/latex_preflight.sh" "$STAGE_DIR" "$MAIN_REL" "$LATEX_LOG"
 

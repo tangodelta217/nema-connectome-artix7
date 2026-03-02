@@ -1,5 +1,10 @@
 {
-  "generatedAtUtc": "2026-03-02T19:31:22+00:00",
+  "generatedAtUtc": "2026-03-02T20:53:20+00:00",
+  "releaseProfile": {
+    "id": "round10b_funcsaif",
+    "canonical": true,
+    "path": "release/profiles/round10b_funcsaif/profile.json"
+  },
   "targetPart": "xc7a200tsbg484-1",
   "gates": {
     "G1b": "CLOSED",
@@ -13,7 +18,10 @@
   "evidence": {
     "gateStatusDoc": "docs/GATE_STATUS.md",
     "powerMethodologyDoc": "docs/POWER_METHODOLOGY.md",
+    "hlsDigestCsv": "review_pack/tables/artix7_hls_digest_summary_strict_v2.csv",
+    "hlsDigestTex": "review_pack/tables/artix7_hls_digest_summary_strict_v2.tex",
     "qorCsv": "review_pack/tables/artix7_qor_v6.csv",
+    "qorTex": "review_pack/tables/artix7_qor_v6.tex",
     "powerCsv": "review_pack/tables/artix7_power_v7_funcsaif.csv",
     "powerTex": "review_pack/tables/artix7_power_v7_funcsaif.tex",
     "metricsCsv": "review_pack/tables/artix7_metrics_final.csv",

@@ -32,33 +32,32 @@ Power evidence uses functional-SAIF post-route simulation artifacts from \texttt
 
 \section{Verification and Conformance}
 Gate status and closure rationale are synchronized in \texttt{docs/GATE\_STATUS.md}. 
-Canonical B3 identity is traced via \texttt{build/codex\_handoff/B3\_CANONICAL\_STATUS.json}.
+Canonical B3 identity is traced via \texttt{build/handoff/B3\_CANONICAL\_STATUS.json}.
 
 \section{Evaluation (Pre-Board)}
-Tables below are sourced through repository-local inputs under \texttt{paper/tables/}, which map to checked-in review-pack table variants.
-Canonical selections in \texttt{release/FINAL\_STATUS.json} pin power/metrics to \texttt{review\_pack/tables/artix7\_power\_v7\_funcsaif.\{csv,tex\}} and \texttt{review\_pack/tables/artix7\_metrics\_final.\{csv,tex\}}.
+Tables below are sourced directly from canonical review-pack tables under \texttt{review\_pack/tables/} and are pinned by \texttt{release/FINAL\_STATUS.json} (release profile \texttt{round10b\_funcsaif}).
 
 \subsection{HLS Digest Parity}
 \begin{table}[h]
 \centering
 \small
-\input{tables/artix7_hls_digest_summary.tex}
-\caption{Generated from strict digest summary CSV.}
+\input{../review_pack/tables/artix7_hls_digest_summary_strict_v2.tex}
+\caption{Generated from canonical strict digest summary table (\texttt{artix7\_hls\_digest\_summary\_strict\_v2.csv}).}
 \end{table}
 
 \subsection{Post-Route QoR}
 \begin{table}[h]
 \centering
 \small
-\input{tables/artix7_qor.tex}
-\caption{Generated from release-selected QoR CSV.}
+\input{../review_pack/tables/artix7_qor_v6.tex}
+\caption{Generated from canonical QoR table (\texttt{artix7\_qor\_v6.csv}).}
 \end{table}
 
 \subsection{Power Sensitivity}
 \begin{table}[h]
 \centering
 \small
-\input{tables/artix7_power.tex}
+\input{../review_pack/tables/artix7_power_v7_funcsaif.tex}
 \caption{Generated from canonical functional-SAIF power table (\texttt{artix7\_power\_v7\_funcsaif.csv}).}
 \end{table}
 
@@ -66,7 +65,7 @@ Canonical selections in \texttt{release/FINAL\_STATUS.json} pin power/metrics to
 \begin{table}[h]
 \centering
 \small
-\input{tables/artix7_metrics.tex}
+\input{../review_pack/tables/artix7_metrics_final.tex}
 \caption{Generated from canonical final metrics table (\texttt{artix7\_metrics\_final.csv}).}
 \end{table}
 
@@ -94,8 +93,7 @@ Reproduction entry points:
 \begin{itemize}
 \item Release checksums: \texttt{release/SHA256SUMS.txt}
 \item Final release status: \texttt{release/FINAL\_STATUS.json}
-\item Paper table CSV sources: \texttt{review\_pack/tables/artix7\_*.csv}
-\item Paper TeX table entry points: \texttt{paper/tables/*.tex}
+\item Canonical table sources (CSV/TEX): \texttt{review\_pack/tables/artix7\_*\{.csv,.tex\}}
 \end{itemize}
 
 \bibliographystyle{plain}

@@ -29,16 +29,17 @@ DOC_REPRO = DOCS_DIR / "REPRODUCE.md"
 
 TABLES_DIR = ROOT / "review_pack" / "tables"
 QOR_CSV = TABLES_DIR / "artix7_qor_v6.csv"
-POWER_CSV = TABLES_DIR / "artix7_power_v6.csv"
-METRICS_CSV = TABLES_DIR / "artix7_metrics_v1.csv"
+POWER_CSV = TABLES_DIR / "artix7_power_v7_funcsaif.csv"
+METRICS_CSV = TABLES_DIR / "artix7_metrics_final.csv"
 QOR_TEX = TABLES_DIR / "artix7_qor_v6.tex"
-POWER_TEX = TABLES_DIR / "artix7_power_v6.tex"
-METRICS_TEX = TABLES_DIR / "artix7_metrics_v1.tex"
+POWER_TEX = TABLES_DIR / "artix7_power_v7_funcsaif.tex"
+METRICS_TEX = TABLES_DIR / "artix7_metrics_final.tex"
 HLS_TEX = TABLES_DIR / "artix7_hls_digest_summary_strict_v2.tex"
+HLS_CSV = TABLES_DIR / "artix7_hls_digest_summary_strict_v2.csv"
 
 VIVADO_ROOT = ROOT / "build" / "amd_vivado_artix7_v5"
 VIVADO_SUMMARY = VIVADO_ROOT / "summary.json"
-POWER_ROOT = ROOT / "build" / "amd_power_artix7_v6"
+POWER_ROOT = ROOT / "build" / "amd_power_artix7_v7_funcsaif"
 POWER_SUMMARY = POWER_ROOT / "summary.json"
 
 B3_STATUS = ROOT / "build" / "handoff" / "B3_CANONICAL_STATUS.json"
@@ -153,7 +154,7 @@ def _write_paper_arxiv_style() -> None:
             "\\usepackage{lmodern}",
             "\\usepackage{booktabs}",
             "\\usepackage{hyperref}",
-            "\\title{NEMA v0.1: Reviewer-Proof Pre-Board Release (Round9)}",
+            "\\title{NEMA v0.1: Reviewer-Proof Pre-Board Release (Round10b Functional-SAIF)}",
             "\\author{}",
             "\\date{\\today}",
             "",
@@ -176,14 +177,14 @@ def _write_paper_arxiv_style() -> None:
             "",
             "\\section{Hardware Flow (Artix-7)}",
             "Post-route QoR evidence is sourced from existing Round8 implementation reports on part \\texttt{xc7a200tsbg484-1}. ",
-            "Round9 refresh corrects QoR parsing (Slice LUTs, Slice Registers, Block RAM Tile, DSPs) without rerunning synth/impl.",
+            "Canonical QoR reflects the verified post-route report set (Slice LUTs, Slice Registers, Block RAM Tile, DSPs).",
             "",
             "\\section{Verification and Conformance}",
             "Gate status and closure rationale are synchronized in \\texttt{docs/GATE\\_STATUS.md}. ",
-            "Canonical B3 identity is traced via \\texttt{build/codex\\_handoff/B3\\_CANONICAL\\_STATUS.json}.",
+            "Canonical B3 identity is traced via \\texttt{build/handoff/B3\\_CANONICAL\\_STATUS.json}.",
             "",
             "\\section{Evaluation (Pre-Board)}",
-            "Tables below are generated from Round9 CSV artifacts.",
+            "Tables below are generated from canonical Round10b functional-SAIF CSV artifacts.",
             "",
             "\\subsection{HLS Digest Parity}",
             "\\begin{table}[h]",
@@ -205,26 +206,26 @@ def _write_paper_arxiv_style() -> None:
             "\\begin{table}[h]",
             "\\centering",
             "\\small",
-            "\\input{../review_pack/tables/artix7_power_v6.tex}",
-            "\\caption{Generated from \\texttt{review\\_pack/tables/artix7\\_power\\_v6.csv}.}",
+            "\\input{../review_pack/tables/artix7_power_v7_funcsaif.tex}",
+            "\\caption{Generated from \\texttt{review\\_pack/tables/artix7\\_power\\_v7\\_funcsaif.csv}.}",
             "\\end{table}",
             "",
             "\\subsection{Derived Throughput and Energy}",
             "\\begin{table}[h]",
             "\\centering",
             "\\small",
-            "\\input{../review_pack/tables/artix7_metrics_v1.tex}",
-            "\\caption{Generated from \\texttt{review\\_pack/tables/artix7\\_metrics\\_v1.csv}.}",
+            "\\input{../review_pack/tables/artix7_metrics_final.tex}",
+            "\\caption{Generated from \\texttt{review\\_pack/tables/artix7\\_metrics\\_final.csv}.}",
             "\\end{table}",
             "",
             "\\paragraph{Pre-board disclaimer.}",
             "All power/energy values are \\texttt{ESTIMATED\\_PRE\\_BOARD\\_ONLY}.",
             "",
-            "\\paragraph{Synthetic SAIF limitation.}",
-            "SAIF activity is produced with a synthetic post-route harness (clock-only stimulus), therefore it is suitable for comparative pre-board estimation but not for board-measured claims.",
+            "\\paragraph{Functional SAIF limitation.}",
+            "SAIF activity is produced with a functional post-route harness using DUT scope capture (\\texttt{/tb\\_tick/dut/*}); values remain suitable for comparative pre-board estimation and not for board-measured claims.",
             "",
             "\\section{Threats to Validity}",
-            "Key threats are (i) synthetic SAIF stimulus representativity, (ii) absence of measured board telemetry, and (iii) dependence on host toolchain versions. ",
+            "Key threats are (i) functional simulation stimulus representativity, (ii) absence of measured board telemetry, and (iii) dependence on host toolchain versions. ",
             "These are recorded explicitly in \\texttt{docs/POWER\\_METHODOLOGY.md} and release manifests.",
             "",
             "\\section{Reproducibility}",
@@ -260,12 +261,12 @@ def _compile_paper() -> None:
 def _write_docs_reproduce() -> None:
     text = "\n".join(
         [
-            "# Reproduce Round9 Final Release",
+            "# Reproduce Round10b Functional-SAIF Release",
             "",
             "## Preconditions",
             "",
             "- Vivado 2025.2 and Vitis HLS 2025.2 available in PATH.",
-            "- Existing Round8/Round9 evidence directories present under `build/`.",
+            "- Existing canonical evidence directories present under `build/`.",
             "",
             "## One-command verification (integrity)",
             "",
@@ -296,7 +297,12 @@ def _collect_vivado_evidence_paths() -> list[Path]:
 def _collect_power_evidence_paths() -> list[Path]:
     out = [POWER_SUMMARY]
     for bench_dir in sorted([p for p in POWER_ROOT.iterdir() if p.is_dir()]):
-        for pat in ("activity_*.saif", "power_saif_*.rpt", "power_vectorless.rpt", "read_saif_*.log"):
+        for pat in (
+            "activity_*.saif",
+            "power_saif_*.rpt",
+            "power_vectorless.rpt",
+            "read_saif_*.log",
+        ):
             out.extend(sorted(bench_dir.glob(pat)))
         logs = bench_dir / "logs"
         if logs.exists():
@@ -353,6 +359,11 @@ def _write_final_status(dataset_included: bool, dataset_sha: str | None) -> None
 
     status_json: dict[str, Any] = {
         "generatedAtUtc": _now(),
+        "releaseProfile": {
+            "id": "round10b_funcsaif",
+            "canonical": True,
+            "path": "release/profiles/round10b_funcsaif/profile.json",
+        },
         "targetPart": vivado_summary.get("targetPart") or TARGET_PART,
         "gates": {
             "G1b": gate_g1b,
@@ -366,21 +377,32 @@ def _write_final_status(dataset_included: bool, dataset_sha: str | None) -> None
         "evidence": {
             "gateStatusDoc": _rel(DOC_GATE),
             "powerMethodologyDoc": _rel(DOC_POWER),
+            "hlsDigestCsv": _rel(HLS_CSV),
+            "hlsDigestTex": _rel(HLS_TEX),
             "qorCsv": _rel(QOR_CSV),
+            "qorTex": _rel(QOR_TEX),
             "powerCsv": _rel(POWER_CSV),
+            "powerTex": _rel(POWER_TEX),
             "metricsCsv": _rel(METRICS_CSV),
+            "metricsTex": _rel(METRICS_TEX),
             "vivadoSummary": _rel(VIVADO_SUMMARY),
             "powerSummary": _rel(POWER_SUMMARY),
             "b3CanonicalStatus": _rel(B3_STATUS),
-            "postRouteTimingReports": [_rel(p) for p in sorted(VIVADO_ROOT.glob("*/post_route_timing.rpt"))],
-            "postRouteUtilReports": [_rel(p) for p in sorted(VIVADO_ROOT.glob("*/post_route_utilization.rpt"))],
-            "saif100us": [_rel(p) for p in sorted(POWER_ROOT.glob("*/activity_100us.saif"))],
-            "powerSaif100usReports": [_rel(p) for p in sorted(POWER_ROOT.glob("*/power_saif_100us.rpt"))],
+            "postRouteTimingReports": [
+                _rel(p) for p in sorted(VIVADO_ROOT.glob("*/post_route_timing.rpt"))
+            ],
+            "postRouteUtilReports": [
+                _rel(p) for p in sorted(VIVADO_ROOT.glob("*/post_route_utilization.rpt"))
+            ],
+            "saifFunctional": [_rel(p) for p in sorted(POWER_ROOT.glob("*/activity_func.saif"))],
+            "powerSaifFunctionalReports": [
+                _rel(p) for p in sorted(POWER_ROOT.glob("*/power_saif_func.rpt"))
+            ],
         },
         "limits": [
             "No board measurement is claimed.",
             "Power/energy remain ESTIMATED_PRE_BOARD_ONLY.",
-            "SAIF activity uses synthetic harness (clock-only) and is not board traffic.",
+            "SAIF activity uses functional xsim harness (/tb_tick/dut/*) and is not board traffic.",
         ],
         "dataset": {
             "included": dataset_included,
@@ -423,7 +445,7 @@ def _write_final_status(dataset_included: bool, dataset_sha: str | None) -> None
             "",
             "- No board measurement is claimed.",
             "- All power/energy values are ESTIMATED_PRE_BOARD_ONLY.",
-            "- SAIF evidence uses synthetic harness activity; interpret as pre-board estimate only.",
+            "- SAIF evidence uses functional harness activity; interpret as pre-board estimate only.",
             "",
             "## Release files",
             "",
@@ -450,11 +472,12 @@ def _write_reviewer_guide() -> None:
             "",
             "- Gate closure rationale: `docs/GATE_STATUS.md`",
             "- Power assumptions/limits: `docs/POWER_METHODOLOGY.md`",
-            "- QoR evidence (Round9 table): `review_pack/tables/artix7_qor_v6.csv`",
-            "- Power evidence (100us + 200ns): `review_pack/tables/artix7_power_v6.csv`",
-            "- Derived throughput/energy: `review_pack/tables/artix7_metrics_v1.csv`",
+            "- HLS digest evidence (Table 1): `review_pack/tables/artix7_hls_digest_summary_strict_v2.csv`",
+            "- QoR evidence (Table 2): `review_pack/tables/artix7_qor_v6.csv`",
+            "- Power evidence (Table 3): `review_pack/tables/artix7_power_v7_funcsaif.csv`",
+            "- Derived throughput/energy (Table 4): `review_pack/tables/artix7_metrics_final.csv`",
             "- Vivado raw reports: `build/amd_vivado_artix7_v5/*/post_route_{timing,utilization}.rpt`",
-            "- SAIF raw reports: `build/amd_power_artix7_v6/*/activity_100us.saif` and `power_saif_100us.rpt`",
+            "- SAIF raw reports: `build/amd_power_artix7_v7_funcsaif/*/activity_func.saif` and `power_saif_func.rpt`",
             "- Canonical B3 identity: `build/handoff/B3_CANONICAL_STATUS.json`",
             "- Release manifest: `release/FINAL_STATUS.json`",
         ]
@@ -475,9 +498,14 @@ def _build_final_chatgpt_handoff() -> None:
 def main() -> int:
     # Required inputs
     for required in [
+        HLS_CSV,
+        HLS_TEX,
         QOR_CSV,
+        QOR_TEX,
         POWER_CSV,
+        POWER_TEX,
         METRICS_CSV,
+        METRICS_TEX,
         DOC_GATE,
         DOC_POWER,
         B3_STATUS,
@@ -490,11 +518,17 @@ def main() -> int:
     if not sorted(VIVADO_ROOT.glob("*/post_route_timing.rpt")):
         raise FileNotFoundError("Missing post_route_timing.rpt under build/amd_vivado_artix7_v5/*")
     if not sorted(VIVADO_ROOT.glob("*/post_route_utilization.rpt")):
-        raise FileNotFoundError("Missing post_route_utilization.rpt under build/amd_vivado_artix7_v5/*")
-    if not sorted(POWER_ROOT.glob("*/activity_100us.saif")):
-        raise FileNotFoundError("Missing activity_100us.saif under build/amd_power_artix7_v6/*")
-    if not sorted(POWER_ROOT.glob("*/power_saif_100us.rpt")):
-        raise FileNotFoundError("Missing power_saif_100us.rpt under build/amd_power_artix7_v6/*")
+        raise FileNotFoundError(
+            "Missing post_route_utilization.rpt under build/amd_vivado_artix7_v5/*"
+        )
+    if not sorted(POWER_ROOT.glob("*/activity_func.saif")):
+        raise FileNotFoundError(
+            "Missing activity_func.saif under build/amd_power_artix7_v7_funcsaif/*"
+        )
+    if not sorted(POWER_ROOT.glob("*/power_saif_func.rpt")):
+        raise FileNotFoundError(
+            "Missing power_saif_func.rpt under build/amd_power_artix7_v7_funcsaif/*"
+        )
 
     _write_docs_reproduce()
     _write_paper_arxiv_style()

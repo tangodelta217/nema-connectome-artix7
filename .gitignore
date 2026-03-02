@@ -43,8 +43,8 @@ build/**/*.tar.gz
 project_eval_out/**/*.tar.gz
 project_eval_out_v2/**/*.tar.gz
 release/*.tar.gz
-codex_handoff*.tar.gz
-codex_handoff*.sha256
+handoff*.tar.gz
+handoff*.sha256
 
 # LaTeX build intermediates
 paper.aux
