@@ -1,102 +1,157 @@
+
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
+\usepackage{microtype}
 \usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{xcolor}
 \usepackage{hyperref}
-\title{NEMA v0.1: Reviewer-Proof Pre-Board Release (Round10b)}
-\author{}
-\date{\today}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=blue,urlcolor=blue}
+\title{Deterministic Connectome-to-Artix-7 Compilation:\\A Normative Bit-Exact Contract, Canonical Lowering, and Audited Pre-Board Closure}
+\author{Mariano Milla\~nanco Fernandez\\University of Seville, Seville, Spain\\\texttt{marmilfer@alum.us.es}}
+\date{March 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-This release documents deterministic NEMA v0.1 evidence from IR through HLS, Vivado post-route QoR, and SAIF-guided power estimates. 
-All quantitative values are consumed from generated CSV/JSON artifacts (no manual hardcoding). 
-Power and energy are explicitly \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}; no board measurement claim is made.
+We present a contract-first connectome-to-hardware artifact package for deterministic compilation from a vendored \emph{C. elegans} structural connectome to synthesizable hardware targeting AMD Artix-7 FPGAs. The central claim is intentionally narrow and reviewer-facing: this release closes the pre-board evidence chain, not board measurement. The package combines (i) a normative fixed-point semantics for discrete-time leaky integrate-and-fire neurons with current-based chemical synapses, optional delay buckets, and symmetric ohmic gap junctions; (ii) a deterministic lowering path from a minimal declarative description to canonical IR, HLS-oriented C++, and reference RTL; (iii) end-to-end bit-exact verification via per-tick SHA-256 digest traces across the golden software model, vendor HLS \texttt{csim}/\texttt{cosim}, and released implementation artifacts; and (iv) an audited Artix-7 pre-board evaluation on part \texttt{xc7a200tsbg484-1} including post-route QoR and SAIF-guided power estimation. For the canonical structural benchmark B3, the release closes HLS digest parity, post-route implementation, and post-route power estimation while explicitly labeling all power and energy numbers as \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}. The resulting artifact is suitable for arXiv release and external review because every quantitative claim is backed by generated CSV/JSON tables, report files, and hashes.
 \end{abstract}
 
-\section{Semantics and Contract}
-Numerics and tick semantics follow repository-normative artifacts (\texttt{spec.md}, \texttt{nema\_ir.proto}) \cite{nema_spec_v01}. 
-Conformance claims in this release are bounded by those contracts and by generated evidence paths listed in \texttt{release/FINAL\_STATUS.json}.
+\section{Introduction}
+The \emph{C. elegans} hermaphrodite connectome remains one of the few biologically grounded network datasets that is both historically influential and openly reusable. The classical Varshney dataset reports a near-complete neuronal wiring diagram and distinguishes chemical synapses from gap junctions \cite{varshney2011,openworm_varshney}. In parallel, FPGA-oriented spiking frameworks and neuromorphic intermediate representations have matured substantially, spanning interoperable IRs, simulator stacks, and open accelerator generation flows \cite{pedersen2024nir,lava,finn,hls4ml2021,spikerplus2024,neurocorex2025}. What remains uncommon is a reviewer-proof contract layer: a deterministic and auditable path from a biological graph to hardware-facing artifacts with explicit fixed-point semantics, end-to-end digest equivalence, reproducibility manifests, and a clear separation between estimated pre-board quantities and future on-board measurements.
 
-\section{Compiler and Deterministic Toolchain}
-The pipeline is deterministic by construction: IR $\rightarrow$ golden CPU simulator $\rightarrow$ HLS kernel $\rightarrow$ Vivado post-route reports. 
-Toolchain versions are captured in release manifests and aligned with Vivado/Vitis HLS 2025.2 \cite{xilinx_vivado_2025_2,xilinx_vitis_hls_2025_2}.
+This paper is the integrated version of the project narrative. Earlier revisions already established the semantic and reproducibility logic, but the last short release note compressed that logic into a three-page status wrapper. Here we restore the full research arc and update it with the now-closed pre-board Artix-7 evidence chain. The result is not a claim of finished board deployment. It is a claim that the pre-board methodology is complete, traceable, and reproducible.
 
-\section{Hardware Flow (Artix-7)}
-Post-route QoR evidence is sourced from existing Round8 implementation reports on part \texttt{xc7a200tsbg484-1}. 
-Power evidence uses functional-SAIF post-route simulation artifacts from \texttt{build/amd\_power\_artix7\_v7\_funcsaif}, while preserving the same canonical implementation reports for timing/utilization.
+\paragraph{Contributions.}
+\begin{enumerate}[leftmargin=1.4em]
+\item A normative fixed-point and tick-level semantics for discrete-time leaky integrate-and-fire neurons, current-based chemical synapses, optional delay buckets, and symmetric gap junctions, with exact rounding, saturation, and digest-visible state.
+\item A deterministic lowering contract from declarative connectome-plus-sidecar input to canonical IR, HLS-oriented C++, and reference RTL, with stable serialization and reproducible hashes.
+\item A canonical executable benchmark derived from the vendored Varshney/OpenWorm raw spreadsheet, plus strict identity tracking from raw dataset through sidecar, manifest, IR, HLS, and implementation evidence.
+\item End-to-end bit-exact verification across the golden software model, vendor HLS \texttt{csim}/\texttt{cosim}, and post-route implementation artifacts for the required B1 and B3 benches.
+\item An audited pre-board Artix-7 closure on \texttt{xc7a200tsbg484-1}: post-route QoR, SAIF-guided power, and derived throughput/energy metrics, all explicitly labeled as pre-board estimates rather than on-board measurements.
+\end{enumerate}
 
-\section{Verification and Conformance}
-Gate status and closure rationale are synchronized in \texttt{docs/GATE\_STATUS.md}. 
-Canonical B3 identity is traced via \texttt{build/handoff/B3\_CANONICAL\_STATUS.json}.
+\section{Related work and research gap}
+The artifact sits at the intersection of neuromorphic IRs, FPGA spiking accelerators, and connectome-driven neural simulation. NIR explicitly frames interoperable neuromorphic computation as a shared representation problem \cite{pedersen2024nir}. Lava offers an open software stack for mapping neuro-inspired applications to neuromorphic hardware \cite{lava}. FINN and hls4ml are influential open workflows for FPGA compilation, but they focus on quantized inference and ML deployment rather than biological connectome contracts \cite{finn,hls4ml2021}. Spiker+ and NeuroCoreX are closer in spirit because they target spiking neural networks on FPGA and are open source, yet their emphasis is accelerator generation and flexible SNN experimentation, not deterministic connectome lowering with digest-visible semantic obligations \cite{spikerplus2024,neurocorex2025}. On the biological side, BAAIWorm and NeuroSimWorm show the continued vitality of whole-organism or multisensory \emph{C. elegans} modeling, but they do not solve the same compilation problem \cite{baaiworm2024,neurosimworm2025}.
 
-\section{Evaluation (Pre-Board)}
-Tables below are sourced directly from canonical review-pack tables under \texttt{review\_pack/tables/} and are pinned by \texttt{release/FINAL\_STATUS.json} (release profile \texttt{round10b\_funcsaif}).
+The gap addressed here is therefore specific: open-source availability \emph{plus} deterministic lowering \emph{plus} normative semantics \emph{plus} bit-exact traceability \emph{plus} synthesizable Artix-7 evidence. We also take seriously the observation from recent formal-HLS work that transformations above RTL can be subtle enough to justify machine-checkable reasoning and translation validation \cite{pouchet2024hlsverify}. That motivates the contract-first stance adopted throughout this paper.
 
-\subsection{HLS Digest Parity}
-\begin{table}[h]
+\section{Normative semantics}
+The binding semantics are defined in the repository normative specification and summarized here.
+
+\subsection{Numeric model}
+All dynamic values use signed two's-complement fixed point with width $W$ and $F$ fractional bits. Source-side rationals and decimals are lowered by round-to-nearest, ties-to-even (RNE), followed by saturation. Addition and subtraction use an unbounded intermediate domain and saturate on commit. Multiplication computes the full product, rescales by $2^F$ using RNE, and saturates. These rules are normative rather than descriptive: if an implementation deviates here, it is not conformant even if it remains numerically close.
+
+\subsection{Architectural state and tick rule}
+The digest-visible state at tick $t$ includes membrane voltage $V[t]$, chemical current $I_{chem}[t]$, refractory counter, spike vector, and pending-delay buckets. Gap current is recomputed from the voltage snapshot and is not stored. Each tick executes under a strict snapshot rule in four phases: (1) consume the due delay bucket; (2) update chemical current with decay plus direct and delayed injections; (3) sweep gap pairs using the voltage snapshot; and (4) update neurons, including threshold, reset, and refractory behavior. This phased rule is the normative target for software, HLS, and RTL.
+
+\subsection{Bit-exactness}
+End-to-end equality is defined operationally rather than approximately. At every observed tick, the digest-visible state is serialized in a canonical little-endian form and hashed with SHA-256. Two implementations are bit-exact on a benchmark iff every observed tick yields the same digest.
+
+\section{Deterministic compilation pipeline}
+The pipeline is intentionally narrow:
+\[
+\text{connectome + sidecar} \rightarrow \text{canonical IR} \rightarrow \text{golden CPU model} \rightarrow \text{HLS-oriented C++} \rightarrow \text{reference RTL}.
+\]
+Determinism is enforced by canonical ordering of neurons and edges, stable JSON serialization, versioned manifests, and explicit dataset provenance fields. No pass is allowed to use hidden randomization. The executable benchmark released here is derived from a vendored raw spreadsheet (\texttt{NeuronConnectFormatted.xlsx}) together with a deterministic importer and sidecar. The canonical B3 manifest in the final release resolves to \texttt{B3\_varshney\_exec\_expanded\_gap\_300\_5824}: 300 nodes, 3638 directed chemical edges, and 2186 directed gap edges, for 5824 total directed edges after deterministic filtering.
+
+Two details matter for reproducibility. First, the compiler records dataset and sidecar digests in manifests and IR. Second, the benchmark identity itself is treated as part of the conformance contract; an alias to a different graph is not sufficient for gate closure. This is exactly the issue that kept earlier HLS closure attempts open until the canonical B3 identity was materialized and propagated through the flow.
+
+\section{Reference microarchitecture and hardware flow}
+The intended hardware organization is a deterministic CSR-based, time-multiplexed engine. Chemical edges are stored in CSR by post-neuron; gap junctions are stored as canonical endpoint-pair tables; and delay buckets and state arrays are BRAM-friendly structures. The hardware schedule mirrors the normative tick rule exactly: consume due buckets, update chemical current, sweep gap pairs, then update neurons.
+
+The representative FPGA target is the cost-optimized Artix-7 family \cite{amd_artix7}. In Vivado, the concrete part used in the final release is \texttt{xc7a200tsbg484-1}. Pre-board closure follows the vendor-supported flow: HLS \texttt{csim}/\texttt{cosim} for behavioral conformance \cite{amd_ug1399}, post-route implementation for timing and resource evidence, and SAIF-guided power using xsim plus \texttt{read\_saif}/\texttt{report\_power} on the implemented design \cite{amd_ug900,amd_ug907}.
+
+\section{Verification and audited closure}
+The verification stack is layered deliberately.
+
+\subsection{Golden model and digest traces}
+The software golden model is the normative reference. Every benchmark emits per-tick digest traces, and those traces are the comparison contract used throughout the pipeline.
+
+\subsection{Vendor HLS parity}
+The final release closes HLS parity for both required benches. Table~\ref{tab:hls} shows that the golden model, vendor \texttt{csim}, and vendor \texttt{cosim} agree at every observed tick for B1 and canonical B3. This is the evidence that closes G1b.
+
+\begin{table}[t]
 \centering
 \small
 \input{../review_pack/tables/artix7_hls_digest_summary_strict_v2.tex}
-\caption{Generated from canonical strict digest summary table (\texttt{artix7\_hls\_digest\_summary\_strict\_v2.csv}).}
+\caption{Strict HLS digest parity for the required benches. B3 denotes the canonical structural benchmark \texttt{B3\_varshney\_exec\_expanded\_gap\_300\_5824}.}
+\label{tab:hls}
 \end{table}
 
-\subsection{Post-Route QoR}
-\begin{table}[h]
+\subsection{Implementation evidence}
+Table~\ref{tab:qor} summarizes post-route QoR on \texttt{xc7a200tsbg484-1}. Both B1 and B3 have real post-route evidence, which closes G1c. B1 does not meet a 200 MHz target; its post-route WNS is $-1.743$ ns, corresponding to an estimated 148.30 MHz. B3, by contrast, closes timing at 200 MHz with positive slack and an estimated 215.33 MHz fmax headroom. The important point is not that every benchmark meets the same clock target, but that the Artix-7 implementation evidence now exists and is traceably bound to the correct part.
+
+\begin{table}[t]
 \centering
 \small
 \input{../review_pack/tables/artix7_qor_v6.tex}
-\caption{Generated from canonical QoR table (\texttt{artix7\_qor\_v6.csv}).}
+\caption{Post-route QoR on Artix-7 part \texttt{xc7a200tsbg484-1}.}
+\label{tab:qor}
 \end{table}
 
-\subsection{Power Sensitivity}
-\begin{table}[h]
+\subsection{SAIF-guided post-route power}
+The final release replaces the earlier synthetic clock-only activity with functional post-route xsim SAIF from tick-driven benchmark testbenches. Table~\ref{tab:power} reports the SAIF-guided power values used for the final release. This closes G1d. The values remain \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}: they are vector-based post-route estimates, not silicon measurements.
+
+\begin{table}[t]
 \centering
 \small
 \input{../review_pack/tables/artix7_power_v7_funcsaif.tex}
-\caption{Generated from canonical functional-SAIF power table (\texttt{artix7\_power\_v7\_funcsaif.csv}).}
+\caption{SAIF-guided post-route power estimates from functional xsim simulation.}
+\label{tab:power}
 \end{table}
 
-\subsection{Derived Throughput and Energy}
-\begin{table}[h]
+\subsection{Derived throughput and energy}
+For B3, the release also derives cycles per tick from the HLS latency report and combines that with the implementation frequency and SAIF-guided total power to estimate throughput and energy per tick. The resulting value is 0.012232 mJ/tick (about 12.232 \textmu J/tick) at 200 MHz. Table~\ref{tab:metrics} reports the release-selected derived metrics.
+
+\begin{table}[t]
 \centering
 \small
 \input{../review_pack/tables/artix7_metrics_final.tex}
-\caption{Generated from canonical final metrics table (\texttt{artix7\_metrics\_final.csv}).}
+\caption{Derived metrics for canonical B3 using the final SAIF-guided power selection.}
+\label{tab:metrics}
 \end{table}
 
-\paragraph{Pre-board disclaimer.}
-All power/energy values are \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}.
+\section{Evaluation summary}
+Three points matter most for interpretation.
+First, the benchmark used to close the structural gate is the canonical 300-neuron, 5824-edge B3 instance generated by the deterministic importer, not the earlier provisional aliases used during debugging. Second, timing closure is benchmark dependent: B3 meets the 200 MHz target on the selected Artix-7 part, whereas B1 does not. Third, power results are now based on functional SAIF rather than synthetic activity, which materially improves representativity, but they remain estimates until board telemetry exists.
 
-\paragraph{SAIF methodology limitation.}
-SAIF activity is produced from post-route functional xsim simulation with a tick-driven benchmark testbench and DUT scope capture (\texttt{/tb\_tick/dut/*}). This remains pre-board estimation (not board-measured telemetry).
+\section{Threats to validity}
+The largest remaining limitation is unchanged: there is still no board measurement in this release. All power and energy values are pre-board estimates. SAIF-guided post-route power is stronger than vectorless power and stronger than a clock-only harness, but it still depends on the realism of the chosen testbench activity window \cite{amd_ug907,amd_ug900}. A second limitation is toolchain dependence: source-level determinism does not imply that QoR is invariant across vendor versions or host environments. A third limitation is model-instantiation scope. The release closes a deterministic executable benchmark instance derived from a public structural dataset and explicit sidecar rules; it does not claim that all biological parameters are uniquely identifiable from structure alone.
 
-\section{Threats to Validity}
-Key threats are (i) simulation stimulus representativity window, (ii) absence of measured board telemetry, and (iii) dependence on host toolchain versions. 
-These are recorded explicitly in \texttt{docs/POWER\_METHODOLOGY.md} and release manifests.
+\section{Reproducibility and release structure}
+The release is intended to be reviewer-checkable. The final bundle contains the paper source, the final PDF, selected evidence tables, the artifact bundle, and SHA-256 hashes. The machine-readable release status lives in \texttt{FINAL\_STATUS.json}, while gate closure rationale lives in \texttt{GATE\_STATUS.md}. The selected tables for HLS parity, QoR, power, and derived metrics are all generated artifacts rather than manually edited tables. Code and artifacts are publicly available at \url{https://github.com/tangodelta217/nema-connectome-artix7}.
 
-\section{Reproducibility}
-Reproduction entry points:
-\begin{itemize}
-\item Repository source: \url{https://github.com/tangodelta217/nema-connectome-artix7}
-\item Release artifacts: \url{https://github.com/tangodelta217/nema-connectome-artix7/releases}
-\item Verify hashes: \texttt{sha256sum -c release/SHA256SUMS.txt}
-\item Gate/status machine-readable manifest: \texttt{release/FINAL\_STATUS.json}
-\item Paper input verification: \texttt{python tools/verify\_paper\_inputs.py}
-\end{itemize}
+For arXiv, the correct upload unit is the LaTeX source package rather than a stand-alone PDF. The release already contains \texttt{paper.tex}, \texttt{refs.bib}, and the generated tables needed to rebuild the PDF.
 
-\paragraph{Artifact locations in this repository.}
-\begin{itemize}
-\item Release checksums: \texttt{release/SHA256SUMS.txt}
-\item Final release status: \texttt{release/FINAL\_STATUS.json}
-\item Canonical table sources (CSV/TEX): \texttt{review\_pack/tables/artix7\_*\{.csv,.tex\}}
-\end{itemize}
+\section{Conclusion}
+The project now reaches a clean pre-board stopping point. The semantic contract, deterministic lowering path, canonical benchmark identity, HLS digest parity, Artix-7 post-route implementation, and SAIF-guided post-route power are all closed with auditable evidence. What remains open is exactly what should remain open without hardware: on-board telemetry and physical-board validation. That division is a strength rather than a weakness, because it lets reviewers see which claims are complete today and which claims are explicitly future work.
 
-\bibliographystyle{plain}
-\bibliography{refs}
+\paragraph{Future work.}
+The next milestone is straightforward: execute the predefined board-measurement protocol on a physical Artix-7 board, correlate measured rail or wall power with the present SAIF-guided estimates, and decide whether additional benchmark-side activity modeling is needed to tighten the gap between pre-board and in-board evidence.
 
+\begin{thebibliography}{99}
+\bibitem{varshney2011} Lav R. Varshney, Beth L. Chen, Eric Paniagua, David H. Hall, and Dmitri B. Chklovskii. Structural Properties of the Caenorhabditis elegans Neuronal Network. \emph{PLOS Computational Biology}, 7(2):e1001066, 2011.
+\bibitem{openworm_varshney} OpenWorm. Connectome Toolbox: Varshney et al. 2011. Project page, 2025.
+\bibitem{pedersen2024nir} Jens Egholm Pedersen et al. Neuromorphic intermediate representation: A unified instruction set for interoperable brain-inspired computing. \emph{Nature Communications}, 15, 2024.
+\bibitem{lava} Lava Project. Lava documentation, 2025.
+\bibitem{finn} AMD Research and Advanced Development. FINN documentation, 2025.
+\bibitem{hls4ml2021} Farah Fahim et al. hls4ml: An Open-Source Codesign Workflow to Empower Scientific Low-Power Machine Learning Devices. In \emph{TinyML Research Symposium}, 2021.
+\bibitem{spikerplus2024} Alessio Carpegna, Alessandro Savino, and Stefano Di Carlo. Spiker+: a framework for the generation of efficient Spiking Neural Networks FPGA accelerators for inference at the edge. arXiv:2401.01141, 2024.
+\bibitem{neurocorex2025} Ashish Gautam, Prasanna Date, Shruti Kulkarni, Robert Patton, and Thomas Potok. NeuroCoreX: An Open-Source FPGA-Based Spiking Neural Network Emulator with On-Chip Learning. arXiv:2506.14138, 2025.
+\bibitem{baaiworm2024} Mengdi Zhao et al. An integrative data-driven model simulating C. elegans brain, body and environment interactions. \emph{Nature Computational Science}, 4:978--990, 2024.
+\bibitem{neurosimworm2025} Jiaxin Wang et al. NeuroSimWorm: A multisensory framework for modeling and simulating neural circuits of Caenorhabditis elegans. \emph{Neurocomputing}, 638:130055, 2025.
+\bibitem{pouchet2024hlsverify} Louis-Noel Pouchet et al. Formal Verification of Source-to-Source Transformations for HLS. In \emph{Proceedings of FPGA}, pages 97--107, 2024.
+\bibitem{amd_ug1399} Advanced Micro Devices. Vitis High-Level Synthesis User Guide (UG1399), version 2025.2, 2026.
+\bibitem{amd_ug900} Advanced Micro Devices. Vivado Design Suite Logic Simulation User Guide (UG900), version 2025.2, 2025.
+\bibitem{amd_ug907} Advanced Micro Devices. Vivado Design Suite Power Analysis and Optimization User Guide (UG907), version 2025.2, 2025.
+\bibitem{amd_artix7} Advanced Micro Devices. Artix 7 FPGAs product page, 2025.
+\end{thebibliography}
 \end{document}
