@@ -28,7 +28,7 @@ Toolchain versions are captured in release manifests and aligned with Vivado/Vit
 
 \section{Hardware Flow (Artix-7)}
 Post-route QoR evidence is sourced from existing Round8 implementation reports on part \texttt{xc7a200tsbg484-1}. 
-Round9 refresh corrects QoR parsing (Slice LUTs, Slice Registers, Block RAM Tile, DSPs) without rerunning synth/impl.
+Power evidence uses functional-SAIF post-route simulation artifacts from \texttt{build/amd\_power\_artix7\_v7\_funcsaif}, while preserving the same canonical implementation reports for timing/utilization.
 
 \section{Verification and Conformance}
 Gate status and closure rationale are synchronized in \texttt{docs/GATE\_STATUS.md}. 
@@ -36,6 +36,7 @@ Canonical B3 identity is traced via \texttt{build/codex\_handoff/B3\_CANONICAL\_
 
 \section{Evaluation (Pre-Board)}
 Tables below are sourced through repository-local inputs under \texttt{paper/tables/}, which map to checked-in review-pack table variants.
+Canonical selections in \texttt{release/FINAL\_STATUS.json} pin power/metrics to \texttt{review\_pack/tables/artix7\_power\_v7\_funcsaif.\{csv,tex\}} and \texttt{review\_pack/tables/artix7\_metrics\_final.\{csv,tex\}}.
 
 \subsection{HLS Digest Parity}
 \begin{table}[h]
@@ -58,7 +59,7 @@ Tables below are sourced through repository-local inputs under \texttt{paper/tab
 \centering
 \small
 \input{tables/artix7_power.tex}
-\caption{Generated from release-selected power CSV.}
+\caption{Generated from canonical functional-SAIF power table (\texttt{artix7\_power\_v7\_funcsaif.csv}).}
 \end{table}
 
 \subsection{Derived Throughput and Energy}
@@ -66,14 +67,14 @@ Tables below are sourced through repository-local inputs under \texttt{paper/tab
 \centering
 \small
 \input{tables/artix7_metrics.tex}
-\caption{Generated from release-selected metrics CSV.}
+\caption{Generated from canonical final metrics table (\texttt{artix7\_metrics\_final.csv}).}
 \end{table}
 
 \paragraph{Pre-board disclaimer.}
 All power/energy values are \texttt{ESTIMATED\_PRE\_BOARD\_ONLY}.
 
 \paragraph{SAIF methodology limitation.}
-SAIF activity is produced from post-route functional xsim simulation with a tick-driven benchmark testbench. This improves representativity versus clock-only stimulus, but remains pre-board estimation (not board-measured telemetry).
+SAIF activity is produced from post-route functional xsim simulation with a tick-driven benchmark testbench and DUT scope capture (\texttt{/tb\_tick/dut/*}). This remains pre-board estimation (not board-measured telemetry).
 
 \section{Threats to Validity}
 Key threats are (i) simulation stimulus representativity window, (ii) absence of measured board telemetry, and (iii) dependence on host toolchain versions. 

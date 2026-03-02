@@ -11,7 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 CANONICAL = ROOT / "release" / "FINAL_STATUS.json"
 GATE_STATUS_DOC = ROOT / "docs" / "GATE_STATUS.md"
 CLAIMS_DOC = ROOT / "docs" / "CLAIMS.md"
+SHA_MANIFEST = ROOT / "release" / "SHA256SUMS.txt"
 SNAPSHOT_RE = re.compile(r"## Canonical Gate Snapshot\s+```json\s+(.*?)\s+```", re.S)
+SHA_LINE_RE = re.compile(r"^[0-9a-f]{64}\s{2}(.+)$")
+HASH_REQUIRED_PREFIXES = ("paper/", "review_pack/tables/", "datasets/raw/", "release/")
+HASH_OPTIONAL = {"release/SHA256SUMS.txt"}
 
 
 def _normalized_gates(data: dict[str, Any]) -> dict[str, str]:
@@ -40,6 +44,35 @@ def _canonical_gates() -> dict[str, str]:
     return _normalized_gates(data)
 
 
+def _collect_string_paths(value: Any) -> set[str]:
+    out: set[str] = set()
+    if isinstance(value, dict):
+        for child in value.values():
+            out.update(_collect_string_paths(child))
+        return out
+    if isinstance(value, list):
+        for child in value:
+            out.update(_collect_string_paths(child))
+        return out
+    if isinstance(value, str):
+        if value.startswith(("http://", "https://", "/")):
+            return out
+        if "/" in value:
+            out.add(value)
+    return out
+
+
+def _sha_manifest_paths() -> set[str]:
+    paths: set[str] = set()
+    for idx, line in enumerate(SHA_MANIFEST.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        m = SHA_LINE_RE.fullmatch(line.strip())
+        assert m is not None, f"invalid SHA256SUMS line {idx}: {line!r}"
+        paths.add(m.group(1))
+    return paths
+
+
 def test_gate_status_doc_matches_canonical_release_status() -> None:
     assert _extract_gate_snapshot(GATE_STATUS_DOC) == _canonical_gates()
 
@@ -56,3 +89,20 @@ def test_sync_status_docs_check_mode_passes() -> None:
         text=True,
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_final_status_referenced_artifacts_are_present_in_sha256sums() -> None:
+    data = json.loads(CANONICAL.read_text(encoding="utf-8"))
+    referenced = _collect_string_paths(data)
+    hashed = _sha_manifest_paths()
+
+    required = sorted(
+        path
+        for path in referenced
+        if path.startswith(HASH_REQUIRED_PREFIXES) and path not in HASH_OPTIONAL
+    )
+    missing = [path for path in required if path not in hashed]
+    assert not missing, (
+        "release/FINAL_STATUS.json references artifacts missing in release/SHA256SUMS.txt: "
+        + ", ".join(missing)
+    )

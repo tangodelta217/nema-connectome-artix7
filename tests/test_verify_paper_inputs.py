@@ -39,7 +39,9 @@ def test_verify_paper_inputs_referenced_tables_are_hashed() -> None:
         rel_str = rel.as_posix()
         if rel_str.startswith("review_pack/tables/") and rel_str.endswith(".csv"):
             referenced_csvs.add(rel_str)
-    assert referenced_csvs, "expected at least one review_pack CSV reference in verify_paper_inputs.py"
+    assert referenced_csvs, (
+        "expected at least one review_pack CSV reference in verify_paper_inputs.py"
+    )
 
     listed_paths: set[str] = set()
     for idx, line in enumerate(sha_manifest.read_text(encoding="utf-8").splitlines(), start=1):
