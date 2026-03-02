@@ -37,11 +37,11 @@ POWER_CSV = TABLE_DIR / "artix7_power_v5.csv"
 DOC_GATE = ROOT / "docs" / "GATE_STATUS.md"
 DOC_POWER = ROOT / "docs" / "POWER_METHODOLOGY.md"
 
-B3_STATUS = ROOT / "build" / "codex_handoff" / "B3_CANONICAL_STATUS.json"
-CHATGPT_BRIEF = ROOT / "build" / "codex_handoff" / "CHATGPT_BRIEF_round8.md"
+B3_STATUS = ROOT / "build" / "handoff" / "B3_CANONICAL_STATUS.json"
+CHATGPT_BRIEF = ROOT / "build" / "handoff" / "CHATGPT_BRIEF_round8.md"
 
-BUNDLE_TAR = ROOT / "codex_handoff_round8_for_chatgpt.tar.gz"
-BUNDLE_SHA = ROOT / "codex_handoff_round8_for_chatgpt.sha256"
+BUNDLE_TAR = ROOT / "handoff_round8_for_chatgpt.tar.gz"
+BUNDLE_SHA = ROOT / "handoff_round8_for_chatgpt.sha256"
 
 
 def _now_utc() -> str:

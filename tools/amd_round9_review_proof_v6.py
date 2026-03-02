@@ -49,13 +49,13 @@ DOC_GATE = ROOT / "docs" / "GATE_STATUS.md"
 DOC_POWER = ROOT / "docs" / "POWER_METHODOLOGY.md"
 PAPER_TEX = ROOT / "paper" / "paper.tex"
 PAPER_PDF = ROOT / "paper" / "paper.pdf"
-PAPER_MISSING = ROOT / "build" / "codex_handoff" / "PAPER_MISSING.md"
+PAPER_MISSING = ROOT / "build" / "handoff" / "PAPER_MISSING.md"
 
-B3_STATUS = ROOT / "build" / "codex_handoff" / "B3_CANONICAL_STATUS.json"
-CHATGPT_BRIEF = ROOT / "build" / "codex_handoff" / "CHATGPT_BRIEF_round9.md"
+B3_STATUS = ROOT / "build" / "handoff" / "B3_CANONICAL_STATUS.json"
+CHATGPT_BRIEF = ROOT / "build" / "handoff" / "CHATGPT_BRIEF_round9.md"
 
-BUNDLE_TAR = ROOT / "codex_handoff_round9_for_chatgpt.tar.gz"
-BUNDLE_SHA = ROOT / "codex_handoff_round9_for_chatgpt.sha256"
+BUNDLE_TAR = ROOT / "handoff_round9_for_chatgpt.tar.gz"
+BUNDLE_SHA = ROOT / "handoff_round9_for_chatgpt.sha256"
 
 SAIF_WINDOWS = [("200ns", 200.0), ("100us", 100_000.0)]
 
@@ -1169,7 +1169,7 @@ def _write_metrics_tables(
             "All metrics remain ESTIMATED_PRE_BOARD_ONLY.",
         ],
     }
-    _write_json(ROOT / "build" / "codex_handoff" / "artix7_metrics_v1.summary.json", metrics_summary)
+    _write_json(ROOT / "build" / "handoff" / "artix7_metrics_v1.summary.json", metrics_summary)
     return metrics_summary
 
 
@@ -1490,7 +1490,7 @@ def main() -> int:
                 "paperPdf": str(PAPER_PDF if PAPER_PDF.exists() else PAPER_MISSING),
                 "bundleTar": str(BUNDLE_TAR),
                 "bundleSha": str(BUNDLE_SHA),
-                "metricsSummary": str(ROOT / "build" / "codex_handoff" / "artix7_metrics_v1.summary.json"),
+                "metricsSummary": str(ROOT / "build" / "handoff" / "artix7_metrics_v1.summary.json"),
                 "metricsRows": metrics_summary.get("rows"),
             },
             indent=2,

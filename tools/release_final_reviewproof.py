@@ -41,7 +41,7 @@ VIVADO_SUMMARY = VIVADO_ROOT / "summary.json"
 POWER_ROOT = ROOT / "build" / "amd_power_artix7_v6"
 POWER_SUMMARY = POWER_ROOT / "summary.json"
 
-B3_STATUS = ROOT / "build" / "codex_handoff" / "B3_CANONICAL_STATUS.json"
+B3_STATUS = ROOT / "build" / "handoff" / "B3_CANONICAL_STATUS.json"
 DATASET_RAW = ROOT / "datasets" / "raw" / "varshney" / "NeuronConnectFormatted.xlsx"
 
 ARTIFACT_BUNDLE = RELEASE_DIR / "artifact_bundle_final.tar.gz"
@@ -51,8 +51,8 @@ FINAL_STATUS_JSON = RELEASE_DIR / "FINAL_STATUS.json"
 REVIEWER_GUIDE = RELEASE_DIR / "REVIEWER_GUIDE.md"
 DATASET_SHA_FILE = RELEASE_DIR / "DATASET_SHA256.txt"
 
-FINAL_CHATGPT_TAR = ROOT / "codex_handoff_final_for_chatgpt.tar.gz"
-FINAL_CHATGPT_SHA = ROOT / "codex_handoff_final_for_chatgpt.sha256"
+FINAL_CHATGPT_TAR = ROOT / "handoff_final_for_chatgpt.tar.gz"
+FINAL_CHATGPT_SHA = ROOT / "handoff_final_for_chatgpt.sha256"
 
 TARGET_PART = "xc7a200tsbg484-1"
 
@@ -455,7 +455,7 @@ def _write_reviewer_guide() -> None:
             "- Derived throughput/energy: `review_pack/tables/artix7_metrics_v1.csv`",
             "- Vivado raw reports: `build/amd_vivado_artix7_v5/*/post_route_{timing,utilization}.rpt`",
             "- SAIF raw reports: `build/amd_power_artix7_v6/*/activity_100us.saif` and `power_saif_100us.rpt`",
-            "- Canonical B3 identity: `build/codex_handoff/B3_CANONICAL_STATUS.json`",
+            "- Canonical B3 identity: `build/handoff/B3_CANONICAL_STATUS.json`",
             "- Release manifest: `release/FINAL_STATUS.json`",
         ]
     )

@@ -28,14 +28,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Ruff
+      - name: Ruff lint
         run: ruff check . --config ruff.toml
+
+      - name: Ruff format
+        run: |
+          ruff format --check \
+            tools/update_sha256sums.py \
+            tools/verify_paper_inputs.py \
+            tools/sync_status_docs.py \
+            tests/test_status_sync.py \
+            tests/test_verify_paper_inputs.py
 
       - name: Mypy
         run: mypy --config-file mypy.ini
 
       - name: Bandit
         run: bandit -q -r nema tools/verify_paper_inputs.py tools/update_sha256sums.py -lll
+
+      - name: pip-audit (dependencies)
+        run: python -m pip_audit -r requirements-dev.txt --skip-editable --progress-spinner off
 
       - name: Pytest (no HW/toolchain)
         run: pytest -q -m "not hw and not integration"

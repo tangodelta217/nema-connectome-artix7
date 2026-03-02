@@ -38,7 +38,7 @@ DEFAULT_CLOCK_NS = 5.0
 
 VIVADO_V5 = ROOT / "build" / "amd_vivado_artix7_v5"
 HLS_STRICT_V2 = ROOT / "build" / "amd_hls_strict_v2"
-B3_STATUS = ROOT / "build" / "codex_handoff" / "B3_CANONICAL_STATUS.json"
+B3_STATUS = ROOT / "build" / "handoff" / "B3_CANONICAL_STATUS.json"
 
 OUT_ROOT = ROOT / "build" / "amd_power_artix7_v7_funcsaif"
 TABLE_DIR = ROOT / "review_pack" / "tables"
@@ -56,8 +56,8 @@ METRICS_FINAL_TEX = TABLE_DIR / "artix7_metrics_final.tex"
 
 DOC_POWER = ROOT / "docs" / "POWER_METHODOLOGY.md"
 
-BUNDLE_TAR = ROOT / "codex_handoff_round10b_for_chatgpt.tar.gz"
-BUNDLE_SHA = ROOT / "codex_handoff_round10b_for_chatgpt.sha256"
+BUNDLE_TAR = ROOT / "handoff_round10b_for_chatgpt.tar.gz"
+BUNDLE_SHA = ROOT / "handoff_round10b_for_chatgpt.sha256"
 
 DEFAULT_TICKS = {
     "b1_small": 50,

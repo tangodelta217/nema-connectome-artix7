@@ -1,6 +1,8 @@
 # NEMA v0.1
 
-[![CI](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/ci.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/ci.yml)
+[![Quality](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/quality.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/quality.yml)
+[![arXiv Build](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/arxiv-build.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/arxiv-build.yml)
+[![Scorecard](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/scorecard.yml/badge.svg)](https://github.com/tangodelta217/nema-connectome-artix7/actions/workflows/scorecard.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/badge/release-v0.1.0-informational.svg)](https://github.com/tangodelta217/nema-connectome-artix7/releases)
 
@@ -53,9 +55,17 @@ pip install -r requirements-dev.txt
 Ejecuta checks locales (no requieren Vivado/Vitis):
 
 ```bash
+make ci
+```
+
+Comandos equivalentes:
+
+```bash
 ruff check . --config ruff.toml
+ruff format --check tools/update_sha256sums.py tools/verify_paper_inputs.py tools/sync_status_docs.py tests/test_status_sync.py tests/test_verify_paper_inputs.py
 mypy --config-file mypy.ini
 bandit -q -r nema tools/verify_paper_inputs.py tools/update_sha256sums.py -lll
+python -m pip_audit -r requirements-dev.txt --skip-editable --progress-spinner off
 pytest -q -m "not hw and not integration"
 ```
 
@@ -103,6 +113,13 @@ Build and validate a source-only submission bundle:
 
 ```bash
 bash tools/build_arxiv_bundle.sh
+make arxiv-bundle
+```
+
+Two-pass `pdflatex` local validation of the staged bundle:
+
+```bash
+make arxiv-pdflatex-2pass
 ```
 
 ### Flujo arXiv bundle

@@ -25,10 +25,12 @@ CONTROLLED_ALLOWLIST = (
     "review_pack/tables/artix7_power_v5.csv",
     "review_pack/tables/artix7_power_v6.csv",
     "review_pack/tables/artix7_power_v7_funcsaif.csv",
+    "review_pack/tables/artix7_power_v7_funcsaif.tex",
     "review_pack/tables/artix7_qor.csv",
     "review_pack/tables/artix7_qor_v4.csv",
     "review_pack/tables/artix7_qor_v5.csv",
     "review_pack/tables/artix7_qor_v6.csv",
+    "review_pack/tables/artix7_metrics_final.tex",
 )
 
 CONTROLLED_PREFIXES = ("paper/", "review_pack/tables/", "release/")

@@ -65,7 +65,11 @@ def _render_gate_status_md(data: dict[str, Any], gates: dict[str, str], synced_a
     evidence_md = _format_evidence(data.get("evidence"))
     rows = "\n".join(f"| {gate} | `{status}` |" for gate, status in sorted(gates.items()))
 
-    limits_md = "\n".join(f"- {item}" for item in limits) if isinstance(limits, list) and limits else "- (none)"
+    limits_md = (
+        "\n".join(f"- {item}" for item in limits)
+        if isinstance(limits, list) and limits
+        else "- (none)"
+    )
 
     return (
         "# Gate Status (Canonical)\n\n"
@@ -105,7 +109,9 @@ def _render_claims_md(data: dict[str, Any], gates: dict[str, str], synced_at: st
             can_claim.append(f"- Gate `{gate}` is `CLOSED` for target part `{target_part}`.")
         else:
             can_claim.append(f"- Gate `{gate}` is currently `{status}` (not closed).")
-            cannot_claim.append(f"- Cannot claim `{gate}` as closed until canonical status is `CLOSED`.")
+            cannot_claim.append(
+                f"- Cannot claim `{gate}` as closed until canonical status is `CLOSED`."
+            )
 
     if power_estimated_only:
         can_claim.append("- Power and energy are `ESTIMATED_PRE_BOARD_ONLY`.")
@@ -142,7 +148,9 @@ def _render_claims_md(data: dict[str, Any], gates: dict[str, str], synced_at: st
     )
 
 
-def _render_root_final_status_md(data: dict[str, Any], gates: dict[str, str], synced_at: str) -> str:
+def _render_root_final_status_md(
+    data: dict[str, Any], gates: dict[str, str], synced_at: str
+) -> str:
     gate_summary = ", ".join(f"{gate}={status}" for gate, status in sorted(gates.items()))
     target_part = data.get("targetPart", "UNKNOWN")
     canonical_generated = data.get("generatedAtUtc", "UNKNOWN")

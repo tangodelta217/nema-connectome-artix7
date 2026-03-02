@@ -15,7 +15,7 @@
 - Metrics table: `review_pack/tables/artix7_metrics_v1.csv`
 - Vivado summary: `build/amd_vivado_artix7_v5/summary.json`
 - Power summary: `build/amd_power_artix7_v6/summary.json`
-- B3 canonical status: `build/codex_handoff/B3_CANONICAL_STATUS.json`
+- B3 canonical status: `build/handoff/B3_CANONICAL_STATUS.json`
 
 ## Limits
 

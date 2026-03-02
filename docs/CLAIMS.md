@@ -6,7 +6,7 @@ Do not edit manually. Regenerate with `python tools/sync_status_docs.py`.
 ## Canonical Source
 
 - File: `release/FINAL_STATUS.json`
-- Synced-at (UTC): `2026-03-02T11:28:31+00:00`
+- Synced-at (UTC): `2026-03-02T19:32:24+00:00`
 
 ## Canonical Gate Snapshot
 
@@ -31,4 +31,4 @@ Do not edit manually. Regenerate with `python tools/sync_status_docs.py`.
 - Cannot claim measured-on-board power, energy, or latency.
 - Boundary: No board measurement is claimed.
 - Boundary: Power/energy remain ESTIMATED_PRE_BOARD_ONLY.
-- Boundary: SAIF activity uses synthetic harness (clock-only) and is not board traffic.
+- Boundary: SAIF activity uses functional xsim harness (/tb_tick/dut/*) and is not board traffic.
