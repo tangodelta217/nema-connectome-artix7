@@ -1,19 +1,12 @@
 #!/bin/bash -eu
 
-python3 -m pip install --no-cache-dir .
-python3 -m pip install --no-cache-dir pyinstaller
-
 for fuzzer in $(find "$SRC/fuzz" -name '*_fuzzer.py'); do
   fuzzer_basename=$(basename -s .py "$fuzzer")
-  fuzzer_package="${fuzzer_basename}.pkg"
-
-  pyinstaller --distpath "$OUT" --onefile --name "$fuzzer_package" "$fuzzer"
-
+  cp "$fuzzer" "$OUT/${fuzzer_basename}.py"
   cat > "$OUT/$fuzzer_basename" << EOF
 #!/bin/sh
 # LLVMFuzzerTestOneInput for fuzzer detection.
-this_dir=\$(dirname "\$0")
-\$this_dir/$fuzzer_package "\$@"
+PYTHONPATH="$SRC" python3 "$OUT/${fuzzer_basename}.py" "\$@"
 EOF
   chmod +x "$OUT/$fuzzer_basename"
 done
