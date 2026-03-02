@@ -53,9 +53,9 @@ def _parse_power_report(report_path: Path) -> dict[str, Any]:
             return None
 
     return {
-        "totalOnChipPowerW": grab(r"Total On-Chip Power\s*\(W\)\s*\|\s*([0-9.+-Ee]+)"),
-        "dynamicPowerW": grab(r"Dynamic\s*\(W\)\s*\|\s*([0-9.+-Ee]+)"),
-        "deviceStaticPowerW": grab(r"Device Static\s*\(W\)\s*\|\s*([0-9.+-Ee]+)"),
+        "totalOnChipPowerW": grab(r"Total On-Chip Power\s*\(W\)\s*\|\s*([0-9.+Ee-]+)"),
+        "dynamicPowerW": grab(r"Dynamic\s*\(W\)\s*\|\s*([0-9.+Ee-]+)"),
+        "deviceStaticPowerW": grab(r"Device Static\s*\(W\)\s*\|\s*([0-9.+Ee-]+)"),
     }
 
 
