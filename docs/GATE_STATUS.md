@@ -1,25 +1,50 @@
-# Gate Status (Evidence-Aligned)
+# Gate Status (Canonical)
 
-Last reconciled: 2026-03-01T14:17:55.860093+00:00
+This file is generated from `release/FINAL_STATUS.json`.
+Do not edit manually. Regenerate with `python tools/sync_status_docs.py`.
 
-## Current status
+## Canonical Source
 
-| Gate | Status | Evidence | Notes |
-|---|---|---|---|
-| G1b (AMD HLS digest parity) | `CLOSED` | `build/amd_hls_strict_v2/summary.json`, `review_pack/tables/artix7_hls_digest_summary_strict_v2.csv`, `artifacts/traces/*.amd_{csim,cosim}.trace.jsonl` | Strict v2 canonical run closes digest parity for B1 and canonical B3. |
-| G1c (Vivado synth+impl on Artix-7) | `CLOSED` | `build/amd_vivado_artix7_v5/summary.json`, `build/amd_vivado_artix7_v5/*/post_route_utilization.rpt`, `build/amd_vivado_artix7_v5/*/post_route_timing.rpt`, `review_pack/tables/artix7_qor_v6.csv` | Both required benches (`b1_small`, `b3_varshney_exec_expanded_gap_300_5824`) have Artix-7 post-route evidence. |
-| G1d (post-implementation power with activity) | `CLOSED` | `build/amd_power_artix7_v6/summary.json`, `build/amd_power_artix7_v6/*/activity_100us.saif`, `build/amd_power_artix7_v6/*/read_saif_100us.log`, `build/amd_power_artix7_v6/*/power_saif_100us.rpt`, `review_pack/tables/artix7_power_v6.csv` | SAIF 100us + read_saif PASS + power_saif present for B1 and B3. |
+- File: `release/FINAL_STATUS.json`
+- Canonical generated-at: `2026-03-01T14:33:57.632936+00:00`
+- Synced-at (UTC): `2026-03-02T11:28:31+00:00`
+- Target part: `xc7a200tsbg484-1`
 
-## Hard boundaries
+## Gate Summary
 
-- All power evidence is `ESTIMATED_PRE_BOARD_ONLY`.
-- No claim in this repo state is `MEASURED_ON_BOARD`.
-- QoR parser refresh in Round9 used existing reports only (no synth/impl rerun).
+| Gate | Status |
+|---|---|
+| G1b | `CLOSED` |
+| G1c | `CLOSED` |
+| G1d | `CLOSED` |
 
-## Round9 artifacts
+## Canonical Gate Snapshot
 
-- QoR summary refreshed in place: `build/amd_vivado_artix7_v5/summary.json`
-- QoR table: `review_pack/tables/artix7_qor_v6.csv`
-- Power summary: `build/amd_power_artix7_v6/summary.json`
-- Power table: `review_pack/tables/artix7_power_v6.csv`
-- Derived metrics: `review_pack/tables/artix7_metrics_v1.csv`
+```json
+{
+  "G1b": "CLOSED",
+  "G1c": "CLOSED",
+  "G1d": "CLOSED"
+}
+```
+
+## Evidence Anchors
+
+- `b3CanonicalStatus`: `build/codex_handoff/B3_CANONICAL_STATUS.json`
+- `gateStatusDoc`: `docs/GATE_STATUS.md`
+- `metricsCsv`: `review_pack/tables/artix7_metrics_v1.csv`
+- `postRouteTimingReports`: `build/amd_vivado_artix7_v5/b1_small/post_route_timing.rpt`, `build/amd_vivado_artix7_v5/b3_varshney_exec_expanded_gap_300_5824/post_route_timing.rpt`
+- `postRouteUtilReports`: `build/amd_vivado_artix7_v5/b1_small/post_route_utilization.rpt`, `build/amd_vivado_artix7_v5/b3_varshney_exec_expanded_gap_300_5824/post_route_utilization.rpt`
+- `powerCsv`: `review_pack/tables/artix7_power_v6.csv`
+- `powerMethodologyDoc`: `docs/POWER_METHODOLOGY.md`
+- `powerSaif100usReports`: `build/amd_power_artix7_v6/b1_small/power_saif_100us.rpt`, `build/amd_power_artix7_v6/b3_varshney_exec_expanded_gap_300_5824/power_saif_100us.rpt`
+- `powerSummary`: `build/amd_power_artix7_v6/summary.json`
+- `qorCsv`: `review_pack/tables/artix7_qor_v6.csv`
+- `saif100us`: `build/amd_power_artix7_v6/b1_small/activity_100us.saif`, `build/amd_power_artix7_v6/b3_varshney_exec_expanded_gap_300_5824/activity_100us.saif`
+- `vivadoSummary`: `build/amd_vivado_artix7_v5/summary.json`
+
+## Limits
+
+- No board measurement is claimed.
+- Power/energy remain ESTIMATED_PRE_BOARD_ONLY.
+- SAIF activity uses synthetic harness (clock-only) and is not board traffic.

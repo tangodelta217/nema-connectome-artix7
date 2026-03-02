@@ -1,58 +1,56 @@
 {
-  "generatedAtUtc": "2026-03-01T02:39:35.131708+00:00",
-  "git": {
-    "head": "bb17ac319debc7ee40a28f4502fe4189f0795ac5",
-    "dirty": true
-  },
-  "contract": [
-    "docs/CODEX_RUN_CONTRACT.md",
-    "docs/GATE_STATUS.md",
-    "docs/CLAIMS.md"
-  ],
-  "targetPart": "xc7a200t-1sbg484c",
+  "generatedAtUtc": "2026-03-01T14:33:57.632936+00:00",
+  "targetPart": "xc7a200tsbg484-1",
   "gates": {
-    "G1b": {
-      "status": "OPEN",
-      "reason": "B3 benchmark identity is aliased to B3 baseline assets; canonical varshney identity not demonstrated.",
-      "evidence": [
-        "build/amd_hls/summary.json",
-        "review_pack/tables/artix7_hls_digest_summary.csv",
-        "artifacts/traces/*.amd_csim.trace.jsonl",
-        "artifacts/traces/*.amd_cosim.trace.jsonl"
-      ]
-    },
-    "G1c": {
-      "status": "OPEN",
-      "reason": "Vivado implementation skipped for requested part: requested_part_unavailable:xc7a200t-1sbg484c.",
-      "evidence": [
-        "build/amd_vivado/summary.json",
-        "build/amd_vivado/part_probe.json",
-        "review_pack/tables/artix7_qor.csv"
-      ]
-    },
-    "G1d": {
-      "status": "OPEN",
-      "reason": "Power evidence is estimated pre-board only; SAIF coverage incomplete for required B3 benchmark identity.",
-      "evidence": [
-        "build/amd_power/summary.json",
-        "review_pack/tables/artix7_power.csv",
-        "build/amd_power/*/power_vectorless.rpt",
-        "build/amd_power/*/power_saif.rpt"
-      ]
-    }
+    "G1b": "CLOSED",
+    "G1c": "CLOSED",
+    "G1d": "CLOSED"
   },
-  "boardMeasurement": {
-    "available": false,
-    "notes": "No MEASURED_ON_BOARD artifact present in this state."
+  "toolVersions": {
+    "vivado": "vivado v2025.2 (64-bit)",
+    "vitis_hls": "Vitis HLS - High-Level Synthesis from C, C++ and OpenCL v2025.2 (64-bit)"
   },
-  "artifacts": {
-    "reviewPackTables": [
-      "review_pack/tables/artix7_hls_digest_summary.csv",
-      "review_pack/tables/artix7_qor.csv",
-      "review_pack/tables/artix7_power.csv"
+  "evidence": {
+    "gateStatusDoc": "docs/GATE_STATUS.md",
+    "powerMethodologyDoc": "docs/POWER_METHODOLOGY.md",
+    "qorCsv": "review_pack/tables/artix7_qor_v6.csv",
+    "powerCsv": "review_pack/tables/artix7_power_v6.csv",
+    "metricsCsv": "review_pack/tables/artix7_metrics_v1.csv",
+    "vivadoSummary": "build/amd_vivado_artix7_v5/summary.json",
+    "powerSummary": "build/amd_power_artix7_v6/summary.json",
+    "b3CanonicalStatus": "build/codex_handoff/B3_CANONICAL_STATUS.json",
+    "postRouteTimingReports": [
+      "build/amd_vivado_artix7_v5/b1_small/post_route_timing.rpt",
+      "build/amd_vivado_artix7_v5/b3_varshney_exec_expanded_gap_300_5824/post_route_timing.rpt"
     ],
-    "paper": "paper/paper.pdf",
-    "paperSource": "paper/paper.tex"
+    "postRouteUtilReports": [
+      "build/amd_vivado_artix7_v5/b1_small/post_route_utilization.rpt",
+      "build/amd_vivado_artix7_v5/b3_varshney_exec_expanded_gap_300_5824/post_route_utilization.rpt"
+    ],
+    "saif100us": [
+      "build/amd_power_artix7_v6/b1_small/activity_100us.saif",
+      "build/amd_power_artix7_v6/b3_varshney_exec_expanded_gap_300_5824/activity_100us.saif"
+    ],
+    "powerSaif100usReports": [
+      "build/amd_power_artix7_v6/b1_small/power_saif_100us.rpt",
+      "build/amd_power_artix7_v6/b3_varshney_exec_expanded_gap_300_5824/power_saif_100us.rpt"
+    ]
   },
-  "principalHashesFile": "build/codex_handoff/PRIMARY_HASHES.sha256"
+  "limits": [
+    "No board measurement is claimed.",
+    "Power/energy remain ESTIMATED_PRE_BOARD_ONLY.",
+    "SAIF activity uses synthetic harness (clock-only) and is not board traffic."
+  ],
+  "dataset": {
+    "included": true,
+    "path": "datasets/raw/varshney/NeuronConnectFormatted.xlsx",
+    "sha256": "33e073727baf85286ce8f278a1a418bff8779ed0dac1a3ea38174ed89ed16af7"
+  },
+  "releaseArtifacts": {
+    "artifactBundle": "release/artifact_bundle_final.tar.gz",
+    "sha256Sums": "release/SHA256SUMS.txt",
+    "paperPdf": "paper/paper.pdf"
+  },
+  "powerEstimatedOnly": true,
+  "powerMeasuredOnBoard": false
 }

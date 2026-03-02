@@ -143,6 +143,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="request Vivado to emit a .bit artifact after route_design",
     )
+    hwtest_cmd.add_argument(
+        "--allow-part-fallback",
+        action="store_true",
+        help="allow selecting a different installed FPGA part when requested part is unavailable",
+    )
 
     selftest_cmd = subparsers.add_parser("selftest", help="run built-in deterministic self tests")
     selftest_cmd.add_argument("target", choices=["fixed"], help="selftest suite target")
@@ -215,6 +220,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("auto", "on", "off"),
         default="off",
         help="C/RTL cosim policy for this run (default: off)",
+    )
+    vivado_bitstream_cmd.add_argument(
+        "--allow-part-fallback",
+        action="store_true",
+        help="allow selecting a different installed FPGA part when requested part is unavailable",
     )
 
     add_dsl_subparser(subparsers)
@@ -307,6 +317,7 @@ def main(argv: list[str] | None = None) -> int:
             hw_mode=args.hw,
             cosim_mode=args.cosim,
             vivado_part=args.vivado_part,
+            allow_part_fallback=bool(args.allow_part_fallback),
             write_bitstream=bool(args.write_bitstream),
         )
         _emit(report)
@@ -376,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
                 hw_mode="require",
                 cosim_mode=args.cosim,
                 vivado_part=args.part,
+                allow_part_fallback=bool(args.allow_part_fallback),
                 write_bitstream=True,
             )
             _emit(report)

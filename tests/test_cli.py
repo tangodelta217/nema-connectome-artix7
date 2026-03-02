@@ -133,10 +133,12 @@ def test_dump_csr_creates_json(tmp_path: Path) -> None:
     assert "row_ptr_u16" in payload["chemical_csr"]
 
 
-def test_hwtest_emits_bench_report(tmp_path: Path) -> None:
+def test_hwtest_emits_bench_report(tmp_path: Path, monkeypatch) -> None:
     ir = tmp_path / "ir.json"
     outdir = tmp_path / "build"
     write_ir(ir)
+    monkeypatch.setenv("NEMA_HWTEST_DISABLE_VITIS", "1")
+    monkeypatch.setenv("NEMA_HWTEST_DISABLE_VIVADO", "1")
 
     code = main(["hwtest", str(ir), "--outdir", str(outdir), "--ticks", "2", "--cosim", "off"])
 
@@ -191,6 +193,7 @@ def test_vivado_bitstream_command_wires_to_hwtest(
         hw_mode: str = "auto",
         cosim_mode: str = "auto",
         vivado_part: str | None = None,
+        allow_part_fallback: bool = False,
         write_bitstream: bool = False,
     ):
         captured["ir_path"] = ir_path
@@ -199,6 +202,7 @@ def test_vivado_bitstream_command_wires_to_hwtest(
         captured["hw_mode"] = hw_mode
         captured["cosim_mode"] = cosim_mode
         captured["vivado_part"] = vivado_part
+        captured["allow_part_fallback"] = allow_part_fallback
         captured["write_bitstream"] = write_bitstream
         return 0, {"ok": True, "bench_report": str(outdir / "bench_report.json")}
 
@@ -225,6 +229,49 @@ def test_vivado_bitstream_command_wires_to_hwtest(
     assert captured["hw_mode"] == "require"
     assert captured["cosim_mode"] == "off"
     assert captured["vivado_part"] == "xc7a35tcsg324-1"
+    assert captured["allow_part_fallback"] is False
     assert captured["write_bitstream"] is True
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+
+
+def test_hwtest_command_wires_allow_part_fallback_flag(tmp_path: Path, monkeypatch, capsys) -> None:
+    ir = tmp_path / "ir.json"
+    write_ir(ir)
+    outdir = tmp_path / "build"
+    captured: dict[str, object] = {}
+
+    def fake_run_hwtest(
+        ir_path: Path,
+        outdir: Path,
+        ticks: int,
+        *,
+        hw_mode: str = "auto",
+        cosim_mode: str = "auto",
+        vivado_part: str | None = None,
+        allow_part_fallback: bool = False,
+        write_bitstream: bool = False,
+    ):
+        captured["ir_path"] = ir_path
+        captured["allow_part_fallback"] = allow_part_fallback
+        return 0, {"ok": True, "bench_report": str(outdir / "bench_report.json")}
+
+    monkeypatch.setattr("nema.cli.run_hwtest", fake_run_hwtest)
+
+    code = main(
+        [
+            "hwtest",
+            str(ir),
+            "--outdir",
+            str(outdir),
+            "--ticks",
+            "1",
+            "--allow-part-fallback",
+        ]
+    )
+
+    assert code == 0
+    assert captured["ir_path"] == ir
+    assert captured["allow_part_fallback"] is True
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True

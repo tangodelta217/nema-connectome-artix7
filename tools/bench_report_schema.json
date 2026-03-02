@@ -455,12 +455,15 @@
             "utilizationReport",
             "timingReport",
             "bitstreamPath",
-            "bitstreamPlaceholder",
-            "rtlSourceCount",
-            "part",
-            "clk_ns",
-            "wns",
-            "tns",
+        "bitstreamPlaceholder",
+        "rtlSourceCount",
+        "part",
+        "requested_part",
+        "selected_part",
+        "part_match_requested",
+        "clk_ns",
+        "wns",
+        "tns",
             "util",
             "utilization",
             "timing",
@@ -540,15 +543,30 @@
               "type": "integer",
               "minimum": 0
             },
-            "part": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "clk_ns": {
-              "type": [
-                "number",
+        "part": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requested_part": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "selected_part": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "part_match_requested": {
+          "type": "boolean"
+        },
+        "clk_ns": {
+          "type": [
+            "number",
                 "null"
               ]
             },
