@@ -1,5 +1,7 @@
 # Python / packaging
 .venv/
+.venv_repo_doctor/
+.venv_repo_doctor_after/
 __pycache__/
 .pytest_cache/
 .mypy_cache/
@@ -51,6 +53,19 @@ paper.aux
 paper.fdb_latexmk
 paper.fls
 paper.log
+paper.out
+paper/*.aux
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/*.blg
+paper/*.synctex.gz
+papers/paperA/text/*.aux
+papers/paperA/text/*.fdb_latexmk
+papers/paperA/text/*.fls
+papers/paperA/text/*.log
+papers/paperA/text/*.out
 
 # Misc local scratch files
 0

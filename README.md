@@ -32,6 +32,8 @@ See also: `docs/ARCHITECTURE.md`.
 
 ## Quickstart
 
+Prerequisito: Python 3.11 o superior.
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
@@ -77,6 +79,7 @@ Este repositorio usa dos workflows dedicados en GitHub Actions:
 
 - `dependency-review.yml` (PR): ejecuta `actions/dependency-review-action` y falla si detecta vulnerabilidades nuevas de severidad `high` o `critical` en dependencias introducidas por el cambio.
 - `scorecard.yml` (main + schedule): ejecuta OpenSSF Scorecard y publica resultados SARIF para code scanning.
+- `.github/dependabot.yml`: abre PRs automáticas semanales para dependencias Python y GitHub Actions.
 
 Cómo interpretar resultados:
 
