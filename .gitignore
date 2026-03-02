@@ -54,3 +54,8 @@ paper.log
 
 # Misc local scratch files
 0
+
+# Keep only minimal Vivado fixtures required by tests
+!tests/fixtures/hw_reports/vivado/
+!tests/fixtures/hw_reports/vivado/**/
+!tests/fixtures/hw_reports/vivado/**/*.rpt
