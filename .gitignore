@@ -47,6 +47,7 @@ project_eval_out_v2/**/*.tar.gz
 release/*.tar.gz
 handoff*.tar.gz
 handoff*.sha256
+paper_cpu_runs/**/cpp_ref/nema_cpp_ref
 
 # LaTeX build intermediates
 paper.aux

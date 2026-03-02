@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@38ecb5b593bf0eb19e335c03f97670f792489a8b # v4.7.0
         with:
           fail-on-severity: high
           show-openssf-scorecard: true
