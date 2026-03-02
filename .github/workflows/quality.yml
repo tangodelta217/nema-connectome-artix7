@@ -24,19 +24,16 @@ jobs:
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-
-      - name: Install dev dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+      
+      - name: Setup uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
 
       - name: Ruff lint
-        run: ruff check . --config ruff.toml
+        run: uvx ruff@0.14.1 check . --config ruff.toml
 
       - name: Ruff format
         run: |
-          ruff format --check \
+          uvx ruff@0.14.1 format --check \
             tools/update_sha256sums.py \
             tools/verify_paper_inputs.py \
             tools/sync_status_docs.py \
@@ -44,13 +41,13 @@ jobs:
             tests/test_verify_paper_inputs.py
 
       - name: Mypy
-        run: mypy --config-file mypy.ini
+        run: uvx mypy@1.11.2 --config-file mypy.ini
 
       - name: Bandit
-        run: bandit -q -r nema tools/verify_paper_inputs.py tools/update_sha256sums.py -lll
+        run: uvx --from "bandit[toml]==1.9.4" bandit -q -r nema tools/verify_paper_inputs.py tools/update_sha256sums.py -lll
 
       - name: pip-audit (dependencies)
-        run: python -m pip_audit -r requirements-dev.txt --skip-editable --progress-spinner off
+        run: uvx pip-audit@2.10.0 -r requirements-dev.txt --skip-editable --progress-spinner off
 
       - name: Pytest (no HW/toolchain)
-        run: pytest -q -m "not hw and not integration"
+        run: uvx pytest@8.4.2 -q -m "not hw and not integration"
