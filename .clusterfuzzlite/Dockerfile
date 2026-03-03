@@ -2,3 +2,4 @@ FROM gcr.io/oss-fuzz-base/base-builder-python@sha256:6a411c8a4e0c8996c342df872b3
 
 WORKDIR $SRC
 COPY . $SRC
+RUN python3 -m pip install --no-cache-dir atheris
