@@ -16,6 +16,12 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+PART_CHECK_SCRIPT="${REPO_ROOT}/tools/hw/check_part_available.sh"
+TARGET_PART="${NEMA_VIVADO_PART:-xc7a200tsbg484-1}"
+ALLOW_PART_FALLBACK="${NEMA_PREFLIGHT_ALLOW_PART_FALLBACK:-1}"
+
 detect_os_release_value() {
   local key="$1"
   if [[ -f /etc/os-release ]]; then
@@ -106,6 +112,37 @@ else
   print_kv "vivado" "NOT_FOUND"
 fi
 
+part_available="false"
+part_fallback_active="false"
+if [[ -n "${vivado_path}" ]]; then
+  echo
+  print_header "Target Part Availability"
+  print_kv "targetPart" "${TARGET_PART}"
+  if [[ -x "${PART_CHECK_SCRIPT}" ]]; then
+    if [[ "${ALLOW_PART_FALLBACK}" == "1" ]]; then
+      check_output="$("${PART_CHECK_SCRIPT}" --allow-fallback "${TARGET_PART}" 2>&1)" || true
+      echo "${check_output}"
+      if printf '%s\n' "${check_output}" | grep -q "NEMA_PART_CHECK_OK:"; then
+        part_available="true"
+      elif printf '%s\n' "${check_output}" | grep -q "using fallback part"; then
+        part_available="false"
+        part_fallback_active="true"
+      else
+        part_available="false"
+      fi
+    elif "${PART_CHECK_SCRIPT}" "${TARGET_PART}"; then
+      part_available="true"
+    else
+      part_available="false"
+    fi
+  else
+    print_kv "part check script" "NOT_EXECUTABLE (${PART_CHECK_SCRIPT})"
+    part_available="false"
+  fi
+else
+  part_available="false"
+fi
+
 echo
 print_header "Licensing env"
 license_printed="false"
@@ -140,8 +177,34 @@ fi
 
 echo
 print_header "Summary"
-hw_available="false"
+hw_toolchain_detected="false"
 if [[ -n "${vitis_path}" || -n "${vivado_path}" ]]; then
+  hw_toolchain_detected="true"
+fi
+hw_available="false"
+if [[ "${hw_toolchain_detected}" == "true" && ( "${part_available}" == "true" || "${part_fallback_active}" == "true" ) ]]; then
   hw_available="true"
 fi
+print_kv "hwToolchainDetected" "${hw_toolchain_detected}"
+print_kv "targetPart" "${TARGET_PART}"
+print_kv "partAvailable" "${part_available}"
+print_kv "partFallbackActive" "${part_fallback_active}"
 print_kv "hwToolchainAvailable" "${hw_available}"
+
+if [[ "${hw_available}" != "true" ]]; then
+  echo
+  echo "Preflight failed: hardware toolchain is not ready for target part '${TARGET_PART}'." >&2
+  if [[ "${part_available}" != "true" ]]; then
+    echo "Reason: requested part is not installed in Vivado." >&2
+    echo "Action: install device support Artix-7 in Vivado and re-run preflight." >&2
+    echo "Verify: bash tools/hw/check_part_available.sh ${TARGET_PART}" >&2
+  fi
+  exit 1
+fi
+
+if [[ "${part_fallback_active}" == "true" ]]; then
+  echo
+  echo "Warning: target part '${TARGET_PART}' is unavailable; fallback part is available for non-target reruns." >&2
+  echo "For strict target-part runs, install Artix-7 device support and verify with:" >&2
+  echo "  bash tools/hw/check_part_available.sh ${TARGET_PART}" >&2
+fi

@@ -162,6 +162,20 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="optional isolated output directory (default: temp dir under build/)",
     )
+    bench_verify_cmd.add_argument(
+        "--hw",
+        choices=("off", "auto", "require"),
+        default="off",
+        help=(
+            "hardware rerun policy for verification (default: off). "
+            "Use --hw require for end-to-end HW reproduction."
+        ),
+    )
+    bench_verify_cmd.add_argument(
+        "--strict-part",
+        action="store_true",
+        help="disable automatic fallback to a non-target installed part during HW reruns",
+    )
 
     cost_cmd = subparsers.add_parser("cost", help="cost model utilities")
     cost_subparsers = cost_cmd.add_subparsers(dest="cost_command", required=True)
@@ -332,7 +346,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "bench":
         if args.bench_command == "verify":
-            code, report = run_bench_verify(args.manifest_json, outdir=args.outdir)
+            code, report = run_bench_verify(
+                args.manifest_json,
+                outdir=args.outdir,
+                hw_mode=args.hw,
+                strict_target_part=bool(args.strict_part),
+            )
             _emit(report)
             return code
         parser.error(f"unknown bench command: {args.bench_command}")

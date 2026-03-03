@@ -249,7 +249,15 @@ def _resolve_ir_path(ir_path_raw: str, *, manifest_path: Path) -> Path:
     return (manifest_path.parent / candidate).resolve()
 
 
-def run_bench_verify(manifest_path: Path, *, outdir: Path | None = None) -> tuple[int, dict]:
+def run_bench_verify(
+    manifest_path: Path,
+    *,
+    outdir: Path | None = None,
+    hw_mode: str = "off",
+    strict_target_part: bool = False,
+) -> tuple[int, dict]:
+    if hw_mode not in {"off", "auto", "require"}:
+        return 1, {"ok": False, "error": f"invalid --hw mode '{hw_mode}' (expected off|auto|require)"}
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -304,14 +312,31 @@ def run_bench_verify(manifest_path: Path, *, outdir: Path | None = None) -> tupl
         verify_dir = outdir
         verify_dir.mkdir(parents=True, exist_ok=True)
 
-    code, hwtest_summary = run_hwtest(ir_path=ir_path, outdir=verify_dir, ticks=ticks)
+    allow_part_fallback = bool(hw_mode != "off" and not strict_target_part)
+    code, hwtest_summary = run_hwtest(
+        ir_path=ir_path,
+        outdir=verify_dir,
+        ticks=ticks,
+        hw_mode=hw_mode,
+        allow_part_fallback=allow_part_fallback,
+    )
     if code != 0:
+        guidance: list[str] = []
+        if isinstance(hwtest_summary, dict):
+            error_text = str(hwtest_summary.get("error", ""))
+            if "requested Vivado part" in error_text or "requested_part_unavailable" in error_text:
+                guidance = [
+                    "Install Artix-7 device support in Vivado for the requested part.",
+                    "Verify part availability: bash tools/hw/check_part_available.sh xc7a200tsbg484-1",
+                    "For evidence-only verification (no HW rerun): nema bench verify <manifest.json> --hw off",
+                ]
         return 1, {
             "ok": False,
             "error": "hwtest failed during bench verify",
             "manifest": str(manifest_path),
             "hwtest": hwtest_summary,
             "verifyOutdir": str(verify_dir),
+            "guidance": guidance,
         }
 
     bench_report_path_raw = hwtest_summary.get("bench_report")
@@ -399,6 +424,9 @@ def run_bench_verify(manifest_path: Path, *, outdir: Path | None = None) -> tupl
             "manifest": str(manifest_path),
             "irPath": str(ir_path),
             "ticks": ticks,
+            "hwMode": hw_mode,
+            "strictTargetPart": strict_target_part,
+            "allowPartFallback": allow_part_fallback,
             "benchReport": str(bench_report_path),
             "verifyOutdir": str(verify_dir),
             "mismatches": mismatches,
