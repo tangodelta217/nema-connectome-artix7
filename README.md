@@ -88,6 +88,18 @@ Cómo interpretar resultados:
 - Scorecard bajo o con checks fallidos: hay debilidades de supply chain (por ejemplo pinning insuficiente, permisos amplios, ramas sin protección); tratarlo como deuda de seguridad prioritaria.
 - SARIF en code scanning: cada hallazgo incluye regla y ubicación; usarlo como lista accionable para endurecimiento continuo.
 
+### Gobernanza de merge y scanning
+
+La rama `main` está protegida con controles de calidad y seguridad obligatorios:
+
+- Pull request obligatorio para merge.
+- Al menos 1 aprobación humana por PR.
+- Aprobación posterior al último push del PR (`require_last_push_approval`).
+- Historial lineal y resolución obligatoria de conversaciones.
+- Checks obligatorios en `main`: `unit-tests (3.11)`, `unit-tests (3.12)`, `quality (3.11)`, `quality (3.12)`, `CodeQL Analyze (python)`, `Scorecard analysis`.
+
+Estado de referencia (3 de marzo de 2026): no hay alerts abiertos en Code scanning. Los hallazgos históricos de Scorecard puramente de gobernanza temporal (por ejemplo antigüedad <90 días o métricas históricas previas al endurecimiento de branch protection) se cerraron como `won't fix` con justificación explícita en GitHub Security.
+
 ## Reproducibility
 
 Core benchmark commands:
