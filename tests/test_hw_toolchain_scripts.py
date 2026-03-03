@@ -8,6 +8,7 @@ from pathlib import Path
 def test_toolchain_scripts_exist_and_executable() -> None:
     scripts = [
         Path("tools/hw/activate_xilinx.sh"),
+        Path("tools/hw/check_part_available.sh"),
         Path("tools/run_hw_gates.sh"),
         Path("tools/run_hw_gates_two_parts.sh"),
         Path("tools/hw/smoke_toolchain.sh"),
@@ -16,6 +17,7 @@ def test_toolchain_scripts_exist_and_executable() -> None:
     for script in scripts:
         assert script.exists(), f"missing script: {script}"
         assert os.access(script, os.X_OK), f"script is not executable: {script}"
+    assert Path("tools/hw/check_part_available.tcl").exists(), "missing Tcl checker"
 
 
 def test_activate_xilinx_warns_when_wrapper_missing(tmp_path: Path) -> None:

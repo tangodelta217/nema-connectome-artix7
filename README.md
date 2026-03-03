@@ -30,6 +30,12 @@ The normative contract for semantics and schema is defined by `spec.md` and `nem
 
 See also: `docs/ARCHITECTURE.md`.
 
+## Paper Source Policy
+
+- Canonical paper source (claims + arXiv bundle): `paper/paper.tex`.
+- `papers/paperA/` is kept as legacy/alternative material and is not the canonical source for this release.
+- Canonical handoff reference path is `build/handoff/` (for example `build/handoff/B3_CANONICAL_STATUS.json`).
+
 ## Quickstart
 
 Prerequisito: Python 3.11 o superior.
@@ -102,28 +108,57 @@ Estado de referencia (3 de marzo de 2026): no hay alerts abiertos en Code scanni
 
 ## Reproducibility
 
-Core benchmark commands:
+### Verify Evidence (hash + paper alignment, no HW rerun)
+
+Use this path when you want deterministic evidence verification from versioned artifacts:
+
+```bash
+sha256sum -c release/SHA256SUMS.txt
+python tools/check_release_integrity.py
+python tools/verify_paper_inputs.py
+
+# Bench manifest verification without rerunning HLS/Vivado:
+nema bench verify benches/B1_small/manifest.json --hw off
+nema bench verify benches/B3_kernel_302_7500/manifest.json --hw off
+```
+
+### Reproduce HW End-to-End (HLS/Vivado rerun)
+
+Prerequisites:
+
+- Vivado 2025.2 and Vitis HLS 2025.2 in PATH.
+- Device support for Artix-7 installed in Vivado.
+- Requested target part available: `xc7a200tsbg484-1`.
+
+Preflight checks:
+
+```bash
+bash tools/hw/preflight_ubuntu24.sh
+bash tools/hw/check_part_available.sh xc7a200tsbg484-1
+```
+
+Core rerun commands:
 
 ```bash
 nema check example_b1_small_subgraph.json
 nema hwtest example_b1_small_subgraph.json --ticks 32 --outdir build/b1
-nema bench verify benches/B1_small/manifest.json
+nema bench verify benches/B1_small/manifest.json --hw require --strict-part
 
 nema check example_b3_kernel_302.json
 nema hwtest example_b3_kernel_302.json --ticks 128 --outdir build/b3
-nema bench verify benches/B3_kernel_302_7500/manifest.json
+nema bench verify benches/B3_kernel_302_7500/manifest.json --hw require --strict-part
 ```
 
-Hash verification for release assets:
+If `xc7a200tsbg484-1` is missing, install Artix-7 device support in Vivado and rerun:
 
 ```bash
-sha256sum -c release/SHA256SUMS.txt
+bash tools/hw/check_part_available.sh xc7a200tsbg484-1
 ```
 
-Paper input wiring verification:
+Non-target fallback rerun (host compatibility, not paper target part):
 
 ```bash
-python tools/verify_paper_inputs.py
+nema bench verify benches/B1_small/manifest.json --hw require
 ```
 
 ## Artifacts / Releases
@@ -145,6 +180,7 @@ python tools/fetch_release_assets.py --tag v0.1.0 --check
 ## arXiv Submission
 
 Canonical arXiv paper source in this repo is `paper/paper.tex`.
+`papers/paperA/` is non-canonical legacy/alternative content and is excluded from the canonical arXiv path.
 
 Build and validate a source-only submission bundle:
 

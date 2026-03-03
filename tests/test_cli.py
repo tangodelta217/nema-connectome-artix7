@@ -275,3 +275,65 @@ def test_hwtest_command_wires_allow_part_fallback_flag(tmp_path: Path, monkeypat
     assert captured["allow_part_fallback"] is True
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
+
+
+def test_bench_verify_command_wires_hw_mode(monkeypatch, capsys) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_bench_verify(
+        manifest_path: Path,
+        *,
+        outdir: Path | None = None,
+        hw_mode: str = "off",
+        strict_target_part: bool = False,
+    ):
+        captured["manifest_path"] = manifest_path
+        captured["outdir"] = outdir
+        captured["hw_mode"] = hw_mode
+        captured["strict_target_part"] = strict_target_part
+        return 0, {"ok": True, "manifest": str(manifest_path), "hwMode": hw_mode}
+
+    monkeypatch.setattr("nema.cli.run_bench_verify", fake_run_bench_verify)
+
+    code = main(
+        [
+            "bench",
+            "verify",
+            "benches/B1_small/manifest.json",
+            "--hw",
+            "require",
+            "--outdir",
+            "build/test_bench_verify_cli",
+        ]
+    )
+
+    assert code == 0
+    assert captured["manifest_path"] == Path("benches/B1_small/manifest.json")
+    assert captured["outdir"] == Path("build/test_bench_verify_cli")
+    assert captured["hw_mode"] == "require"
+    assert captured["strict_target_part"] is False
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["hwMode"] == "require"
+
+
+def test_bench_verify_command_wires_strict_part(monkeypatch, capsys) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_bench_verify(
+        manifest_path: Path,
+        *,
+        outdir: Path | None = None,
+        hw_mode: str = "off",
+        strict_target_part: bool = False,
+    ):
+        captured["strict_target_part"] = strict_target_part
+        return 0, {"ok": True, "manifest": str(manifest_path), "hwMode": hw_mode}
+
+    monkeypatch.setattr("nema.cli.run_bench_verify", fake_run_bench_verify)
+
+    code = main(["bench", "verify", "benches/B1_small/manifest.json", "--hw", "require", "--strict-part"])
+    assert code == 0
+    assert captured["strict_target_part"] is True
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True

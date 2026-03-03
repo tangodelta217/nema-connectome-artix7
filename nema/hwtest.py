@@ -467,6 +467,76 @@ def _toolchain_descriptor(vitis_info: dict[str, Any], vivado_info: dict[str, Any
     }
 
 
+def _part_checker_tcl_path() -> Path:
+    return Path(__file__).resolve().parents[1] / "tools" / "hw" / "check_part_available.tcl"
+
+
+def _run_vivado_part_check(*, vivado_binary: str, requested_part: str, cwd: Path) -> dict[str, Any]:
+    checker_tcl = _part_checker_tcl_path()
+    if not checker_tcl.exists():
+        return {
+            "ok": None,
+            "reason": "part_checker_missing",
+            "requested_part": requested_part,
+            "checker_tcl": str(checker_tcl),
+            "returncode": None,
+            "stdout": "",
+            "stderr": "",
+            "cmd": [],
+        }
+
+    cmd = [
+        vivado_binary,
+        "-mode",
+        "batch",
+        "-nojournal",
+        "-nolog",
+        "-notrace",
+        "-source",
+        str(checker_tcl),
+        "-tclargs",
+        requested_part,
+    ]
+    proc = _cmd(cmd, cwd=cwd)
+    return {
+        "ok": proc.ok,
+        "reason": None if proc.ok else "requested_part_unavailable",
+        "requested_part": requested_part,
+        "checker_tcl": str(checker_tcl),
+        "returncode": proc.returncode,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+        "cmd": cmd,
+    }
+
+
+def _requested_part_error_payload(*, requested_part: str, part_check: dict[str, Any]) -> dict[str, Any]:
+    hint_lines = [
+        "Install device support Artix-7 in Vivado and rerun.",
+        f"Verify part availability: bash tools/hw/check_part_available.sh {requested_part}",
+        "If you only need digest/hash evidence verification (without HW rerun), run:",
+        "  nema bench verify <manifest.json> --hw off",
+    ]
+    return {
+        "ok": False,
+        "error": (
+            f"requested Vivado part '{requested_part}' is unavailable in this host installation "
+            "(missing Artix-7 device support)"
+        ),
+        "requested_part": requested_part,
+        "hints": hint_lines,
+        "part_check": {
+            "ok": part_check.get("ok"),
+            "reason": part_check.get("reason"),
+            "returncode": part_check.get("returncode"),
+            "checker_tcl": part_check.get("checker_tcl"),
+            "cmd": part_check.get("cmd"),
+            "stdoutTail": str(part_check.get("stdout") or "")[-4000:],
+            "stderrTail": str(part_check.get("stderr") or "")[-4000:],
+        },
+    }
+
+
 def _run_cpp_reference(
     *,
     hls_cpp: Path,
@@ -1434,6 +1504,10 @@ def run_hwtest_pipeline(
             or os.environ.get("NEMA_VITIS_PART", "").strip()
             or DEFAULT_FPGA_PART
         )
+    try:
+        requested_vivado_part = _validate_part_literal(requested_vivado_part, field="NEMA_VIVADO_PART")
+    except ValueError as exc:
+        return 1, {"ok": False, "error": str(exc)}
     allow_part_fallback = bool(allow_part_fallback or _env_flag("NEMA_ALLOW_PART_FALLBACK"))
 
     try:
@@ -1529,6 +1603,19 @@ def run_hwtest_pipeline(
             "ok": False,
             "error": "hardware mode 'require' requested but vitis_hls is not available on PATH",
         }
+    if hw_mode != "off" and not allow_part_fallback and vitis_info["available"] and vivado_info["available"]:
+        vivado_binary = vivado_info.get("binary")
+        if isinstance(vivado_binary, str) and vivado_binary:
+            part_check = _run_vivado_part_check(
+                vivado_binary=vivado_binary,
+                requested_part=requested_vivado_part,
+                cwd=outdir,
+            )
+            if part_check.get("ok") is False:
+                return 1, _requested_part_error_payload(
+                    requested_part=requested_vivado_part,
+                    part_check=part_check,
+                )
     run_cosim = _resolve_run_cosim(cosim_mode)
     if vitis_info["available"]:
         try:
