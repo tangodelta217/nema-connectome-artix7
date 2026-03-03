@@ -10,6 +10,11 @@ Canonical paper source: `paper/paper.tex`.
 Legacy/alternative paper tree (non-canonical): `papers/paperA/`.
 Canonical handoff path naming: `build/handoff/`.
 
+Benchmark identities used in this release:
+
+- `B3_kernel_302_7500`: synthetic/kernel benchmark for quick regression and G0 closure.
+- `B3_varshney_exec_expanded_gap_300_5824`: canonical structural benchmark used by the paper and evidence tables (G1 closure path).
+
 ## 1) Evidence Verification (No HW rerun)
 
 ```bash
@@ -19,6 +24,7 @@ python tools/verify_paper_inputs.py
 
 nema bench verify benches/B1_small/manifest.json --hw off
 nema bench verify benches/B3_kernel_302_7500/manifest.json --hw off
+nema bench verify benches/B3_varshney_exec_expanded_gap_300_5824/manifest.json --hw off
 ```
 
 Reference docs:
@@ -58,6 +64,9 @@ nema bench verify benches/B1_small/manifest.json --hw require --strict-part
 nema check example_b3_kernel_302.json
 nema hwtest example_b3_kernel_302.json --ticks 128 --outdir build/b3
 nema bench verify benches/B3_kernel_302_7500/manifest.json --hw require --strict-part
+
+# Canonical paper benchmark (structural B3 used in review_pack tables):
+nema bench verify benches/B3_varshney_exec_expanded_gap_300_5824/manifest.json --hw require --strict-part
 ```
 
 If `requested_part_unavailable` appears, install Artix-7 device support in Vivado and rerun:

@@ -7,7 +7,10 @@ No value may be labeled as measured on board.
 
 ## Round10b Functional-SAIF Procedure
 
-1. Use existing post-route checkpoints (`build/amd_vivado_artix7_v5/<bench>/post_route.dcp`).
+1. Use existing post-route checkpoints with canonical template path:
+   - `build/amd_vivado_artix7_v5/<bench>/post_route.dcp`
+   - Example (`b1_small`): `build/amd_vivado_artix7_v5/b1_small/post_route.dcp`
+   - Example (`b3_varshney_exec_expanded_gap_300_5824`): `build/amd_vivado_artix7_v5/b3_varshney_exec_expanded_gap_300_5824/post_route.dcp`
 2. Export functional netlist: `write_verilog -mode funcsim -force dut_funcsim.v`.
 3. Compile and elaborate with xsim front-end:
    - `xvlog -sv dut_funcsim.v tb_tick.sv`

@@ -108,6 +108,11 @@ Estado de referencia (3 de marzo de 2026): no hay alerts abiertos en Code scanni
 
 ## Reproducibility
 
+Benchmark identities used in this release:
+
+- `B3_kernel_302_7500`: synthetic/kernel benchmark for quick regression and G0 closure.
+- `B3_varshney_exec_expanded_gap_300_5824`: canonical structural benchmark used by the paper and evidence tables (G1 closure path).
+
 ### Verify Evidence (hash + paper alignment, no HW rerun)
 
 Use this path when you want deterministic evidence verification from versioned artifacts:
@@ -120,6 +125,7 @@ python tools/verify_paper_inputs.py
 # Bench manifest verification without rerunning HLS/Vivado:
 nema bench verify benches/B1_small/manifest.json --hw off
 nema bench verify benches/B3_kernel_302_7500/manifest.json --hw off
+nema bench verify benches/B3_varshney_exec_expanded_gap_300_5824/manifest.json --hw off
 ```
 
 ### Reproduce HW End-to-End (HLS/Vivado rerun)
@@ -147,6 +153,9 @@ nema bench verify benches/B1_small/manifest.json --hw require --strict-part
 nema check example_b3_kernel_302.json
 nema hwtest example_b3_kernel_302.json --ticks 128 --outdir build/b3
 nema bench verify benches/B3_kernel_302_7500/manifest.json --hw require --strict-part
+
+# Canonical paper benchmark (structural B3 used in review_pack tables):
+nema bench verify benches/B3_varshney_exec_expanded_gap_300_5824/manifest.json --hw require --strict-part
 ```
 
 If `xc7a200tsbg484-1` is missing, install Artix-7 device support in Vivado and rerun:
