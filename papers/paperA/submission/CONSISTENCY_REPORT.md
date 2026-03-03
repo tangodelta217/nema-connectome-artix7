@@ -3,7 +3,7 @@
 - Status: **PASS**
 - Total checks: 13
 - Failed checks: 0
-- PDF: `/home/tangodelta/Escritorio/NEMA/papers/paperA/submission/paperA.pdf`
+- PDF: `paperA_submission.pdf` (GitHub Release asset, see `release/EXTERNAL_ASSETS.md`)
 - Table 1 CSV: `/home/tangodelta/Escritorio/NEMA/papers/paperA/artifacts/tables/results_bitexact.csv`
 - Table 2 CSV: `/home/tangodelta/Escritorio/NEMA/papers/paperA/artifacts/tables/results_qor.csv`
 - Table 3 CSV: `/home/tangodelta/Escritorio/NEMA/papers/paperA/artifacts/tables/results_throughput.csv`

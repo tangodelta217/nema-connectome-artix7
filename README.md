@@ -131,8 +131,16 @@ python tools/verify_paper_inputs.py
 - Repository: `https://github.com/tangodelta217/nema-connectome-artix7`
 - Releases: `https://github.com/tangodelta217/nema-connectome-artix7/releases`
 - v0.1.0 paper asset (release): `https://github.com/tangodelta217/nema-connectome-artix7/releases/download/v0.1.0/paper.pdf`
+- Binary/generated Paper A assets: `release/EXTERNAL_ASSETS.md`
 
 Large generated evidence bundles belong in GitHub Releases assets, not git history.
+
+Download and verify release assets locally:
+
+```bash
+python tools/fetch_release_assets.py --tag v0.1.0
+python tools/fetch_release_assets.py --tag v0.1.0 --check
+```
 
 ## arXiv Submission
 

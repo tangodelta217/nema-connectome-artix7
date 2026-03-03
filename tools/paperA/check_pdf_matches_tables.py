@@ -168,7 +168,7 @@ def main() -> int:
     parser.add_argument(
         "--pdf",
         type=Path,
-        default=Path("papers/paperA/submission/paperA.pdf"),
+        default=Path("papers/paperA/text/paper.pdf"),
         help="Paper PDF to inspect via pdftotext.",
     )
     parser.add_argument(

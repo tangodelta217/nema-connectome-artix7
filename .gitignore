@@ -48,6 +48,14 @@ release/*.tar.gz
 handoff*.tar.gz
 handoff*.sha256
 paper_cpu_runs/**/cpp_ref/nema_cpp_ref
+audit_out/nema_audit_bundle.tar.gz
+papers/paperA/review_pack/paperA.pdf
+papers/paperA/submission/paperA.pdf
+papers/paperA/submission/paperA_submission_bundle.tar.gz
+papers/paperA/submission/reviewer_bundle/paperA.pdf
+papers/paperA/submission/reviewer_bundle.tar.gz
+papers/paperA/text/paper.pdf
+papers/paperA_submission_bundle_boardless.tar.gz
 
 # LaTeX build intermediates
 paper.aux
