@@ -34,11 +34,15 @@ No value may be labeled as measured on board.
 
 ## Evidence Artifacts
 
+- `build/amd_power_artix7_v7_funcsaif/b1_small/activity_func.saif`
+- `build/amd_power_artix7_v7_funcsaif/b1_small/sim_compile.log`
+- `build/amd_power_artix7_v7_funcsaif/b1_small/sim_run.log`
+- `build/amd_power_artix7_v7_funcsaif/b1_small/power_saif_func.rpt`
+- `build/amd_power_artix7_v7_funcsaif/b3_varshney_exec_expanded_gap_300_5824/activity_func.saif`
+- `build/amd_power_artix7_v7_funcsaif/b3_varshney_exec_expanded_gap_300_5824/sim_compile.log`
+- `build/amd_power_artix7_v7_funcsaif/b3_varshney_exec_expanded_gap_300_5824/sim_run.log`
+- `build/amd_power_artix7_v7_funcsaif/b3_varshney_exec_expanded_gap_300_5824/power_saif_func.rpt`
 - `build/amd_power_artix7_v7_funcsaif/summary.json`
-- `build/amd_power_artix7_v7_funcsaif/<bench>/activity_func.saif`
-- `build/amd_power_artix7_v7_funcsaif/<bench>/sim_compile.log`
-- `build/amd_power_artix7_v7_funcsaif/<bench>/sim_run.log`
-- `build/amd_power_artix7_v7_funcsaif/<bench>/power_saif_func.rpt`
 - `review_pack/tables/artix7_power_v7_funcsaif.csv`
 - `review_pack/tables/artix7_power_final.csv`
 

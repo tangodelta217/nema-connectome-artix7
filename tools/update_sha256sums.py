@@ -37,7 +37,8 @@ CONTROLLED_ALLOWLIST = (
 )
 
 CONTROLLED_PREFIXES = ("paper/", "review_pack/tables/", "release/")
-LINE_RE = re.compile(r"^([0-9a-f]{64})\s{2}(.+)$")
+# Accept canonical two-space separator and tolerate legacy extra spacing.
+LINE_RE = re.compile(r"^([0-9a-f]{64})\s{2,}(.+)$")
 
 
 def _sha256(path: Path) -> str:
@@ -85,6 +86,7 @@ def _compute_controlled_entries() -> dict[str, str]:
 
 
 def _format_manifest(entries: dict[str, str]) -> str:
+    # Canonical manifest format: "<sha256><two spaces><path>" per line.
     lines = [f"{entries[rel]}  {rel}" for rel in sorted(entries)]
     return "\n".join(lines) + "\n"
 
