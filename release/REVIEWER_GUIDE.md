@@ -6,6 +6,13 @@
 sha256sum -c release/SHA256SUMS.txt
 ```
 
+Large generated paper/bundle artifacts are published as release assets:
+
+```bash
+python tools/fetch_release_assets.py --tag v0.1.0
+python tools/fetch_release_assets.py --tag v0.1.0 --check
+```
+
 ## Where to look
 
 - Gate closure rationale: `docs/GATE_STATUS.md`
@@ -18,5 +25,6 @@ sha256sum -c release/SHA256SUMS.txt
 - SAIF raw reports: `build/amd_power_artix7_v7_funcsaif/*/activity_func.saif` and `power_saif_func.rpt`
 - Canonical B3 identity: `build/handoff/B3_CANONICAL_STATUS.json`
 - Release manifest: `release/FINAL_STATUS.json`
+- External asset manifest: `release/EXTERNAL_ASSETS_SHA256SUMS.txt`
 
 - no AI-agent artifacts included

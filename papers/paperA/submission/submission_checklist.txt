@@ -10,7 +10,7 @@ PASS/FAIL section inputs complete: PASS
 
 Paths
 -----
-PDF: papers/paperA/submission/paperA.pdf
+PDF: paperA_submission.pdf (GitHub Release asset; see release/EXTERNAL_ASSETS.md)
 Build log: papers/paperA/submission/latex_build.log
 Final LaTeX log: papers/paperA/text/paper.log
 

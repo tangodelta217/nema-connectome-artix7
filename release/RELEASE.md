@@ -14,6 +14,7 @@ Keep small, reviewable metadata in git:
 - `release/DATASET_SHA256.txt`
 - `release/FINAL_STATUS.json`
 - `release/FINAL_STATUS.md`
+- `release/EXTERNAL_ASSETS_SHA256SUMS.txt`
 - benchmark manifests/tables in JSON/CSV
 
 ## Verify SHA256SUMS
@@ -37,3 +38,14 @@ Append the output to `release/SHA256SUMS.txt` and verify again.
 - **Evidence bundle**: generated outputs from expensive runs (tool logs, reports, traces, packaged artifacts) published as GitHub Release assets.
 
 This separation keeps clone size manageable while preserving reproducibility.
+
+## External Asset Retrieval
+
+For large generated Paper A artifacts stored as release assets:
+
+```bash
+python tools/fetch_release_assets.py --tag v0.1.0
+python tools/fetch_release_assets.py --tag v0.1.0 --check
+```
+
+Reference list: `release/EXTERNAL_ASSETS.md`.

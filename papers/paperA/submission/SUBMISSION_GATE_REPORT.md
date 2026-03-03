@@ -4,7 +4,7 @@
 
 | Check | Status | Evidence |
 |---|---|---|
-| PDF build | PASS | `papers/paperA/submission/paperA.pdf` |
+| PDF build | PASS | `paperA_submission.pdf` (GitHub Release asset, see `release/EXTERNAL_ASSETS.md`) |
 | Artifacts regenerated | PASS | `papers/paperA/artifacts/{tables,figures,evidence}`, `papers/paperA/artifacts/artifact_manifest.json` |
 | Software gate | PASS | `papers/paperA/submission/audit_software_final.json` (decision=GO, ok=True) |
 | Hardware gate | PASS | `papers/paperA/submission/audit_hardware_final.json` (decision=GO, ok=True) |
