@@ -8,6 +8,7 @@
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{array}
+\usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{enumitem}
 \usepackage{xcolor}
@@ -81,7 +82,7 @@ The final release closes HLS parity for both required benches. Table~\ref{tab:hl
 \begin{table}[t]
 \centering
 \small
-\input{../review_pack/tables/artix7_hls_digest_summary_strict_v2.tex}
+\resizebox{\linewidth}{!}{\input{../review_pack/tables/artix7_hls_digest_summary_strict_v2.tex}}
 \caption{Strict HLS digest parity for the required benches. B3 denotes the canonical structural benchmark \texttt{B3\_varshney\_exec\_expanded\_gap\_300\_5824}.}
 \label{tab:hls}
 \end{table}
@@ -92,7 +93,7 @@ Table~\ref{tab:qor} summarizes post-route QoR on \texttt{xc7a200tsbg484-1}. Both
 \begin{table}[t]
 \centering
 \small
-\input{../review_pack/tables/artix7_qor_v6.tex}
+\resizebox{\linewidth}{!}{\input{../review_pack/tables/artix7_qor_v6.tex}}
 \caption{Post-route QoR on Artix-7 part \texttt{xc7a200tsbg484-1}.}
 \label{tab:qor}
 \end{table}
@@ -103,7 +104,7 @@ The final release replaces the earlier synthetic clock-only activity with functi
 \begin{table}[t]
 \centering
 \small
-\input{../review_pack/tables/artix7_power_v7_funcsaif.tex}
+\resizebox{\linewidth}{!}{\input{../review_pack/tables/artix7_power_v7_funcsaif.tex}}
 \caption{SAIF-guided post-route power estimates from functional xsim simulation.}
 \label{tab:power}
 \end{table}
@@ -114,7 +115,7 @@ For B3, the release also derives cycles per tick from the HLS latency report and
 \begin{table}[t]
 \centering
 \small
-\input{../review_pack/tables/artix7_metrics_final.tex}
+\resizebox{\linewidth}{!}{\input{../review_pack/tables/artix7_metrics_final.tex}}
 \caption{Derived metrics for canonical B3 using the final SAIF-guided power selection.}
 \label{tab:metrics}
 \end{table}
