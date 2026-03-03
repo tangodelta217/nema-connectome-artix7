@@ -31,7 +31,7 @@ Determinism is enforced through explicit validation and digest-based checks:
 
 GitHub Actions CI intentionally covers software checks only:
 
-- Python matrix tests (3.10 / 3.11)
+- Python matrix tests (3.11 / 3.12)
 - `pip` dependency installation
 - `pytest -q`
 

@@ -11,7 +11,7 @@ authors:
 repository-code: "https://github.com/tangodelta217/nema-connectome-artix7"
 preferred-citation:
   type: article
-  title: "NEMA: Deterministic Toolchain for Fixed-Point Neural Micrographs (arXiv preprint placeholder)"
+  title: "Deterministic Connectome-to-Artix-7 Compilation: A Normative Bit-Exact Contract, Canonical Lowering, and Audited Pre-Board Closure"
   authors:
     - family-names: "Millañanco Fernandez"
       given-names: "Mariano"

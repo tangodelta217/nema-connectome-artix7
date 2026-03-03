@@ -1,6 +1,7 @@
-# NEMA Specification v0.1 (Draft Normative)
+# NEMA Specification v0.1 (Normative)
 
-This document is a **draft normative specification** for the current NEMA v0.1 implementation in this repository.
+This document is the **normative specification** for NEMA v0.1 in this repository.
+Versioned updates must be introduced as explicit spec revisions (for example v0.2), not silent drift.
 
 Normative artifacts:
 - `./spec.md` (this file)
@@ -194,7 +195,7 @@ Stage G0 is considered complete only if all are true:
 4. B1 benchmark:
    - golden and C++ reference digests exist and match
    - bench report exists and marks correctness pass
-5. B3 benchmark:
+5. B3\_kernel\_302\_7500 benchmark (G0):
    - same conditions as B1 for target config `302/7500`
 6. when HW toolchain is available:
    - include csim/cosim/synthesis report artifacts in benchmark output
