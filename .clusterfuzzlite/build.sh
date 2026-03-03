@@ -2,7 +2,8 @@
 
 # Ensure runtime dependencies for python fuzz targets are available.
 python3 -m pip install --no-cache-dir atheris
-python3 -m pip install --no-cache-dir -e "$SRC"
+# Install project package in non-editable mode so PyInstaller bundles it.
+python3 -m pip install --no-cache-dir "$SRC"
 
 # Use the canonical OSS-Fuzz/ClusterFuzzLite python packaging helper so
 # run_fuzzers can execute packaged targets with dependencies.
