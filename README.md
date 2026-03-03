@@ -115,10 +115,16 @@ Benchmark identities used in this release:
 
 ### Verify Evidence (hash + paper alignment, no HW rerun)
 
-Use this path when you want deterministic evidence verification from versioned artifacts:
+Use this path when you want deterministic evidence verification from versioned artifacts.
+`sha256sum -c release/SHA256SUMS.txt` requires large artifacts referenced by the manifest
+(`build/*`, `release/*.tar.gz`, etc.) to be present locally (for example, extracted from the
+evidence bundle or downloaded from GitHub Releases).
 
 ```bash
+# Full evidence hash verification (requires large artifacts present locally):
 sha256sum -c release/SHA256SUMS.txt
+
+# In-repo checks (work without downloading heavy release assets):
 python tools/check_release_integrity.py
 python tools/verify_paper_inputs.py
 
@@ -174,7 +180,8 @@ nema bench verify benches/B1_small/manifest.json --hw require
 
 - Repository: `https://github.com/tangodelta217/nema-connectome-artix7`
 - Releases: `https://github.com/tangodelta217/nema-connectome-artix7/releases`
-- v0.1.0 paper asset (release): `https://github.com/tangodelta217/nema-connectome-artix7/releases/download/v0.1.0/paper.pdf`
+- Canonical paper source: `paper/paper.tex`
+- Local paper build/validation: `make arxiv-pdflatex-2pass`
 - Binary/generated Paper A assets: `release/EXTERNAL_ASSETS.md`
 
 Large generated evidence bundles belong in GitHub Releases assets, not git history.

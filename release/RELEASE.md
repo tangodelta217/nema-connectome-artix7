@@ -19,9 +19,20 @@ Keep small, reviewable metadata in git:
 
 ## Verify SHA256SUMS
 
+Before running `sha256sum -c`, make sure large generated artifacts referenced by
+`release/SHA256SUMS.txt` are present locally (for example by downloading/extracting
+the evidence bundle from GitHub Releases).
+
 ```bash
 sha256sum -c release/SHA256SUMS.txt
 python tools/check_release_integrity.py
+```
+
+If release assets are hosted externally, fetch them first:
+
+```bash
+python tools/fetch_release_assets.py --tag v0.1.0
+python tools/fetch_release_assets.py --tag v0.1.0 --check
 ```
 
 To hash a new bundle before publishing:
