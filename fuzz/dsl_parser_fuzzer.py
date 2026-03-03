@@ -7,8 +7,7 @@ import sys
 
 import atheris
 
-with atheris.instrument_imports():
-    from nema.dsl.parser import parse
+from nema.dsl.parser import parse
 
 
 def TestOneInput(data: bytes) -> None:
